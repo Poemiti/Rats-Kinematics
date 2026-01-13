@@ -32,9 +32,6 @@
 -- 
 ```
 
-## Dataset in Photron_Video
-
-
 ## Pipeline : 
 
  - extract videos  

@@ -1,4 +1,6 @@
 # cache
 */__pycache__/*
 
-/data
+data/
+exploration/figures/
+exploration/clip_video_test/

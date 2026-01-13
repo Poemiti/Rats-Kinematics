@@ -14,7 +14,6 @@ def extract_frames(input_path: Path, output_path: Path, duration: float, FPS: in
 
     folder_count = 0
     frame_count = 0
-    output_path = output_path / input_path.stem
 
     print("\nFrame extraction in progress...")
     print(f"Video FPS = {FPS} | Frames per clip = {frames_per_clip}")
@@ -24,7 +23,7 @@ def extract_frames(input_path: Path, output_path: Path, duration: float, FPS: in
         if not success:
             break
 
-        clip_dir = output_path / f"clip_{folder_count:02d}"
+        clip_dir = output_path / input_path.stem / f"clip_{folder_count:02d}"
         clip_dir.mkdir(parents=True, exist_ok=True)
 
         cv2.imwrite(str(clip_dir / f"frame_{frame_count:03d}.png"), frame)
@@ -33,8 +32,8 @@ def extract_frames(input_path: Path, output_path: Path, duration: float, FPS: in
         if frame_count >= frames_per_clip:
             frame_count = 0
             folder_count += 1
-            print(f"Frames saved in {clip_dir}!")
-            break
+            print(f"Frames saved in {clip_dir} !")
+            break  # break for now to get just one clip #### TO CHANGE
 
     video.release()
 
@@ -69,14 +68,16 @@ def get_video_properties(video_path: Path, CLIP_DURATION: float, FPS: int = 125)
     return metadata
 
 
-def frames_to_video(frames_dir: Path, output_video: Path, FPS: float) -> None:
+def frames_to_video(frames_dir: Path, output_video_path: Path, FPS: float) -> None:
     """
     Converts a folder of frames to a video file.
     """
     print("\nConverting frames to video...")
+    output_video_path.mkdir(exist_ok=True)
 
     frame_paths = sorted(frames_dir.glob("frame_*.png"))
     if not frame_paths:
+        print(type(frame_path))
         raise RuntimeError(f"No frames found in {frames_dir}")
 
     first_frame = cv2.imread(str(frame_paths[0]))
@@ -85,7 +86,7 @@ def frames_to_video(frames_dir: Path, output_video: Path, FPS: float) -> None:
 
     height, width, _ = first_frame.shape
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    writer = cv2.VideoWriter(str(output_video), fourcc, FPS, (width, height))
+    writer = cv2.VideoWriter(str(output_video_path / "clip_00.mp4"), fourcc, FPS, (width, height))  ### CHANGE CLIP NAME
 
     for frame_path in frame_paths:
         frame = cv2.imread(str(frame_path))
@@ -94,7 +95,8 @@ def frames_to_video(frames_dir: Path, output_video: Path, FPS: float) -> None:
         writer.write(frame)
 
     writer.release()
-    print(f"Video saved to {output_video}, duration: {len(frame_paths)/FPS:.2f} s")
+    print(f"Video saved to {output_video_path}, duration: {len(frame_paths)/FPS:.2f} s")
+
 
 
 def split_video(input_path: Path, output_path: Path,
@@ -173,9 +175,17 @@ def run_ffmpeg(ffmpeg_args: list[str]) -> None :
 if __name__ == "__main__":
     # ---------------------------------------------- setup path -------------------------------------------------
 
-    OUTPUT_DATA_DIR = Path("../data")
+    GENERATED_DATA_DIR = Path("../data")
+    GENERATED_FRAMES_DIR = GENERATED_DATA_DIR / "frames" 
+    GENERATED_VIDEOS_DIR = GENERATED_DATA_DIR / "direct_clips"
+    GENERATED_FRAME2VIDEOS_DIR = GENERATED_DATA_DIR / "frame_to_clips"
     INPUT_VIDEO_DIR = Path("/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024")
-    DATABASE_PATH = Path("../exploration/no_KO_video_list.csv")
+    DATABASE_PATH = "../exploration/no_KO_video_list.csv"
+
+    GENERATED_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    GENERATED_FRAMES_DIR.mkdir(exist_ok=True)
+    GENERATED_VIDEOS_DIR.mkdir(exist_ok=True)
+    GENERATED_FRAME2VIDEOS_DIR.mkdir(exist_ok=True)
 
     # ---------------------------------------------- setup constant -------------------------------------------------
 
@@ -190,17 +200,17 @@ if __name__ == "__main__":
     metadata = get_video_properties(VIDEO_EXEMPLE, CLIP_DURATION, FPS)
     print("\nMetadata :")
     for key, val in metadata.items() : 
-        print(f"{key}       : {val}")
+        print(f"{key} : {val}")
 
     # ------------------------------------ method 1 :  extract frames + video convertion -------------------------------------------------
 
     start_time = time.perf_counter()
-    extract_frames(VIDEO_EXEMPLE, OUTPUT_DATA_DIR, CLIP_DURATION, FPS)
+    extract_frames(VIDEO_EXEMPLE, GENERATED_FRAMES_DIR, CLIP_DURATION, FPS)
     end_time = time.perf_counter()
 
-    # Convert frames back to video
-    frames_dir = OUTPUT_DATA_DIR / VIDEO_EXEMPLE.stem / "clip_00"
-    output_video_path = Path("./output_3sec_125FPS.mp4")
+    # Convert frames OF CLIP_00 ONLY back to video
+    frames_dir = GENERATED_FRAMES_DIR / VIDEO_EXEMPLE.stem / "clip_00"
+    output_video_path = GENERATED_FRAME2VIDEOS_DIR / VIDEO_EXEMPLE.stem 
 
     vid_start = time.perf_counter()
     frames_to_video(frames_dir, output_video_path, FPS)
@@ -208,7 +218,7 @@ if __name__ == "__main__":
 
     # -----------------------------------  method 2 :  directly split video  -------------------------------------------------
 
-    output_clips_path = Path("./clips")
+    output_clips_path = GENERATED_VIDEOS_DIR / VIDEO_EXEMPLE.stem
     split_start = time.perf_counter()
     split_video(VIDEO_EXEMPLE, output_clips_path, CLIP_DURATION, FPS, CRF)
     split_end = time.perf_counter()
