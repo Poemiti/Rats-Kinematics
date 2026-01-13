@@ -1,0 +1,33 @@
+### installation line : 
+### pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
+
+# Core DeepLabCut
+deeplabcut==3.0.0rc9
+
+# PyTorch with CUDA 11.8 for GTX 1050
+torch==2.1.2+cu118
+torchvision==0.16.2+cu118
+torchaudio==2.1.2+cu118
+
+# Common dependencies
+numpy>=1.18.5,<2.0
+matplotlib>=3.3,<3.9,!=3.7.0,!=3.7.1
+scipy>=1.5
+pandas>=1.1.5
+scikit-learn>=0.24.2
+scikit-image>=0.18.3
+opencv-python<4.9
+
+# For GUI / video display in DeepLabCut
+PyQt5>=5.15
+imageio>=2.9.0
+tqdm>=4.50
+
+# For ResNet / timm backbone
+timm>=0.9.0,<0.10
+
+# Optional but often useful
+pydantic<2
+tables>=3.7.0
+
+
