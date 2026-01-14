@@ -308,8 +308,7 @@ if __name__ == "__main__":
     # inputs (they should already exist)
     GENERATED_DATA_DIR = Path("../data")
     MODEL_PATH = Path("/media/filer2/T4b/Models/DLC/REJANE_rat_right_model-2025-06-18/DLC-project-2025-06-18")
-    GENERATED_VIDEOS_DIR = GENERATED_DATA_DIR / "direct_clips"
-    INPUT_VIDEO_PATH = GENERATED_VIDEOS_DIR / VIDEO_EXEMPLE.stem / "clip_00.mp4"
+    INPUT_VIDEO_PATH = GENERATED_DATA_DIR / "direct_clips" / VIDEO_EXEMPLE.stem / "clip_00.mp4"
 
     # outputs
     OUTPUT_H5_PATH = GENERATED_DATA_DIR / "dlc_results" / VIDEO_EXEMPLE.stem 
