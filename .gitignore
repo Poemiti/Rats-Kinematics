@@ -4,3 +4,7 @@
 data/
 exploration/figures/
 exploration/clip_video_test/
+
+*.csv 
+*.h5
+*.png
