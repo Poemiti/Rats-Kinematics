@@ -1,7 +1,7 @@
 ## Folder sytem
 
 ```
--- data/
+-- data/                            # all the generated data from scripts of src/
     |
     | -- csv_results/               # results from the dlc model prediction
     | -- dlc_results/
@@ -14,7 +14,7 @@
     | -- video_annotation/          # clip + point annotation on top
 
 
--- exploration/
+-- exploration/                     # jupyter notebook to explore / test things
     |
     | -- figures/                   # generated figures from the notebooks
     | -- clip_video_test/           # generated videos from the src/split_video_by_trial.py
@@ -22,10 +22,10 @@
     | led_recon.ipynb               # test on led recognition (automatic)
     | video_sorting.ipynb           # exploration of the videos and the expermimental condition
     |
-    | video_list_sorted.csv         # output of video_sorting.png
+    | video_list_sorted.csv         # output of video_sorting.py
     | no_KO_video_list.csv
 
--- src/
+-- src/                             # "official" scripts
     |
     | -- clips/                     # generated videos from split_by_trial.py
     |
@@ -55,7 +55,7 @@
 - LED 5 : REWARD, validation de la tâche correcte, entraînant une récompense.  
 
 
-## Perfomence prediction
+## Perfomance prediction
 
 **some numbers :**  
 Total number of raw video (Raphael ones, without KO rats) : 644  
@@ -68,4 +68,35 @@ Expected Total number of clips                            :  27692
 | splitting         | 37.32 sec (1 raw video) | 6.68 h                     | split_video             |
 | point prediction  | 30.74 sec (1 clip)      | 236.47 h                   | dlc_predict_Rejane      |
 | video annotation  | 0.79 sec  (1 clip)      | 6.05 h                     | annotate_video_from_csv |
+
+
+## Function available
+in src/
+  
+`split_video_by_trial.py ` : function to split video into clips of a certain duration  
+  
+| Function name          | Output                         |
+| ---------------------- | ------------------------------ |
+| `extract_frames`       | Collection of `frame.png`      |
+| `frames_to_video`      | One `clip.mp4`                 |
+| `split_video`          | Collection of `clip.mp4`       |
+| `get_video_properties` | Dictionary of video properties |
+  
+`split_video_by_trial.py` : function to split video into clips of a certain duration  
+  
+| Function name             | Output                      |
+| ------------------------- | --------------------------- |
+| `dlc_predict_Rejane`      | `results.h5`, `results.csv` |
+| `move_outputs`            | `results.h5`, `results.csv` |
+| `cleanup_temp_directory`  | `None`                      |
+| `dlc_predict_Julien`      | `results.h5`, `results.csv` |
+| `annotate_video`          | `annotated_clip.mp4`        |
+| `annotate_video_from_csv` | `annotated_clip.mp4`        |
+  
+`trajectory_analysis.py` : analysis function  
+  
+| Function name                 | Output                            |
+| ----------------------------- | --------------------------------- |
+| `plot_bodyparts_trajectories` | `plt.show()`                      |
+| `get_luminosity`              | `xarray` of luminosity properties |
 
