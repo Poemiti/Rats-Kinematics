@@ -88,7 +88,7 @@ in src/
 | ------------------------- | --------------------------- |
 | `dlc_predict_Rejane`      | `results.h5`, `results.csv` |
 | `move_outputs`            | `results.h5`, `results.csv` |
-| `cleanup_temp_directory`  | `None`                      |
+| `cleanup_temp_directory`  | Nothing                     |
 | `dlc_predict_Julien`      | `results.h5`, `results.csv` |
 | `annotate_video`          | `annotated_clip.mp4`        |
 | `annotate_video_from_csv` | `annotated_clip.mp4`        |
