@@ -58,9 +58,9 @@
 ## Perfomence prediction
 
 **some numbers :**
-Total number of raw video (Raphael ones, without KO rats) : 644
-Average number of clips/raw video                         : 43
-Expected Total number of clips                            :  27692
+Total number of raw video (Raphael ones, without KO rats) : 644  
+Average number of clips/raw video                         : 43  
+Expected Total number of clips                            :  27692  
 
 
 | task              | time (only 1)           | total time (all raw video) | python function         |
