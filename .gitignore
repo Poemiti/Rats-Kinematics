@@ -8,3 +8,6 @@ exploration/clip_video_test/
 *.csv 
 *.h5
 *.png
+
+note.txt
+old_course/
