@@ -57,7 +57,7 @@
 
 ## Perfomence prediction
 
-**some numbers :**
+**some numbers :**  
 Total number of raw video (Raphael ones, without KO rats) : 644  
 Average number of clips/raw video                         : 43  
 Expected Total number of clips                            :  27692  
