@@ -5,18 +5,23 @@ import time
 import subprocess
 import cv2
 
-def extract_frames(input_path: Path, output_path: Path, duration: float, FPS: int = 125) -> None:
+def extract_frames(input_path: Path, output_path: Path, duration: float, fps: int = None) -> None:
     """
     From one video, makes clips of a certain duration (in seconds) and saves frames in folders.
     """
+    if fps is None : 
+        metadata = get_video_properties(input_path, duration)
+        fps = metadata["fps"]
+
     video = cv2.VideoCapture(str(input_path))
-    frames_per_clip = int(round(FPS * duration))
+    frames_per_clip = int(round(fps * duration))
 
     folder_count = 0
     frame_count = 0
 
+
     print("\nFrame extraction in progress...")
-    print(f"Video FPS = {FPS} | Frames per clip = {frames_per_clip}")
+    print(f"Video FPS = {fps} | Frames per clip = {frames_per_clip}")
 
     while True:
         success, frame = video.read()
@@ -38,7 +43,7 @@ def extract_frames(input_path: Path, output_path: Path, duration: float, FPS: in
     video.release()
 
 
-def get_video_properties(video_path: Path, CLIP_DURATION: float, FPS: int = 125) -> dict:
+def get_video_properties(video_path: Path, CLIP_DURATION: float = 12.5, fps = None) -> dict:
     """
     Returns video metadata as a dictionary.
     """
@@ -46,18 +51,20 @@ def get_video_properties(video_path: Path, CLIP_DURATION: float, FPS: int = 125)
     if not cap.isOpened():
         raise RuntimeError(f"Cannot open video: {video_path}")
 
+    if fps is None : 
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    duration_sec = frame_count / FPS if FPS > 0 else 0
+    duration_sec = frame_count / fps if fps > 0 else 0
 
-    frames_per_clip = int(FPS * CLIP_DURATION)
+    frames_per_clip = int(fps * CLIP_DURATION)
     n_clips = frame_count // frames_per_clip
 
     metadata = {
         "video_path": video_path,
         "resolution": (width, height),
-        "FPS": FPS,
+        "fps": fps,
         "frame_count": frame_count,
         "duration_sec": duration_sec,  # seconds
         "frames_per_clip": frames_per_clip,
@@ -68,7 +75,7 @@ def get_video_properties(video_path: Path, CLIP_DURATION: float, FPS: int = 125)
     return metadata
 
 
-def frames_to_video(frames_dir: Path, output_video_path: Path, FPS: float) -> None:
+def frames_to_video(frames_dir: Path, output_video_path: Path, fps: float = 30) -> None:
     """
     Converts a folder of frames to a video file.
     """
@@ -86,7 +93,7 @@ def frames_to_video(frames_dir: Path, output_video_path: Path, FPS: float) -> No
 
     height, width, _ = first_frame.shape
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    writer = cv2.VideoWriter(str(output_video_path / "clip_00.mp4"), fourcc, FPS, (width, height))  ### CHANGE CLIP NAME
+    writer = cv2.VideoWriter(str(output_video_path / "clip_00.mp4"), fourcc, fps, (width, height))  ### CHANGE CLIP NAME
 
     for frame_path in frame_paths:
         frame = cv2.imread(str(frame_path))
@@ -95,34 +102,35 @@ def frames_to_video(frames_dir: Path, output_video_path: Path, FPS: float) -> No
         writer.write(frame)
 
     writer.release()
-    print(f"Video saved to {output_video_path}, duration: {len(frame_paths)/FPS:.2f} s")
+    print(f"Video saved to {output_video_path}, duration: {len(frame_paths)/fps:.2f} s")
 
 
 
 def split_video(input_path: Path, output_path: Path,
                 CLIP_DURATION: float = 3,
-                FPS: int = 125,
+                FPS: int = None,
                 CRF: int = 23) -> None:
 
     output_path.mkdir(parents=True, exist_ok=True)
     fixed_video_path = output_path / "fixed_125fps.mp4"
 
-    print("\nSplitting video in one go ...\n")
+    print("\nSplitting video in one go ...")
 
-    # ------------------ STEP 1: reinterpret frames as 125 fps + compression
-
+    # ------------------ STEP 1: reinterpret frames as N fps + compression
+    print("\nCompressing video ...\n")
     ffmpeg_args = [
         "ffmpeg",
-        "-y",
+        "-y"]
 
-        "-r", str(FPS),
+    if FPS : 
+        ffmpeg_args += ["-r", str(FPS)]
+
+    ffmpeg_args += [
         "-i", str(input_path),
-
         "-c:v", "libx264",
         "-crf", str(CRF),
         "-pix_fmt", "yuv420p",
         "-vsync", "cfr",
-
         str(fixed_video_path)
     ]
     run_ffmpeg(ffmpeg_args)
@@ -130,16 +138,18 @@ def split_video(input_path: Path, output_path: Path,
     # Re-probe FIXED video
     metadata = get_video_properties(fixed_video_path, CLIP_DURATION)
     total_duration = metadata["duration_sec"]
+    if FPS is None : 
+        FPS = metadata["fps"]
 
-    print(f"\nCRF : {CRF} | Video FPS : {FPS} | Duration : {total_duration:.2f} sec")
-    print(f"Number of output clips : {round(total_duration / CLIP_DURATION)}\n")
+    print(f"\nCRF : {CRF} | Video FPS : {FPS} | Video Duration : {total_duration:.2f} sec")
+    print(f"Clip duration : {CLIP_DURATION}  |  Number of output clips : {round(total_duration / CLIP_DURATION)}\n")
 
-    # ------------------ STEP 2: split (NO re-encode)
+    # ------------------ STEP 2: split normaly (NO re-encode)
 
     start_time = 0.0
     i = 0
     while start_time < total_duration:
-        print(f"\n### CLIPPING AT {start_time:.2f} sec, clip N°{i}\n")
+        print(f"\n# Clipping video from {start_time:.2f} - {start_time+CLIP_DURATION}, clip N°{i}\n")
 
         ffmpeg_args = [
             "ffmpeg",
@@ -161,7 +171,6 @@ def split_video(input_path: Path, output_path: Path,
     # ------------------ STEP 3: cleanup
 
     fixed_video_path.unlink()
-
 
 
 
@@ -191,21 +200,22 @@ if __name__ == "__main__":
 
     DATABASE = pd.read_csv(DATABASE_PATH)
     VIDEO_EXEMPLE = Path(DATABASE.iloc[0]["filename"])
-    CLIP_DURATION = 3  # seconds
-    FPS = 125
-    CRF = 28
+    CLIP_DURATION = 12.5  # sec,  3 sec if fps=125, 12.5 sec if fps=30  (1 trial = 375 frames)
+    FPS = 30   # used if you want to set the fps for the outputs clip
+    CRF = 28    # compression value (if compression is needed)
 
     # ------------------------------------------- get metadata (cv2) -------------------------------------------------
 
-    metadata = get_video_properties(VIDEO_EXEMPLE, CLIP_DURATION, FPS)
-    print("\nMetadata :")
+    metadata = get_video_properties(VIDEO_EXEMPLE, CLIP_DURATION)
+    print("\nRaw Video Metadata :")
     for key, val in metadata.items() : 
-        print(f"{key} : {val}")
+        print(f"  {key} : {val}")
+
 
     # ------------------------------------ method 1 :  extract frames + video convertion -------------------------------------------------
 
     start_time = time.perf_counter()
-    extract_frames(VIDEO_EXEMPLE, GENERATED_FRAMES_DIR, CLIP_DURATION, FPS)
+    extract_frames(VIDEO_EXEMPLE, GENERATED_FRAMES_DIR, CLIP_DURATION)
     end_time = time.perf_counter()
 
     # Convert frames OF CLIP_00 ONLY back to video
@@ -220,8 +230,14 @@ if __name__ == "__main__":
 
     output_clips_path = GENERATED_VIDEOS_DIR / VIDEO_EXEMPLE.stem
     split_start = time.perf_counter()
-    split_video(VIDEO_EXEMPLE, output_clips_path, CLIP_DURATION, FPS, CRF)
+    split_video(VIDEO_EXEMPLE, output_clips_path, CLIP_DURATION, FPS=None ,CRF=CRF)
     split_end = time.perf_counter()
+
+
+    print("\nClip metadata")
+    meta = get_video_properties(GENERATED_VIDEOS_DIR / VIDEO_EXEMPLE.stem / "clip_00.mp4", CLIP_DURATION)
+    for key, val in meta.items() : 
+        print(f"  {key} : {val}")
 
     # -----------------------------------  Display perfomance -------------------------------------------------
 
@@ -250,62 +266,6 @@ if __name__ == "__main__":
     print()
     print(f"  Total Time for direct video splitting : {total_time_video_splitting:.2f} h ")
 
-    # Performance:
-    #   Frame extraction time         : 3.28 sec
-    #   Video creation time           : 1.88 sec
-    #   Direct video splitting time   : 340.73 sec
-
-    # OVERALL TIME PERFOMANCE PREDICTION :
-    #   Clip/trial duration                   : 3 sec
-    #   Number of frame per clip              : 375
-    #   Average expected nb of clip/video     : 43
-    #   Number of raw video                   : 644
-    #   Total number of clip                  : 27692
-
-    #   Total Time for frame extraction       : 25.21 h
-    #   Total Time for video making           : 14.47 h 
-
-    #   Total Time for direct video splitting : 60.95 h !!!!!!!!
-
-    #########################################################################
-    #### with compression : CRF = 25, thread = 5
-    #########################################################################
-    # Performance:
-    #   Frame extraction time         : 3.24 sec
-    #   Video creation time           : 1.89 sec
-    #   Direct video splitting time   : 340.15 sec
-
-    # OVERALL TIME PERFOMANCE PREDICTION :
-    #   Clip/trial duration                   : 3 sec
-    #   Number of frame per clip              : 375
-    #   Average expected nb of clip/video     : 43
-    #   Number of raw video                   : 644
-    #   Total number of clip                  : 27692
-
-    #   Total Time for frame extraction       : 24.93 h
-    #   Total Time for video making           : 14.57 h 
-
-    #   Total Time for direct video splitting : 60.85 h
-
-    #########################################################################
-    #### with compression : CRF = 45, no thread specified (default seems to be 12)
-    #########################################################################
-    # Performance:
-    #   Frame extraction time         : 3.21 sec
-    #   Video creation time           : 1.88 sec
-    #   Direct video splitting time   : 340.64 sec
-
-    # OVERALL TIME PERFOMANCE PREDICTION :
-    #   Clip/trial duration                   : 3 sec
-    #   Number of frame per clip              : 375
-    #   Average expected nb of clip/video     : 43
-    #   Number of raw video                   : 644
-    #   Total number of clip                  : 27692
-
-    #   Total Time for frame extraction       : 24.71 h
-    #   Total Time for video making           : 14.46 h 
-
-    #   Total Time for direct video splitting : 60.94 h 
 
     #########################################################################
     #### with compression : CRF = 28, 2 STEP PROCESS : 1 fixed video and then splitting
@@ -327,3 +287,30 @@ if __name__ == "__main__":
     #   Total Time for video making           : 14.75 h 
 
     #   Total Time for direct video splitting : 6.68 h !!!!!!
+
+
+    #####################################################
+    # NO FPS CHANGED : clip_00 metadata : 
+
+    # Raw Video Metadata :
+    #   video_path : /media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024/#516/02072024/Rat_#516Ambidexter_20240702_BetaMT300_LeftHemiCHR_onlyL1LeftHand_C001H001S0001/Rat_#516Ambidexter_20240702_BetaMT300_LeftHemiCHR_onlyL1LeftHand_C001H001S0001.avi
+    #   resolution : (512, 512)
+    #   fps : 30
+    #   frame_count : 16380
+    #   duration_sec : 131.04
+    #   frames_per_clip : 1562
+    #   expected_clips : 10
+
+    # clip metadata :
+    #   video_path : ../data/direct_clips/Rat_#516Ambidexter_20240702_BetaMT300_LeftHemiCHR_onlyL1LeftHand_C001H001S0001/clip_00.mp4
+    #   resolution : (512, 512)
+    #   fps : 30
+    #   frame_count : 377
+    #   duration_sec : 3.016
+    #   frames_per_clip : 1562
+    #   expected_clips : 0
+
+
+    #####################################################
+    # FPS CHANGED = 125 fps : clip_00 metadata : 
+

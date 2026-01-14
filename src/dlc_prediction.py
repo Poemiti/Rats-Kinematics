@@ -7,7 +7,7 @@ import pandas as pd
 
 from deeplabcut.pose_estimation_pytorch import set_load_weights_only
 
-def run_deeplabcut_analysis(
+def dlc_predict_Rejane(
     model_path: Path,
     input_video_path: Path,
     temporary_path: Path,
@@ -29,32 +29,6 @@ def run_deeplabcut_analysis(
 
     return analysis_output_path
 
-
-
-def dlc_predict(model_path: Path, video_path: Path) -> xr.DataArray:
-    import deeplabcut, tempfile
-
-    with tempfile.TemporaryDirectory() as dlc_dest:
-        print(dlc_dest)
-        deeplabcut.analyze_videos(
-            f'{model_path}/config.yaml',
-            [str(video_path)],
-            save_as_csv=False,
-            # gputouse=0,
-            destfolder=dlc_dest
-        )
-
-        h5_file = next(Path(dlc_dest).glob("*.h5"), None)
-        df = pd.read_hdf(h5_file)
-
-    df.index.name="frame_num"
-    res =  df.stack("scorer").stack("bodyparts").stack("coords").to_xarray()
-
-    if res.sizes["scorer"] !=1:
-        raise Exception(f"Multiple scorers not supported, got {res.sizes['scorer']}")
-    res = res.isel(scorer=0, drop=True)
-
-    return res
 
 
 def move_outputs(
@@ -80,6 +54,7 @@ def move_outputs(
         shutil.move(str(csv_file), str(output_csv_path))
 
 
+
 def cleanup_temp_directory(analysis_output_path: Path):
     """
     Remove the temporary analysis directory.
@@ -89,7 +64,33 @@ def cleanup_temp_directory(analysis_output_path: Path):
 
 
 
-def annotate_video(video_path: Path, output_path: Path, pose: xr.DataArray, radius=5):
+def dlc_predict_Julien(model_path: Path, video_path: Path) -> xr.DataArray:
+    import deeplabcut, tempfile
+
+    with tempfile.TemporaryDirectory() as dlc_dest:
+        print(dlc_dest)
+        deeplabcut.analyze_videos(
+            f'{model_path}/config.yaml',
+            [str(video_path)],
+            save_as_csv=False,
+            # gputouse=0,
+            destfolder=dlc_dest
+        )
+
+        h5_file = next(Path(dlc_dest).glob("*.h5"), None)
+        df = pd.read_hdf(h5_file)
+
+    df.index.name="frame_num"
+    res =  df.stack("scorer").stack("bodyparts").stack("coords").to_xarray()
+
+    if res.sizes["scorer"] !=1:
+        raise Exception(f"Multiple scorers not supported, got {res.sizes['scorer']}")
+    res = res.isel(scorer=0, drop=True)
+
+    return res
+
+
+def annotate_video(video_path: Path, output_path: Path, pose: xr.DataArray, radius=5, likelihood_threshold: int = 0.5):
     import cv2
     import numpy as np
     import xarray as xr
@@ -149,7 +150,7 @@ def annotate_video(video_path: Path, output_path: Path, pose: xr.DataArray, radi
     p = pose.sel(coords="likelihood").transpose("frame_num", "bodyparts").to_numpy()
 
     @numba.njit
-    def stamp_circles(frame, xs, ys, ps, coords_list, colors, threshold=0.1):
+    def stamp_circles(frame, xs, ys, ps, coords_list, colors, threshold= likelihood_threshold):
         num_bodyparts = xs.shape[0]
         frame_h, frame_w, _ = frame.shape
 
@@ -189,24 +190,21 @@ def annotate_video(video_path: Path, output_path: Path, pose: xr.DataArray, radi
 
 
 
-
 def annotate_video_from_csv(video_path: Path, csv_path: Path, output_path: Path, radius=5, likelihood_threshold=0.8, ):
     import cv2
     import numpy as np
-    # import xarray as xr
     import matplotlib.cm as cm
     import numba
 
     
-    # -------------------------
-    # Load DLC CSV
-    # -------------------------
+    # Load CSV
     df = pd.read_csv(csv_path, header=[0, 1, 2])
 
-    # Drop scorer level → (bodypart, coord)
+    # Drop scorer level to get only (bodypart, coord)
     df.columns = df.columns.droplevel(0)
 
-    bodyparts = df.columns.get_level_values(0).unique()
+    bodyparts = list(df.columns.get_level_values(0).unique())
+    bodyparts.remove("bodyparts")
     num_bodyparts = len(bodyparts)
     num_frames = len(df)
 
@@ -219,9 +217,7 @@ def annotate_video_from_csv(video_path: Path, csv_path: Path, output_path: Path,
     x[np.isnan(x)] = -radius - 1
     y[np.isnan(y)] = -radius - 1
 
-    # -------------------------
     # Video IO
-    # -------------------------
     cap = cv2.VideoCapture(str(video_path))
     fps = int(cap.get(cv2.CAP_PROP_FPS))
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -254,18 +250,18 @@ def annotate_video_from_csv(video_path: Path, csv_path: Path, output_path: Path,
 
     circle_coords = [circle_offsets(radius) for _ in range(num_bodyparts)]
 
-    # -------------------------
     # Fast stamping
-    # -------------------------
     @numba.njit
     def stamp_circles(frame, xs, ys, ps, coords_list, colors, threshold):
-        h, w, _ = frame.shape
+        frame_h, frame_w, _ = frame.shape
 
         for bp in range(xs.shape[0]):
             if ps[bp] < threshold:
                 continue
 
-            cx, cy = xs[bp], ys[bp]
+            cx = xs[bp]
+            cy = ys[bp]
+
             if cx < 0 or cy < 0:
                 continue
 
@@ -276,7 +272,7 @@ def annotate_video_from_csv(video_path: Path, csv_path: Path, output_path: Path,
                 xi = cx + coords[k, 0]
                 yi = cy + coords[k, 1]
 
-                if 0 <= xi < w and 0 <= yi < h:
+                if 0 <= xi < frame_w and 0 <= yi < frame_h:
                     frame[yi, xi, 0] = color[0]
                     frame[yi, xi, 1] = color[1]
                     frame[yi, xi, 2] = color[2]
@@ -311,7 +307,7 @@ if __name__ == "__main__":
 
     # inputs (they should already exist)
     GENERATED_DATA_DIR = Path("../data")
-    MODEL_PATH = Path("/media/filer2/T4b/Models/DLC/DLC-Project-2025-03-13/")
+    MODEL_PATH = Path("/media/filer2/T4b/Models/DLC/REJANE_rat_right_model-2025-06-18/DLC-project-2025-06-18")
     GENERATED_VIDEOS_DIR = GENERATED_DATA_DIR / "direct_clips"
     INPUT_VIDEO_PATH = GENERATED_VIDEOS_DIR / VIDEO_EXEMPLE.stem / "clip_00.mp4"
 
@@ -323,11 +319,10 @@ if __name__ == "__main__":
     # Temporary directory
     TEMPORARY_PATH = Path("../data/temporary")
 
-    OUTPUT_H5_PATH.parent.mkdir(exist_ok=True)
-    OUTPUT_CSV_PATH.parent.mkdir(exist_ok=True)
-    OUTPUT_VIDEO_PATH.parent.mkdir(exist_ok=True)
-    TEMPORARY_PATH.mkdir(exist_ok=True)
-
+    OUTPUT_H5_PATH.mkdir(parents=True, exist_ok=True)
+    OUTPUT_CSV_PATH.mkdir(parents=True, exist_ok=True)
+    OUTPUT_VIDEO_PATH.mkdir(parents=True, exist_ok=True)
+    TEMPORARY_PATH.mkdir(parents=True, exist_ok=True)
     
     # -------------------------------------- make prediction : Rejane version ------------------------------------
     
@@ -335,11 +330,11 @@ if __name__ == "__main__":
 
     Rej_start = time.perf_counter()
 
-    analysis_output_path = run_deeplabcut_analysis(MODEL_PATH, INPUT_VIDEO_PATH,
+    analysis_output_path = dlc_predict_Rejane(MODEL_PATH, INPUT_VIDEO_PATH,
                                                    TEMPORARY_PATH, save_as_csv=True,)
     move_outputs(analysis_output_path, 
-                 OUTPUT_H5_PATH , #/ f"pred_results_{INPUT_VIDEO_PATH.stem}.h5", 
-                 OUTPUT_CSV_PATH) #/ f"pred_results_{INPUT_VIDEO_PATH.stem}.csv")
+                 OUTPUT_H5_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.h5",    # pred_results_clip_00.h5
+                 OUTPUT_CSV_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.csv")  # pred_results_clip_00.csv
     cleanup_temp_directory(analysis_output_path)
 
     Rej_end = time.perf_counter()
@@ -350,7 +345,7 @@ if __name__ == "__main__":
 
     Jul_start = time.perf_counter()
 
-    dlc_points_xr = dlc_predict(MODEL_PATH, INPUT_VIDEO_PATH)
+    dlc_points_xr = dlc_predict_Julien(MODEL_PATH, INPUT_VIDEO_PATH)
 
     Jul_end = time.perf_counter()
 
@@ -362,36 +357,58 @@ if __name__ == "__main__":
     anot_start = time.perf_counter()
 
     annotate_video(INPUT_VIDEO_PATH, 
-                   OUTPUT_VIDEO_PATH / f"annotated_{INPUT_VIDEO_PATH.stem}", 
-                   dlc_points_xr, radius=10) # default radius
+                   OUTPUT_VIDEO_PATH / f"annotated_{INPUT_VIDEO_PATH.stem}.mp4", 
+                   dlc_points_xr, radius=10, likelihood_threshold=0.5) # default radius
 
     anot_end = time.perf_counter()
 
+    # -------------------------------------- video anotation ------------------------------------
+
+    anot_start_csv = time.perf_counter()
+
+    annotate_video_from_csv(INPUT_VIDEO_PATH, 
+                            OUTPUT_CSV_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.csv", 
+                            OUTPUT_VIDEO_PATH / f"annotated_csv_{INPUT_VIDEO_PATH.stem}.mp4", 
+                            radius=5, likelihood_threshold=0.5)
+    
+    anot_end_csv = time.perf_counter()
 
     # -------------------------------------- display performance ------------------------------------
 
     Rej_pred_time = Rej_end - Rej_start
     Jul_pred_time = Jul_end - Jul_start
     annotation_time = anot_end - anot_start
+    annotation_time_csv = anot_end_csv - anot_start_csv
 
     total_n_clip = 27692               # 27692 : calculated in split_video_by_trial.py
     total_time_pred_Rej = ((Rej_pred_time * total_n_clip) / 60 ) / 60 # h
     total_time_pred_Jul = ((Jul_pred_time * total_n_clip) / 60 ) / 60 # h
     total_time_annotation = ((annotation_time * total_n_clip) / 60 ) / 60 # h
+    total_time_annotation_csv = ((annotation_time_csv * total_n_clip) / 60 ) / 60 # h
 
     print(f"\nPerformance : ")
     print(f"  Prediction time (for 1 clip) - Rejane Method  :  {Rej_pred_time:.2f} sec")
     print(f"  Prediction time (for 1 clip) - Julien Method  :  {Jul_pred_time:.2f} sec")
-    print(f"  Video annotation time                         :  {annotation_time:.2f} sec\n")
+    print(f"  Video annotation time (xarray)                :  {annotation_time:.2f} sec")
+    print(f"  Video annotation time (csv)                   :  {annotation_time_csv:.2f} sec\n")
 
     print(f"\nOVERALL PERFOMANCE PREDICTION")
-    print(f"  Prediction time - Rejane Method  :  {Rej_pred_time:.2f} h")
-    print(f"  Prediction time - Julien Method  :  {Jul_pred_time:.2f} h")
-    print(f"  Video annotation time            :  {annotation_time:.2f} h\n")
+    print(f"  Prediction time - Rejane Method  :  {total_time_pred_Rej:.2f} h")
+    print(f"  Prediction time - Julien Method  :  {total_time_pred_Jul:.2f} h")
+    print(f"  Video annotation time (xarray)   :  {total_time_annotation:.2f} h")
+    print(f"  Video annotation time (csv)      :  {total_time_annotation_csv:.2f} h\n")
 
     # Performance : 
-    #   Prediction time (for 1 clip) - Rejane Method  :  30.06 sec
-    #   Prediction time (for 1 clip) - Julien Method  :  29.98 sec
-    #   Video annotation time                         :  1.54 sec
+    #   Prediction time (for 1 clip) - Rejane Method  :  30.74 sec
+    #   Prediction time (for 1 clip) - Julien Method  :  30.63 sec
+    #   Video annotation time (xarray)                :  1.06 sec
+    #   Video annotation time (csv)                   :  0.79 sec
+
+
+    # OVERALL PERFOMANCE PREDICTION
+    #   Prediction time - Rejane Method  :  236.47 h
+    #   Prediction time - Julien Method  :  235.63 h
+    #   Video annotation time (xarray)   :  8.16 h
+    #   Video annotation time (csv)      :  6.05 h
 
 

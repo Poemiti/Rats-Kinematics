@@ -36,7 +36,7 @@ import matplotlib.pyplot as plt
 
 #     plt.show()
 
-def plot_bodyparts_trajectories(csv_path, bodyparts : list[str] = None, invert_y=True) -> None:
+def plot_bodyparts_trajectories(csv_path, bodyparts : list[str] = None, invert_y: bool=True, threshold: int = 0.5) -> None:
 # DLC CSV has 3 header rows
     df = pd.read_csv(csv_path, header=[0, 1, 2])
 
@@ -45,6 +45,7 @@ def plot_bodyparts_trajectories(csv_path, bodyparts : list[str] = None, invert_y
 
     # Get body parts automatically
     all_bodyparts = df.columns.get_level_values(0).unique()
+    print(list(all_bodyparts))
 
     if bodyparts is None:
         bodyparts = list(all_bodyparts)
@@ -60,14 +61,21 @@ def plot_bodyparts_trajectories(csv_path, bodyparts : list[str] = None, invert_y
 
     
         # Select x,y only (ignore likelihood)
-        xy = df[bp].loc[:, ["x", "y"]]
+        xy = df[bp]
         print(f"\nbodypart : {bp}, coord : \n{xy}")
+        
+        # Create mask for points above threshold
+        mask = xy["likelihood"] >= threshold
+
+        # Apply mask
+        xy_filtered = xy[mask]
+        print(f"filtered coor : \n{xy_filtered}")
 
         plt.plot(
-            xy["x"],
-            xy["y"],
+            xy_filtered["x"],
+            xy_filtered["y"],
             marker="o",
-            linewidth=1,
+            linestyle="",
             label=bp
         )
 
@@ -86,17 +94,24 @@ def plot_bodyparts_trajectories(csv_path, bodyparts : list[str] = None, invert_y
 if __name__ == "__main__":
     # ---------------------------------------------- setup path -------------------------------------------------
 
+    DATABASE_PATH = "../exploration/no_KO_video_list.csv"
+    DATABASE = pd.read_csv(DATABASE_PATH)
+    VIDEO_EXEMPLE = Path(DATABASE.iloc[0]["filename"])
+
     OUTPUT_DATA_DIR = Path("../data")
-    DATABASE_PATH = Path(OUTPUT_DATA_DIR / "csv_results/result_predict_csv_3.csv")
+    BODYPART_POINTS_PATH = OUTPUT_DATA_DIR / f"csv_results/{VIDEO_EXEMPLE.stem}/pred_results_clip_00.csv"
 
     # ---------------------------------------------- setup constant -------------------------------------------------
 
-    # plot_bodyparts_trajectories(DATABASE_PATH, invert_y=True)
-
-    # plot_bodyparts_trajectories(DATABASE_PATH, invert_y=False)
+    bodyparts_point = pd.read_csv(BODYPART_POINTS_PATH)
+    print(bodyparts_point)
     
-    bodyparts = ['épaule', 'coude', 'poignet_droit', 'main_droite', 'doigtd_1', 'doigtd_2', 'doigtd_3', 'coussinetd', 'main_gauche', 'coussinetg', 'doigtg_1']
+    bodyparts = ['elbow_l', 'elbow_r', 'finger_l_1', 
+                 'finger_l_2', 'finger_l_3', 'finger_r_1', 'finger_r_2', 
+                 'finger_r_3', 'left_hand', 'left_wrist', 'muzzle', 
+                 'right_hand', 'right_wrist', 'shoulder_l', 'shoulder_r', 
+                 'soft_pad_l', 'soft_pad_r']
 
-    plot_bodyparts_trajectories(DATABASE_PATH, ["doigtd_1"], invert_y=False)
-    plot_bodyparts_trajectories(DATABASE_PATH, ["doigtd_1"], invert_y=True)
+
+    plot_bodyparts_trajectories(BODYPART_POINTS_PATH, ["left_hand"], invert_y=True)
     
