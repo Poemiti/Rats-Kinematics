@@ -1,40 +1,84 @@
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.express as px
+import numpy as np
+import tqdm
 
-# def plot_bodyparts_trajectories(csv_path, bodyparts : list[str] = None, invert_y=True) -> None:
-#     """
-#     Plot x,y trajectories of body parts across frames.
-#     """
+def get_luminosity(annotation_num, video_path, fig_output_path, max_n_frames, label_studio_url, api_key):
+    from label_studio_sdk import LabelStudio
+    import pandas as pd, cv2
+    import xarray as xr
 
-#     # Load CSV with multi-index header
-#     df = pd.read_csv(csv_path, header=[0, 1])
+    ls_client = LabelStudio(base_url=label_studio_url, api_key=api_key)
+    data = ls_client.annotations.get(id=annotation_num).result
+    led_info = {}
+    for item in data:
+        label = item["value"]["ellipselabels"][0]
+        led_info[label] = {"x_per": item["value"]["x"], "y_per": item["value"]["y"], "radiusX_per": item["value"]["radiusX"], "radiusY_per": item["value"]["radiusY"]}
+    leds = pd.DataFrame(led_info).T.to_xarray().rename(index="led_name")
+    print(leds)
 
-#     # Infer body parts automatically if not provided
-#     if bodyparts is None:
-#         bodyparts = df.iloc[0].unique()
+    cap = cv2.VideoCapture(video_path)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    cap.release()
+    image = xr.Dataset()
+    image["y"] = xr.DataArray(np.arange(h), dims="y")
+    image["x"] = xr.DataArray(np.arange(w), dims="x")
+    image["mask"] = ((image["x"] - leds["x_per"]*w/100)**2/(leds["radiusX_per"]*w/100)**2 + (image["y"] - leds["y_per"]*h/100)**2/(leds["radiusY_per"]*h/100)**2) < 1
+    print(image)
 
-#     print(f"\nbody part list : {bodyparts}\n")
+    if fig_output_path:
+        cap = cv2.VideoCapture(video_path)
+        ret, frame = cap.read()
+        cap.release()
+        fig = px.imshow(frame)
+        image["color"] = xr.DataArray(["r", "g", "b", "a"], dims="color")
+        image["mask_color"] = xr.DataArray([0, 200, 0, 0.5], dims="color")
+        rgba_mask = image["mask"] * image["mask_color"]
+        import plotly.graph_objects as go
+        for i in range(rgba_mask.sizes["led_name"]):
+            fig.add_trace(go.Image(z=rgba_mask.isel(led_name=i).transpose("y", "x", "color"), colormodel="rgba"))
+        fig.write_html(fig_output_path)
 
-#     plt.figure()
+    #Highly optimized code part, we convert everything to basic numpy and list, taking care of ordering
+    n_leds = image.sizes["led_name"]
+    mask_low_x = image["x"].where(image["mask"].any("y")).min("x").astype(int).to_numpy().tolist()
+    mask_high_x = (image["x"].where(image["mask"].any("y")).max("x").astype(int).to_numpy()+1).tolist()
+    mask_low_y = image["y"].where(image["mask"].any("x")).min("y").astype(int).to_numpy().tolist()
+    mask_high_y = (image["y"].where(image["mask"].any("x")).max("y").astype(int).to_numpy()+1).tolist()
+    cropped_masks = [image["mask"].isel(led_name=i).transpose("y", "x").to_numpy()[mask_low_y[i]:mask_high_y[i], mask_low_x[i]:mask_high_x[i]] for i in range(n_leds)]
+    mask_low_x, mask_high_x, mask_low_y, mask_high_y
 
-#     for bp in bodyparts:
-#         # if bp in df.iloc[0]:
-#         #     continue
+    cap = cv2.VideoCapture(video_path)
+    luminosities = []
 
-#         xy = df[bp][["x", "y"]]
-#         print(f"bodypart : {bp}, coor : {xy}")
-#         plt.plot(xy["x"], xy["y"], marker="o", label=bp)
+    if max_n_frames is None: 
+        max_n_frames = num_frames
+    else:
+        max_n_frames = min(max_n_frames, num_frames)
 
-#     plt.xlabel("x")
-#     plt.ylabel("y")
-#     plt.title("Body part trajectories across frames")
-#     plt.legend()
+    for i in tqdm.tqdm(range(max_n_frames), desc="Reading frames"):
+        ret, frame = cap.read()
+        if not ret:
+            break
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        lum = [np.sum(np.where(cropped_masks[i], gray[mask_low_y[i]:mask_high_y[i], mask_low_x[i]:mask_high_x[i]], 0)) for i in range(n_leds)]
+        luminosities.append(lum)
 
-#     if invert_y:
-#         plt.gca().invert_yaxis()
+    cap.release()
+    #End of highly optimized code part
 
-#     plt.show()
+    luminosities = xr.DataArray(luminosities, dims=["t", "led_name"], name="luminosity")
+    luminosities["t"] = np.arange(luminosities.sizes["t"])/fps
+    luminosities["t"].attrs["fs"] = fps
+    luminosities = luminosities/image["mask"].sum(["y", "x"])
+    return luminosities
+
+
 
 def plot_bodyparts_trajectories(csv_path, bodyparts : list[str] = None, invert_y: bool=True, threshold: int = 0.5) -> None:
 # DLC CSV has 3 header rows
@@ -92,18 +136,25 @@ def plot_bodyparts_trajectories(csv_path, bodyparts : list[str] = None, invert_y
 
 
 if __name__ == "__main__":
+    
     # ---------------------------------------------- setup path -------------------------------------------------
+
+    GENERATED_DATA_DIR = Path("../data") # root
 
     DATABASE_PATH = "../exploration/no_KO_video_list.csv"
     DATABASE = pd.read_csv(DATABASE_PATH)
     VIDEO_EXEMPLE = Path(DATABASE.iloc[0]["filename"])
 
-    OUTPUT_DATA_DIR = Path("../data")
-    BODYPART_POINTS_PATH = OUTPUT_DATA_DIR / f"csv_results/{VIDEO_EXEMPLE.stem}/pred_results_clip_00.csv"
+    INPUT_VIDEO_PATH = GENERATED_DATA_DIR / "direct_clips" / VIDEO_EXEMPLE.stem / "clip_00.mp4"
+    BODYPART_POINTS_PATH = GENERATED_DATA_DIR / "csv_results" / VIDEO_EXEMPLE.stem
 
-    # ---------------------------------------------- setup constant -------------------------------------------------
+    OUTPUT_LUMINOSITY_PATH = GENERATED_DATA_DIR / "luminosity_figures" / VIDEO_EXEMPLE.stem
 
-    bodyparts_point = pd.read_csv(BODYPART_POINTS_PATH)
+    OUTPUT_LUMINOSITY_PATH.mkdir(parents=True, exist_ok=True)
+
+    # ---------------------------------------------- plot trajectory of bodypart -------------------------------------------------
+
+    bodyparts_point = pd.read_csv(BODYPART_POINTS_PATH / "pred_results_clip_00.csv")
     print(bodyparts_point)
     
     bodyparts = ['elbow_l', 'elbow_r', 'finger_l_1', 
@@ -113,5 +164,19 @@ if __name__ == "__main__":
                  'soft_pad_l', 'soft_pad_r']
 
 
-    plot_bodyparts_trajectories(BODYPART_POINTS_PATH, ["left_hand"], invert_y=True)
+    plot_bodyparts_trajectories(BODYPART_POINTS_PATH / "pred_results_clip_00.csv", 
+                                ["left_hand"], invert_y=True)
+
+    # ---------------------------------------------- get luminosity info -------------------------------------------------
+
+    luminosity = get_luminosity(annotation_num=1802,        
+                                video_path= INPUT_VIDEO_PATH,
+                                fig_output_path= OUTPUT_LUMINOSITY_PATH / f"luminosity_{INPUT_VIDEO_PATH.stem}.html",
+                                max_n_frames=None,
+                                label_studio_url= "http://l-t4-mamserver.imn.u-bordeaux2.fr/labelstudioapp",
+                                api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6ODA3NTE1MDkzNCwiaWF0IjoxNzY3OTUwOTM0LCJqdGkiOiI4OGEwYTE5NDZkODM0NTlhYjQyMzIzN2I1MTQ0N2ZlYiIsInVzZXJfaWQiOiIyNCJ9.dNTu0zJNPHax5tnfYWanvZlH8SZ9VHQvOGZ_GEyN0l8"
+    )
+
+    print(luminosity)
+    
     
