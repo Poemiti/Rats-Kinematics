@@ -315,7 +315,7 @@ if __name__ == "__main__":
     VIDEO_EXEMPLE = Path(DATABASE.iloc[0]["filename"])
 
     # inputs (they should already exist)
-    GENERATED_DATA_DIR = Path("../data")
+    GENERATED_DATA_DIR = Path("../exploration/data")
     MODEL_PATH = Path("/media/filer2/T4b/Models/DLC/REJANE_rat_right_model-2025-06-18/DLC-project-2025-06-18")
     INPUT_VIDEO_PATH = GENERATED_DATA_DIR / "direct_clips" / VIDEO_EXEMPLE.stem / "clip_00.mp4"
 
@@ -325,7 +325,7 @@ if __name__ == "__main__":
     OUTPUT_VIDEO_PATH = GENERATED_DATA_DIR / "video_annotation" / VIDEO_EXEMPLE.stem
 
     # Temporary directory
-    TEMPORARY_PATH = Path("../data/temporary")
+    TEMPORARY_PATH = GENERATED_DATA_DIR / "temporary"
 
     OUTPUT_H5_PATH.mkdir(parents=True, exist_ok=True)
     OUTPUT_CSV_PATH.mkdir(parents=True, exist_ok=True)
@@ -338,12 +338,12 @@ if __name__ == "__main__":
 
     Rej_start = time.perf_counter()
 
-    # analysis_output_path = dlc_predict_Rejane(MODEL_PATH, 
-    #                                           INPUT_VIDEO_PATH,
-    #                                           TEMPORARY_PATH,
-    #                                           OUTPUT_H5_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.h5",
-    #                                           OUTPUT_CSV_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.csv", 
-    #                                           save_as_csv=True,)
+    analysis_output_path = dlc_predict_Rejane(MODEL_PATH, 
+                                              INPUT_VIDEO_PATH,
+                                              TEMPORARY_PATH,
+                                              OUTPUT_H5_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.h5",
+                                              OUTPUT_CSV_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.csv", 
+                                              save_as_csv=True,)
 
 
     Rej_end = time.perf_counter()

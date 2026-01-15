@@ -184,7 +184,7 @@ def run_ffmpeg(ffmpeg_args: list[str]) -> None :
 if __name__ == "__main__":
     # ---------------------------------------------- setup path -------------------------------------------------
 
-    GENERATED_DATA_DIR = Path("../data")
+    GENERATED_DATA_DIR = Path("../exploration/data")
     GENERATED_FRAMES_DIR = GENERATED_DATA_DIR / "frames" 
     GENERATED_VIDEOS_DIR = GENERATED_DATA_DIR / "direct_clips"
     GENERATED_FRAME2VIDEOS_DIR = GENERATED_DATA_DIR / "frame_to_clips"

@@ -191,7 +191,7 @@ if __name__ == "__main__":
     
     # ---------------------------------------------- setup path -------------------------------------------------
 
-    GENERATED_DATA_DIR = Path("../data") # root
+    GENERATED_DATA_DIR = Path("../exploration/data") # root
 
     DATABASE_PATH = "../exploration/no_KO_video_list.csv"
     DATABASE = pd.read_csv(DATABASE_PATH)
@@ -242,14 +242,14 @@ if __name__ == "__main__":
 
     # ---------------------------------------------- get luminosity info -------------------------------------------------
 
-    # luminosity = get_luminosity(annotation_num=1802,        
-    #                             video_path= INPUT_VIDEO_PATH,
-    #                             fig_output_path= OUTPUT_LUMINOSITY_PATH / f"luminosity_{INPUT_VIDEO_PATH.stem}.html",
-    #                             csv_ouput_path = OUTPUT_LUMINOSITY_PATH / f"luminosity_{INPUT_VIDEO_PATH.stem}.csv",
-    #                             max_n_frames=None,
-    #                             label_studio_url= "http://l-t4-mamserver.imn.u-bordeaux2.fr/labelstudioapp",
-    #                             api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6ODA3NTE1MDkzNCwiaWF0IjoxNzY3OTUwOTM0LCJqdGkiOiI4OGEwYTE5NDZkODM0NTlhYjQyMzIzN2I1MTQ0N2ZlYiIsInVzZXJfaWQiOiIyNCJ9.dNTu0zJNPHax5tnfYWanvZlH8SZ9VHQvOGZ_GEyN0l8"
-    # )
+    luminosity = get_luminosity(annotation_num=1802,        
+                                video_path= INPUT_VIDEO_PATH,
+                                fig_output_path= OUTPUT_LUMINOSITY_PATH / f"luminosity_{INPUT_VIDEO_PATH.stem}.html",
+                                csv_ouput_path = OUTPUT_LUMINOSITY_PATH / f"luminosity_{INPUT_VIDEO_PATH.stem}.csv",
+                                max_n_frames=None,
+                                label_studio_url= "http://l-t4-mamserver.imn.u-bordeaux2.fr/labelstudioapp",
+                                api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6ODA3NTE1MDkzNCwiaWF0IjoxNzY3OTUwOTM0LCJqdGkiOiI4OGEwYTE5NDZkODM0NTlhYjQyMzIzN2I1MTQ0N2ZlYiIsInVzZXJfaWQiOiIyNCJ9.dNTu0zJNPHax5tnfYWanvZlH8SZ9VHQvOGZ_GEyN0l8"
+    )
 
 
     
