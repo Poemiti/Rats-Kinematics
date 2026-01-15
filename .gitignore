@@ -11,3 +11,6 @@ exploration/clip_video_test/
 
 notes.txt
 old_course/
+
+*.out
+*.log
