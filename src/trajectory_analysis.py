@@ -5,7 +5,7 @@ import plotly.express as px
 import numpy as np
 import tqdm
 
-def get_luminosity(annotation_num, video_path, fig_output_path, max_n_frames, label_studio_url, api_key):
+def get_luminosity(annotation_num, video_path, fig_output_path, csv_ouput_path: Path, max_n_frames, label_studio_url, api_key):
     from label_studio_sdk import LabelStudio
     import pandas as pd, cv2
     import xarray as xr
@@ -76,24 +76,34 @@ def get_luminosity(annotation_num, video_path, fig_output_path, max_n_frames, la
     luminosities["t"] = np.arange(luminosities.sizes["t"])/fps
     luminosities["t"].attrs["fs"] = fps
     luminosities = luminosities/image["mask"].sum(["y", "x"])
+
+    # save as a csv file
+    if csv_ouput_path is not None : 
+        luminosity_df = luminosities.to_dataframe(name="luminosity").unstack("led_name")
+        luminosity_df.to_csv(csv_ouput_path)
+
     return luminosities
 
 
 
-def plot_bodyparts_trajectories(csv_path, bodyparts : list[str] = None, invert_y: bool=True, threshold: int = 0.5) -> None:
-# DLC CSV has 3 header rows
+def plot_bodyparts_trajectories(csv_path: Path,
+                                output_fig_path: Path = None,
+                                bodyparts : list[str] = None, 
+                                invert_y: bool=True, show: bool = False, threshold: int = 0.5) -> None:
+    # DLC CSV has 3 header rows
     df = pd.read_csv(csv_path, header=[0, 1, 2])
 
-    # Drop scorer level → keep (bodypart, coord)
-    df.columns = df.columns.droplevel(0)
+    # clean dataframe from useless info
+    df.columns = df.columns.droplevel(0) # remove scorer row
+    df = df.iloc[1:]                     # remove num_frame row
+    df = df.reset_index(drop=True)  
+    print("\nclean dataframe :\n", df)
 
     # Get body parts automatically
     all_bodyparts = df.columns.get_level_values(0).unique()
-    print(list(all_bodyparts))
 
     if bodyparts is None:
         bodyparts = list(all_bodyparts)
-        bodyparts.remove("bodyparts")
 
     print(f"\nbodypart : {bodyparts}")
 
@@ -119,20 +129,62 @@ def plot_bodyparts_trajectories(csv_path, bodyparts : list[str] = None, invert_y
             xy_filtered["x"],
             xy_filtered["y"],
             marker="o",
-            linestyle="",
+            linestyle="-",
             label=bp
         )
 
     plt.xlabel("x")
     plt.ylabel("y")
-    plt.title("Body part trajectories across frames")
     plt.legend(ncol=2, fontsize=8)
 
     if invert_y:
         plt.gca().invert_yaxis()
 
-    plt.show()
+    if output_fig_path: 
+        plt.title("Body part trajectories across frames of one trial")
+        plt.savefig(output_fig_path)
 
+    if show : 
+        plt.show()
+
+
+
+def plot_stacked_trajectories(csv_dir: Path,
+                              output_fig_path: Path = None,
+                              bodyparts : list[str] = None, 
+                              invert_y: bool=True, show: bool = False, threshold: int = 0.5) -> None:
+    
+    csv_path_list = [x for x in (Path(csv_dir).glob("*.csv")) if x.is_file()]
+    print(f"\n CSV LIST : {csv_path_list}\n")
+
+    for csv_path in csv_path_list : 
+        plot_bodyparts_trajectories(csv_path=csv_path,
+                                    output_fig_path= None,  # we don't save individual fig
+                                    bodyparts=bodyparts,
+                                    show=False,             # we don"t want to show each individual fig
+                                    invert_y=invert_y, threshold=threshold
+                                    )
+        
+    if output_fig_path: 
+        plt.title("Body part trajectories across frames of all the trial of this video")
+        plt.savefig(output_fig_path)
+
+    if show : 
+        plt.show()
+
+    pass
+
+
+def plot_average_trajectories(csv_dir: Path,
+                              output_fig_path: Path = None,
+                              bodyparts : list[str] = None, 
+                              invert_y: bool=True, show: bool = False, threshold: int = 0.5) -> None:
+    
+    csv_path_list = [x for x in (Path(csv_dir).glob("*.csv")) if x.is_file()]
+    
+    for csv_path in csv_path_list : 
+        pass
+    pass
 
 
 if __name__ == "__main__":
@@ -147,10 +199,11 @@ if __name__ == "__main__":
 
     INPUT_VIDEO_PATH = GENERATED_DATA_DIR / "direct_clips" / VIDEO_EXEMPLE.stem / "clip_00.mp4"
     BODYPART_POINTS_PATH = GENERATED_DATA_DIR / "csv_results" / VIDEO_EXEMPLE.stem
-
     OUTPUT_LUMINOSITY_PATH = GENERATED_DATA_DIR / "luminosity_figures" / VIDEO_EXEMPLE.stem
+    OUTPUT_TRAJECTORY_PATH = GENERATED_DATA_DIR / "trajectory_figures" / VIDEO_EXEMPLE.stem
 
     OUTPUT_LUMINOSITY_PATH.mkdir(parents=True, exist_ok=True)
+    OUTPUT_TRAJECTORY_PATH.mkdir(parents=True, exist_ok=True)
 
     # ---------------------------------------------- plot trajectory of bodypart -------------------------------------------------
 
@@ -164,19 +217,40 @@ if __name__ == "__main__":
                  'soft_pad_l', 'soft_pad_r']
 
 
-    plot_bodyparts_trajectories(BODYPART_POINTS_PATH / "pred_results_clip_00.csv", 
-                                ["left_hand"], invert_y=True)
+    plot_bodyparts_trajectories(csv_path= BODYPART_POINTS_PATH / "pred_results_clip_00.csv", 
+                                output_fig_path= OUTPUT_TRAJECTORY_PATH / f"trajectory_{INPUT_VIDEO_PATH.stem}.png",
+                                bodyparts= ["left_hand"], 
+                                invert_y=True,
+                                show=False,
+                                threshold=0.5)
+    
+
+    plot_stacked_trajectories(csv_dir= BODYPART_POINTS_PATH , 
+                                output_fig_path= OUTPUT_TRAJECTORY_PATH / f"trajectory_stacked.png",
+                                bodyparts= ["left_hand"], 
+                                invert_y=True,
+                                show=False,
+                                threshold=0.5)
+
+
+    plot_average_trajectories(csv_dir= BODYPART_POINTS_PATH, 
+                                output_fig_path= OUTPUT_TRAJECTORY_PATH / f"trajectory_average.png",
+                                bodyparts= ["left_hand"], 
+                                invert_y=True,
+                                show=False,
+                                threshold=0.5)
 
     # ---------------------------------------------- get luminosity info -------------------------------------------------
 
-    luminosity = get_luminosity(annotation_num=1802,        
-                                video_path= INPUT_VIDEO_PATH,
-                                fig_output_path= OUTPUT_LUMINOSITY_PATH / f"luminosity_{INPUT_VIDEO_PATH.stem}.html",
-                                max_n_frames=None,
-                                label_studio_url= "http://l-t4-mamserver.imn.u-bordeaux2.fr/labelstudioapp",
-                                api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6ODA3NTE1MDkzNCwiaWF0IjoxNzY3OTUwOTM0LCJqdGkiOiI4OGEwYTE5NDZkODM0NTlhYjQyMzIzN2I1MTQ0N2ZlYiIsInVzZXJfaWQiOiIyNCJ9.dNTu0zJNPHax5tnfYWanvZlH8SZ9VHQvOGZ_GEyN0l8"
-    )
+    # luminosity = get_luminosity(annotation_num=1802,        
+    #                             video_path= INPUT_VIDEO_PATH,
+    #                             fig_output_path= OUTPUT_LUMINOSITY_PATH / f"luminosity_{INPUT_VIDEO_PATH.stem}.html",
+    #                             csv_ouput_path = OUTPUT_LUMINOSITY_PATH / f"luminosity_{INPUT_VIDEO_PATH.stem}.csv",
+    #                             max_n_frames=None,
+    #                             label_studio_url= "http://l-t4-mamserver.imn.u-bordeaux2.fr/labelstudioapp",
+    #                             api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6ODA3NTE1MDkzNCwiaWF0IjoxNzY3OTUwOTM0LCJqdGkiOiI4OGEwYTE5NDZkODM0NTlhYjQyMzIzN2I1MTQ0N2ZlYiIsInVzZXJfaWQiOiIyNCJ9.dNTu0zJNPHax5tnfYWanvZlH8SZ9VHQvOGZ_GEyN0l8"
+    # )
 
-    print(luminosity)
+
     
     
