@@ -11,6 +11,8 @@ def dlc_predict_Rejane(
     model_path: Path,
     input_video_path: Path,
     temporary_path: Path,
+    output_h5_path: Path,
+    output_csv_path: Path,
     save_as_csv: bool = True,
 ) -> Path:
     """
@@ -27,7 +29,9 @@ def dlc_predict_Rejane(
         destfolder=str(analysis_output_path),
     )
 
-    return analysis_output_path
+    move_outputs(analysis_output_path, output_h5_path, output_csv_path)   
+    cleanup_temp_directory(analysis_output_path)
+
 
 
 
@@ -64,7 +68,7 @@ def cleanup_temp_directory(analysis_output_path: Path):
 
 
 
-def dlc_predict_Julien(model_path: Path, video_path: Path) -> xr.DataArray:
+def dlc_predict_Julien(model_path: Path, video_path: Path, output_csv_path : Path = None) -> xr.DataArray:
     import deeplabcut, tempfile
 
     with tempfile.TemporaryDirectory() as dlc_dest:
@@ -81,6 +85,11 @@ def dlc_predict_Julien(model_path: Path, video_path: Path) -> xr.DataArray:
         df = pd.read_hdf(h5_file)
 
     df.index.name="frame_num"
+
+    if output_csv_path : 
+        print(df)
+        df.to_csv(output_csv_path)
+
     res =  df.stack("scorer").stack("bodyparts").stack("coords").to_xarray()
 
     if res.sizes["scorer"] !=1:
@@ -90,7 +99,7 @@ def dlc_predict_Julien(model_path: Path, video_path: Path) -> xr.DataArray:
     return res
 
 
-def annotate_video(video_path: Path, output_path: Path, pose: xr.DataArray, radius=5, likelihood_threshold: int = 0.5):
+def annotate_video_from_xr(video_path: Path, output_path: Path, pose: xr.DataArray, radius=5, likelihood_threshold: int = 0.5):
     import cv2
     import numpy as np
     import xarray as xr
@@ -329,12 +338,13 @@ if __name__ == "__main__":
 
     Rej_start = time.perf_counter()
 
-    analysis_output_path = dlc_predict_Rejane(MODEL_PATH, INPUT_VIDEO_PATH,
-                                                   TEMPORARY_PATH, save_as_csv=True,)
-    move_outputs(analysis_output_path, 
-                 OUTPUT_H5_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.h5",    # pred_results_clip_00.h5
-                 OUTPUT_CSV_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.csv")  # pred_results_clip_00.csv
-    cleanup_temp_directory(analysis_output_path)
+    # analysis_output_path = dlc_predict_Rejane(MODEL_PATH, 
+    #                                           INPUT_VIDEO_PATH,
+    #                                           TEMPORARY_PATH,
+    #                                           OUTPUT_H5_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.h5",
+    #                                           OUTPUT_CSV_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.csv", 
+    #                                           save_as_csv=True,)
+
 
     Rej_end = time.perf_counter()
 
@@ -344,7 +354,9 @@ if __name__ == "__main__":
 
     Jul_start = time.perf_counter()
 
-    dlc_points_xr = dlc_predict_Julien(MODEL_PATH, INPUT_VIDEO_PATH)
+    dlc_points_xr = dlc_predict_Julien(MODEL_PATH, 
+                                       INPUT_VIDEO_PATH, 
+                                       OUTPUT_CSV_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.csv")
 
     Jul_end = time.perf_counter()
 
@@ -355,9 +367,9 @@ if __name__ == "__main__":
 
     anot_start = time.perf_counter()
 
-    annotate_video(INPUT_VIDEO_PATH, 
-                   OUTPUT_VIDEO_PATH / f"annotated_{INPUT_VIDEO_PATH.stem}.mp4", 
-                   dlc_points_xr, radius=10, likelihood_threshold=0.5) # default radius
+    annotate_video_from_xr(INPUT_VIDEO_PATH, 
+                           OUTPUT_VIDEO_PATH / f"annotated_{INPUT_VIDEO_PATH.stem}.mp4", 
+                           dlc_points_xr, radius=5, likelihood_threshold=0.5) # default radius
 
     anot_end = time.perf_counter()
 
