@@ -3,7 +3,7 @@
 ```
 -- data/                            # all the generated data from scripts of src/
     |
-    | -- csv_results/               # results from the dlc model prediction
+    | -- csv_results/               # results from the dlc model prediction (csv and h5)
     | -- dlc_results/
     |
     | -- frames/                    # generated frames for each clip
@@ -12,6 +12,8 @@
     |
     | -- temporary/                 # temporary dlc prediction (always empty because it erase the temporary files generated)
     | -- video_annotation/          # clip + point annotation on top
+    | -- luminosity_figures/        # track led lightening : csv + image html
+    | -- trajectory_figures/        # .png of the trajectory of video (single clip, stacked clips, average clip)
 
 
 -- exploration/                     # jupyter notebook to explore / test things
@@ -31,6 +33,7 @@
     |
     | dlc_prediction.py             # function to run a dlc prediction
     | split_video_by_trial.py       # function to split video into clips of a certain duration 
+    | trajectory_analysis           # function to analyse trajectory, and sync it with leds
     |
     | main.py                       # MAIN PIPELINE that uses the previous functions
 
@@ -87,8 +90,6 @@ in src/
 | Function name             | Output                      |
 | ------------------------- | --------------------------- |
 | `dlc_predict_Rejane`      | `results.h5`, `results.csv` |
-| `move_outputs`            | `results.h5`, `results.csv` |
-| `cleanup_temp_directory`  | Nothing                     |
 | `dlc_predict_Julien`      | `results.h5`, `results.csv` |
 | `annotate_video`          | `annotated_clip.mp4`        |
 | `annotate_video_from_csv` | `annotated_clip.mp4`        |
