@@ -28,7 +28,7 @@ Expected Total number of clips                            :  27692
 | task              | time (only 1)           | total time (all raw video) | python function         |
 | ----              | ----                    | ----                       | ----                    |
 | splitting         | 37.32 sec (1 raw video) | 6.68 h                     | split_video             |
-| point prediction  | 30.74 sec (1 clip)      | 236.47 h                   | dlc_predict_Rejane      |
+| point prediction  | 30.74 sec (1 clip)      | 236.47 h                   | dlc_predict_Julien      |
 | video annotation  | 0.79 sec  (1 clip)      | 6.05 h                     | annotate_video_from_csv |
 
 
@@ -37,7 +37,8 @@ in src/
 `PIPELINE_prediction.py` : MAIN PIPELINE for prediction (conda env = DEEPLABCUT)  
 `PIPELINE_analysis.py`   : MAIN PIPELINE for analysis of predictions (conda env = kinematics)    
   
-`split_video_by_trial.py ` : function to split video into clips of a certain duration  
+`split_video_by_trial.py ` : function to split video into clips of a certain duration   
+`tkinter_analysis` : mvc app to filter files from a specified directory  
   
 | Function name          | Output                         |
 | ---------------------- | ------------------------------ |
@@ -78,6 +79,16 @@ in src/
     | -- video_annotation/          # clip + point annotation on top
     | -- luminosity_figures/        # track led lightening : csv + image html
     | -- trajectory_figures/        # .png of the trajectory of video (single clip, stacked clips, average clip)
+        |
+        | -- #517/
+            |
+            |-- Rat_#512_....video_name.../
+                |
+                | -- clip_annotation/    # trajectory on clip video
+                | -- trajectory_per_clip # graphic of the trajectory
+                | 
+                | trajectory_stacked.png # stacked trajectory 
+                | trajectory_average.png # average trajectory 
 
 
 -- exploration/                     # jupyter notebook to explore / test things
@@ -115,6 +126,8 @@ in src/
     |
     | PIPELINE_prediction.py        # MAIN PIPELINE for prediction (conda env = DEEPLABCUT)
     | PIPELINE_analysis.py          # MAIN PIPELINE for analysis of predictions (conda env = kinematics)
+    |
+    | tkinter_analysis.py           # tkinter app for filtering file and make a database out of it           
 
 -- 
 ```
