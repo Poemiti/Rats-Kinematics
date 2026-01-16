@@ -84,6 +84,7 @@ def classify_video(filename: str, videos: list) -> None:
         "handedness": "Unknown",
         "session": "Unknown",
         "view": "Unknown",
+        "laser_intensity": "Unknown",
     }
 
     for token in name_comp:
@@ -123,16 +124,16 @@ def classify_video(filename: str, videos: list) -> None:
             if match:
                 result["view"] = match
 
-        if result["task"] == "Unknown":
-            match = extract_type(token, r"H\d+")
-            if match:
-                result["view"] = match
-
         if result["task"] == "Unknown" and token in [
             "onlyL1LeftHand", "onlyL2", "onlyL1",
-            "L1", "L2", "L1L2", "L1L26040", "L1L25050", "L1-60" # je rajoute pas L2-40 car va avec L1-60
+            "L1", "L2", "L1L2", "L1L26040", "L1L25050", "L1-60", "L2-40" 
         ]:
             result["task"] = token
+
+        if result["laser_intensity"] == "Unknown":
+            match = extract_type(token, r"\d,\d*(mW)")
+            if match:
+                result["laser_intensity"] = match
 
     videos.append({
         "filename": filename,

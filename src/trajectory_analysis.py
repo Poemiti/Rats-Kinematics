@@ -86,93 +86,93 @@ def get_luminosity(annotation_num, video_path, fig_output_path, csv_ouput_path: 
 
 
 
-def plot_bodyparts_trajectories(csv_path: Path,
-                                output_fig_path: Path = None,
-                                bodyparts : list[str] = None, 
-                                invert_y: bool=True, show: bool = False, threshold: int = 0.5) -> None:
-    # DLC CSV has 3 header rows
+def plot_bodyparts_trajectories(
+    csv_path: Path,
+    ax: plt.axes = None,
+    bodyparts: list[str] | None = None,
+    invert_y: bool = True,
+    threshold: float = 0.5,
+) -> plt.axes :
+    """
+    Plot bodypart trajectories from a DLC CSV onto a Matplotlib Axes.
+    If ax is None, a new figure and axes are created (standalone use).
+    """
+
+    standalone = ax is None
+    if standalone:
+        fig, ax = plt.subplots()
+
+    # DLC CSV has 3 header rows (scorer, bodyparts, coords)
     df = pd.read_csv(csv_path, header=[0, 1, 2])
 
-    # clean dataframe from useless info
-    df.columns = df.columns.droplevel(0) # remove scorer row
-    df = df.iloc[1:]                     # remove num_frame row
-    df = df.reset_index(drop=True)  
-    print("\nclean dataframe :\n", df)
+    # clean dataframe
+    df.columns = df.columns.droplevel(0)  # remove scorer row
+    df = df.iloc[1:].reset_index(drop=True)
 
-    # Get body parts automatically
     all_bodyparts = df.columns.get_level_values(0).unique()
-
     if bodyparts is None:
         bodyparts = list(all_bodyparts)
 
-    print(f"\nbodypart : {bodyparts}")
-
-    plt.figure()
-
     for bp in bodyparts:
-        if bp not in bodyparts:
+        if bp not in all_bodyparts:
             continue
 
-    
-        # Select x,y only (ignore likelihood)
         xy = df[bp]
-        print(f"\nbodypart : {bp}, coord : \n{xy}")
-        
-        # Create mask for points above threshold
         mask = xy["likelihood"] >= threshold
-
-        # Apply mask
         xy_filtered = xy[mask]
-        print(f"filtered coor : \n{xy_filtered}")
 
-        plt.plot(
+        ax.plot(
             xy_filtered["x"],
             xy_filtered["y"],
             marker="o",
             linestyle="-",
-            label=bp
+            label=bp,
+            alpha=0.7,
         )
 
-    plt.xlabel("x")
-    plt.ylabel("y")
-    plt.legend(ncol=2, fontsize=8)
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+
+    ax.set_xlim(0, 512) # video dimension
+    ax.set_ylim(0, 512)
 
     if invert_y:
-        plt.gca().invert_yaxis()
+        ax.invert_yaxis()
 
-    if output_fig_path: 
-        plt.title("Body part trajectories across frames of one trial")
-        plt.savefig(output_fig_path)
+    return ax
 
-    if show : 
+
+def plot_stacked_trajectories(
+        csv_dir: Path,
+        output_fig_path: Path | None = None,
+        bodyparts: list[str] | None = None,
+        invert_y: bool = True,
+        threshold: float = 0.5,
+        show: bool = False,
+    ) -> None:
+
+    csv_paths = [p for p in Path(csv_dir).glob("*.csv") if p.is_file()]
+
+    fig, ax = plt.subplots()
+
+    for csv_path in csv_paths:
+        plot_bodyparts_trajectories(
+            csv_path=csv_path,
+            ax=ax,
+            bodyparts=bodyparts,
+            invert_y=invert_y,
+            threshold=threshold,
+        )
+
+    ax.set_title(f"Trajectories across frames of all trials")
+
+    if output_fig_path:
+        fig.savefig(output_fig_path)
+
+    if show:
         plt.show()
 
-
-
-def plot_stacked_trajectories(csv_dir: Path,
-                              output_fig_path: Path = None,
-                              bodyparts : list[str] = None, 
-                              invert_y: bool=True, show: bool = False, threshold: int = 0.5) -> None:
-    
-    csv_path_list = [x for x in (Path(csv_dir).glob("*.csv")) if x.is_file()]
-    print(f"\n CSV LIST : {csv_path_list}\n")
-
-    for csv_path in csv_path_list : 
-        plot_bodyparts_trajectories(csv_path=csv_path,
-                                    output_fig_path= None,  # we don't save individual fig
-                                    bodyparts=bodyparts,
-                                    show=False,             # we don"t want to show each individual fig
-                                    invert_y=invert_y, threshold=threshold
-                                    )
-        
-    if output_fig_path: 
-        plt.title("Body part trajectories across frames of all the trial of this video")
-        plt.savefig(output_fig_path)
-
-    if show : 
-        plt.show()
-
-    pass
+    plt.close(fig)
 
 
 def plot_average_trajectories(csv_dir: Path,
@@ -180,11 +180,136 @@ def plot_average_trajectories(csv_dir: Path,
                               bodyparts : list[str] = None, 
                               invert_y: bool=True, show: bool = False, threshold: int = 0.5) -> None:
     
-    csv_path_list = [x for x in (Path(csv_dir).glob("*.csv")) if x.is_file()]
-    
+    csv_path_list = [x for x in (csv_dir.glob("*.csv")) if x.is_file()]
+
+    # --------------------------- 1. compute the average xy coord -----------------------------    
+    all_coords = []
+
     for csv_path in csv_path_list : 
-        pass
+        # DLC CSV has 3 header rows (scorer, bodyparts, coords)
+        df = pd.read_csv(csv_path, header=[0, 1, 2])
+
+        # clean dataframe
+        df.columns = df.columns.droplevel(0)  # remove scorer row
+        df = df.iloc[1:].reset_index(drop=True)
+
+        all_bodyparts = df.columns.get_level_values(0).unique()
+        if bodyparts is None:
+            bodyparts = list(all_bodyparts)
+
+        for bp in bodyparts : 
+            if bp not in all_bodyparts:
+                continue
+
+        xy = df[bp]
+        mask = xy["likelihood"] >= threshold
+        xy_filtered = xy[mask]
+
+        print(xy_filtered)
+
+    # --------------------------- 2. plot the average trajectory -----------------------------    
+
     pass
+
+
+def annotate_single_bodypart(
+    video_path: Path,
+    csv_path: Path,
+    output_path: Path,
+    bodypart_name: str,
+    radius=5,
+    likelihood_threshold=0.8,
+):
+    import cv2
+    import numpy as np
+    import pandas as pd
+    import matplotlib.cm as cm
+    import numba
+
+    # Load CSV
+    df = pd.read_csv(csv_path, header=[0, 1, 2])
+
+    # clean dataframe
+    df.columns = df.columns.droplevel(0)  # remove scorer row
+    df = df.iloc[1:].reset_index(drop=True)
+
+    if bodypart_name not in df:
+        raise ValueError(f"{bodypart_name} not found in CSV")
+
+    num_frames = len(df)
+
+    # Extract only the selected bodypart
+    x = df[bodypart_name]["x"].to_numpy().astype(int)
+    y = df[bodypart_name]["y"].to_numpy().astype(int)
+    p = df[bodypart_name]["likelihood"].to_numpy()
+
+    # Video IO
+    cap = cv2.VideoCapture(str(video_path))
+    fps = int(cap.get(cv2.CAP_PROP_FPS))
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    out = cv2.VideoWriter(
+        str(output_path), fourcc, fps, (frame_width, frame_height)
+    )
+
+    # Fixed color for the trajectory
+    color = np.array([0, 0, 255], dtype=np.uint8)  # red (BGR)
+
+    # Persistent overlay (trajectory)
+    overlay = np.zeros((frame_height, frame_width, 3), dtype=np.uint8)
+
+    # Circle offsets
+    def circle_offsets(radius):
+        y, x = np.ogrid[-radius:radius+1, -radius:radius+1]
+        mask = x**2 + y**2 <= radius**2
+        ys, xs = np.where(mask)
+        return np.column_stack((xs - radius, ys - radius))
+
+    circle_coords = circle_offsets(radius)
+
+    @numba.njit
+    def stamp_circle(frame, cx, cy, prob, coords, color, threshold):
+        if prob < threshold or cx < 0 or cy < 0:
+            return
+
+        h, w, _ = frame.shape
+
+        for k in range(coords.shape[0]):
+            xi = cx + coords[k, 0]
+            yi = cy + coords[k, 1]
+
+            if 0 <= xi < w and 0 <= yi < h:
+                frame[yi, xi, 0] = color[0]
+                frame[yi, xi, 1] = color[1]
+                frame[yi, xi, 2] = color[2]
+
+    # Main loop
+    for i in range(num_frames):
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # Stamp onto the persistent overlay
+        stamp_circle(
+            overlay,
+            x[i],
+            y[i],
+            p[i],
+            circle_coords,
+            color,
+            likelihood_threshold,
+        )
+
+        # Combine original frame + trajectory (overlay)
+        output_frame = cv2.addWeighted(frame, 1.0, overlay, 1.0, 0)
+
+        out.write(output_frame)
+
+    cap.release()
+    out.release()
 
 
 if __name__ == "__main__":
@@ -215,9 +340,14 @@ if __name__ == "__main__":
                  'finger_r_3', 'left_hand', 'left_wrist', 'muzzle', 
                  'right_hand', 'right_wrist', 'shoulder_l', 'shoulder_r', 
                  'soft_pad_l', 'soft_pad_r']
+    
+    # clean dataframe from useless info
+    bodyparts_point.columns = bodyparts_point.columns.droplevel(0) # remove scorer row
+    bodyparts_point = bodyparts_point.iloc[1:]                     # remove num_frame row
+    bodyparts_point = bodyparts_point.reset_index(drop=True)  
+    print("\nclean dataframe :\n", bodyparts_point)
 
-
-    plot_bodyparts_trajectories(csv_path= BODYPART_POINTS_PATH / "pred_results_clip_00.csv", 
+    plot_bodyparts_trajectories(csv_path= bodyparts_point / "pred_results_clip_00.csv", 
                                 output_fig_path= OUTPUT_TRAJECTORY_PATH / f"trajectory_{INPUT_VIDEO_PATH.stem}.png",
                                 bodyparts= ["left_hand"], 
                                 invert_y=True,
@@ -225,7 +355,7 @@ if __name__ == "__main__":
                                 threshold=0.5)
     
 
-    plot_stacked_trajectories(csv_dir= BODYPART_POINTS_PATH , 
+    plot_stacked_trajectories(csv_dir= bodyparts_point , 
                                 output_fig_path= OUTPUT_TRAJECTORY_PATH / f"trajectory_stacked.png",
                                 bodyparts= ["left_hand"], 
                                 invert_y=True,
@@ -233,7 +363,7 @@ if __name__ == "__main__":
                                 threshold=0.5)
 
 
-    plot_average_trajectories(csv_dir= BODYPART_POINTS_PATH, 
+    plot_average_trajectories(csv_dir= bodyparts_point, 
                                 output_fig_path= OUTPUT_TRAJECTORY_PATH / f"trajectory_average.png",
                                 bodyparts= ["left_hand"], 
                                 invert_y=True,

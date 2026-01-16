@@ -303,6 +303,8 @@ def annotate_video_from_csv(video_path: Path, csv_path: Path, output_path: Path,
 
 
 
+
+
 if __name__ == "__main__":
 
     # Disable "weights only" before analyzing
