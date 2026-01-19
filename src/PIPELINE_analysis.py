@@ -6,8 +6,9 @@ import matplotlib.pyplot as plt
 import os
 import time
 
-from video_database import is_video, classify_video
-from trajectory_analysis import plot_bodyparts_trajectories, plot_stacked_trajectories, plot_average_trajectories, annotate_single_bodypart
+from sort_files import is_video, classify_file
+from trajectory_analysis import plot_bodyparts_trajectories, plot_stacked_trajectories, plot_average_trajectories
+from video_annotation import annotate_single_bodypart
 
 # ------------------------------------ setup parameters ---------------------------------------
 
@@ -45,7 +46,7 @@ sorted_videos = []
 ct_video = 0
 for root, dirs, files in os.walk(PREDICTION_DIR): 
     for name in files: 
-        classify_video(os.path.join(root, name), sorted_videos) 
+        classify_file(os.path.join(root, name), sorted_videos) 
         ct_video += 1
 
 DATABASE = pd.DataFrame(sorted_videos)

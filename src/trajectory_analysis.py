@@ -77,12 +77,13 @@ def get_luminosity(annotation_num, video_path, fig_output_path, csv_ouput_path: 
     luminosities["t"].attrs["fs"] = fps
     luminosities = luminosities/image["mask"].sum(["y", "x"])
 
+    luminosity_df = luminosities.to_dataframe(name="luminosity").unstack("led_name")
+
     # save as a csv file
     if csv_ouput_path is not None : 
-        luminosity_df = luminosities.to_dataframe(name="luminosity").unstack("led_name")
         luminosity_df.to_csv(csv_ouput_path)
 
-    return luminosities
+    return luminosity_df
 
 
 
@@ -211,105 +212,6 @@ def plot_average_trajectories(csv_dir: Path,
 
     pass
 
-
-def annotate_single_bodypart(
-    video_path: Path,
-    csv_path: Path,
-    output_path: Path,
-    bodypart_name: str,
-    radius=5,
-    likelihood_threshold=0.8,
-):
-    import cv2
-    import numpy as np
-    import pandas as pd
-    import matplotlib.cm as cm
-    import numba
-
-    # Load CSV
-    df = pd.read_csv(csv_path, header=[0, 1, 2])
-
-    # clean dataframe
-    df.columns = df.columns.droplevel(0)  # remove scorer row
-    df = df.iloc[1:].reset_index(drop=True)
-
-    if bodypart_name not in df:
-        raise ValueError(f"{bodypart_name} not found in CSV")
-
-    num_frames = len(df)
-
-    # Extract only the selected bodypart
-    x = df[bodypart_name]["x"].to_numpy().astype(int)
-    y = df[bodypart_name]["y"].to_numpy().astype(int)
-    p = df[bodypart_name]["likelihood"].to_numpy()
-
-    # Video IO
-    cap = cv2.VideoCapture(str(video_path))
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
-    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    out = cv2.VideoWriter(
-        str(output_path), fourcc, fps, (frame_width, frame_height)
-    )
-
-    # Fixed color for the trajectory
-    color = np.array([0, 0, 255], dtype=np.uint8)  # red (BGR)
-
-    # Persistent overlay (trajectory)
-    overlay = np.zeros((frame_height, frame_width, 3), dtype=np.uint8)
-
-    # Circle offsets
-    def circle_offsets(radius):
-        y, x = np.ogrid[-radius:radius+1, -radius:radius+1]
-        mask = x**2 + y**2 <= radius**2
-        ys, xs = np.where(mask)
-        return np.column_stack((xs - radius, ys - radius))
-
-    circle_coords = circle_offsets(radius)
-
-    @numba.njit
-    def stamp_circle(frame, cx, cy, prob, coords, color, threshold):
-        if prob < threshold or cx < 0 or cy < 0:
-            return
-
-        h, w, _ = frame.shape
-
-        for k in range(coords.shape[0]):
-            xi = cx + coords[k, 0]
-            yi = cy + coords[k, 1]
-
-            if 0 <= xi < w and 0 <= yi < h:
-                frame[yi, xi, 0] = color[0]
-                frame[yi, xi, 1] = color[1]
-                frame[yi, xi, 2] = color[2]
-
-    # Main loop
-    for i in range(num_frames):
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        # Stamp onto the persistent overlay
-        stamp_circle(
-            overlay,
-            x[i],
-            y[i],
-            p[i],
-            circle_coords,
-            color,
-            likelihood_threshold,
-        )
-
-        # Combine original frame + trajectory (overlay)
-        output_frame = cv2.addWeighted(frame, 1.0, overlay, 1.0, 0)
-
-        out.write(output_frame)
-
-    cap.release()
-    out.release()
 
 
 if __name__ == "__main__":

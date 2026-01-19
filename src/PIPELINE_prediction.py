@@ -7,8 +7,8 @@ from colorama import Back, Style, init
 from deeplabcut.pose_estimation_pytorch import set_load_weights_only
 
 
-from video_database import is_video, classify_video
-from split_video_by_trial import split_video
+from sort_files import is_video, classify_video
+from split_video import split_video
 from dlc_prediction import dlc_predict_Julien, annotate_video_from_csv
 
 # Disable "weights only" before analyzing
@@ -103,13 +103,6 @@ for video_path in DATABASE["filename"]:
 
         print(Back.BLUE + f"\Annotation of clip : {clip_path}\n" + Style.RESET_ALL)
 
-        annotate_video_from_csv(
-            video_path=clip_path,
-            csv_path=csv_path,
-            output_path=annotated_clip_path,
-            radius=5,
-            likelihood_threshold=PRED_LIKELIHOOD,
-        )
 
     COUNTER += 1
 
