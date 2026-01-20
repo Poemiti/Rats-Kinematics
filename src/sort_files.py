@@ -87,6 +87,7 @@ def classify_file(filename: str, videos: list) -> None:
         "session": "Unknown",
         "view": "Unknown",
         "laser_intensity": "Unknown",
+        "laser_on" : "Unknown"
     }
 
     for token in name_comp:
@@ -128,7 +129,8 @@ def classify_file(filename: str, videos: list) -> None:
 
         if result["task"] == "Unknown" and token in [
             "onlyL1LeftHand", "onlyL2", "onlyL1",
-            "L1", "L2", "L1L2", "L1L26040", "L1L25050", "L1-60", "L2-40" 
+            "L1", "L2", "L1L2", "L1L26040", "L1L25050", "L1-60", "L2-40",
+            "CueL1", "CueL2" # those 2 are for renamed clip (led_detection.py) that tell exactly which cue is on
         ]:
             result["task"] = token
 
@@ -136,6 +138,12 @@ def classify_file(filename: str, videos: list) -> None:
             match = extract_type(token, r"\d,\d*(mW)")
             if match:
                 result["laser_intensity"] = match
+
+        # this will work only for the renamed clips (led_detection.py)
+        if result["laser_on"] == "Unknown" :
+            match = extract_type(token, r'(LaserOn|LaserOff)')
+            if match : 
+                result["laser_on"] = match
 
     videos.append({
         "filename": filename,
