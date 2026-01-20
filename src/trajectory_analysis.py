@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import numpy as np
 import tqdm
+import math
 
 def get_luminosity(annotation_num, video_path, fig_output_path, csv_ouput_path: Path, max_n_frames, label_studio_url, api_key):
     from label_studio_sdk import LabelStudio
@@ -86,6 +87,16 @@ def get_luminosity(annotation_num, video_path, fig_output_path, csv_ouput_path: 
     return luminosity_df
 
 
+def open_clean_csv(csv_path : Path) -> pd.DataFrame : 
+    # DLC CSV has 3 header rows (scorer, bodyparts, coords)
+    df = pd.read_csv(csv_path, header=[0, 1, 2])
+
+    # clean dataframe
+    df.columns = df.columns.droplevel(0)  # remove scorer row
+    clea_df = df.iloc[1:].reset_index(drop=True)
+
+    return clea_df
+
 
 def plot_bodyparts_trajectories(
     csv_path: Path,
@@ -103,12 +114,7 @@ def plot_bodyparts_trajectories(
     if standalone:
         fig, ax = plt.subplots()
 
-    # DLC CSV has 3 header rows (scorer, bodyparts, coords)
-    df = pd.read_csv(csv_path, header=[0, 1, 2])
-
-    # clean dataframe
-    df.columns = df.columns.droplevel(0)  # remove scorer row
-    df = df.iloc[1:].reset_index(drop=True)
+    df = open_clean_csv(csv_path)
 
     all_bodyparts = df.columns.get_level_values(0).unique()
     if bodyparts is None:
@@ -121,6 +127,8 @@ def plot_bodyparts_trajectories(
         xy = df[bp]
         mask = xy["likelihood"] >= threshold
         xy_filtered = xy[mask]
+        start, end = define_StartEnd_of_trajectory(xy_filtered)
+        xy_filtered = xy_filtered.iloc[start : end]
 
         ax.plot(
             xy_filtered["x"],
@@ -152,11 +160,9 @@ def plot_stacked_trajectories(
         show: bool = False,
     ) -> None:
 
-    csv_paths = [p for p in Path(csv_dir).glob("*.csv") if p.is_file()]
-
     fig, ax = plt.subplots()
 
-    for csv_path in csv_paths:
+    for csv_path in csv_dir.glob("*.csv"):
         plot_bodyparts_trajectories(
             csv_path=csv_path,
             ax=ax,
@@ -165,7 +171,7 @@ def plot_stacked_trajectories(
             threshold=threshold,
         )
 
-    ax.set_title(f"Trajectories across frames of all trials")
+    ax.set_title(f"Trajectories across frames of all trials\n{csv_dir.stem}")
 
     if output_fig_path:
         fig.savefig(output_fig_path)
@@ -181,18 +187,12 @@ def plot_average_trajectories(csv_dir: Path,
                               bodyparts : list[str] = None, 
                               invert_y: bool=True, show: bool = False, threshold: int = 0.5) -> None:
     
-    csv_path_list = [x for x in (csv_dir.glob("*.csv")) if x.is_file()]
 
     # --------------------------- 1. compute the average xy coord -----------------------------    
     all_coords = []
 
-    for csv_path in csv_path_list : 
-        # DLC CSV has 3 header rows (scorer, bodyparts, coords)
-        df = pd.read_csv(csv_path, header=[0, 1, 2])
-
-        # clean dataframe
-        df.columns = df.columns.droplevel(0)  # remove scorer row
-        df = df.iloc[1:].reset_index(drop=True)
+    for csv_path in csv_dir.glob("*.csv") : 
+        df = open_clean_csv(csv_path)
 
         all_bodyparts = df.columns.get_level_values(0).unique()
         if bodyparts is None:
@@ -202,15 +202,96 @@ def plot_average_trajectories(csv_dir: Path,
             if bp not in all_bodyparts:
                 continue
 
-        xy = df[bp]
-        mask = xy["likelihood"] >= threshold
-        xy_filtered = xy[mask]
+            xy = df[bp]
+            mask = xy["likelihood"] >= threshold
+            xy_filtered = xy[mask]
 
         print(xy_filtered)
 
     # --------------------------- 2. plot the average trajectory -----------------------------    
 
     pass
+
+
+
+
+def define_StartEnd_of_trajectory(coords : pd.DataFrame) : 
+    """
+    return the start time and end time of the trajectory
+    a trajectory is considered to go from the pad to the trigger
+    """
+    lever_position = 210
+    crossed = False
+    t_start = 0
+    print(t_start)
+    t_end = len(coords)
+
+    for t, row in coords.iterrows():
+        if t == 0 : 
+            print(f"not crossed, y = {row['y']}, t = {t}")
+
+        if row["y"] < lever_position and not crossed:
+            print(f"crossed, y = {row['y']}, t = {t}")
+            crossed = True
+            continue
+
+        if row["y"] > lever_position and crossed:
+            print(f"crossed again, y = {row['y']}, t = {t}")
+            t_end = t-1
+            break
+
+    return t_start, t_end
+
+
+def get_instantaneous_velocity(coords: pd.DataFrame) -> pd.Series:
+    fps = 125
+    diffs = coords.diff().dropna() # compute the difference between 2 row (the actual vs the previous)
+    displacement = diffs.pow(2).sum(axis=1).pow(0.5)    # compute the power(2) of each columns + the sqrt (pow(0.5))
+    print(displacement)
+
+    return displacement * fps  # pixels / second
+
+
+def get_velocity(coords: pd.DataFrame) -> float : 
+    fps = 125
+    diffs = coords.diff().dropna()
+    distance = (diffs.pow(2).sum(axis=1).pow(0.5)).sum()
+
+    duration_sec = len(coords) / fps
+    return distance / duration_sec  # pixel / sec
+
+
+def get_distance(coords: pd.DataFrame) :
+    distance = 0
+    diffs = coords.diff().dropna()
+    distance = (diffs.pow(2).sum(axis=1).pow(0.5)).sum()
+    return distance
+
+
+def compute_metric(csv_path: Path,
+                    bodyparts : str,
+                    metric,
+                    threshold : float = 0.5) -> float : 
+    """
+    compute the velocity during 1 clip from the dlc prediction point 
+    (stored in csv)
+    """
+    # get data from the bodypart
+    df = open_clean_csv(csv_path)
+    xy = df[bodyparts]
+    xy = xy[xy["likelihood"] >= threshold]
+    print(f"filtered coord : \n {xy}")
+
+    # filter to get only the trajectory we want
+    t_start, t_end = define_StartEnd_of_trajectory(xy)
+    true_coords = xy.iloc[t_start : t_end].reset_index(drop=True)
+    print(f"coords after threshold : {len(xy)}, coords after finding traj : {len(true_coords)}")
+
+    if len(true_coords) <= 1 : 
+        print("ERROR : no movement have been found in this clip")
+        return 0
+
+    return metric(true_coords[["x", "y"]])
 
 
 
@@ -232,57 +313,88 @@ if __name__ == "__main__":
     OUTPUT_LUMINOSITY_PATH.mkdir(parents=True, exist_ok=True)
     OUTPUT_TRAJECTORY_PATH.mkdir(parents=True, exist_ok=True)
 
-    # ---------------------------------------------- plot trajectory of bodypart -------------------------------------------------
-
-    bodyparts_point = pd.read_csv(BODYPART_POINTS_PATH / "pred_results_clip_00.csv")
-    print(bodyparts_point)
+    # ---------------------------------------------- plot single trajectory of bodypart -------------------------------------------------
     
-    bodyparts = ['elbow_l', 'elbow_r', 'finger_l_1', 
-                 'finger_l_2', 'finger_l_3', 'finger_r_1', 'finger_r_2', 
-                 'finger_r_3', 'left_hand', 'left_wrist', 'muzzle', 
-                 'right_hand', 'right_wrist', 'shoulder_l', 'shoulder_r', 
-                 'soft_pad_l', 'soft_pad_r']
-    
-    # clean dataframe from useless info
-    bodyparts_point.columns = bodyparts_point.columns.droplevel(0) # remove scorer row
-    bodyparts_point = bodyparts_point.iloc[1:]                     # remove num_frame row
-    bodyparts_point = bodyparts_point.reset_index(drop=True)  
-    print("\nclean dataframe :\n", bodyparts_point)
+    THRESHOLD = 0.5
+    BODYPART = ["left_hand"]
 
-    plot_bodyparts_trajectories(csv_path= bodyparts_point / "pred_results_clip_00.csv", 
-                                output_fig_path= OUTPUT_TRAJECTORY_PATH / f"trajectory_{INPUT_VIDEO_PATH.stem}.png",
-                                bodyparts= ["left_hand"], 
-                                invert_y=True,
-                                show=False,
-                                threshold=0.5)
-    
+    fig, ax = plt.subplots()
 
-    plot_stacked_trajectories(csv_dir= bodyparts_point , 
-                                output_fig_path= OUTPUT_TRAJECTORY_PATH / f"trajectory_stacked.png",
-                                bodyparts= ["left_hand"], 
-                                invert_y=True,
-                                show=False,
-                                threshold=0.5)
+    for csv_path in BODYPART_POINTS_PATH.iterdir() :
 
+        fig, ax = plt.subplots() 
 
-    plot_average_trajectories(csv_dir= bodyparts_point, 
-                                output_fig_path= OUTPUT_TRAJECTORY_PATH / f"trajectory_average.png",
-                                bodyparts= ["left_hand"], 
-                                invert_y=True,
-                                show=False,
-                                threshold=0.5)
+        output_fig_dir = OUTPUT_TRAJECTORY_PATH / "single_trajectory"
+        output_fig_dir.mkdir(parents=True, exist_ok=True)
+        output_fig_path = output_fig_dir / csv_path.stem
 
-    # ---------------------------------------------- get luminosity info -------------------------------------------------
+        plot_bodyparts_trajectories(
+            csv_path=Path(csv_path),
+            ax=ax,
+            bodyparts=BODYPART,
+            invert_y=True,
+            threshold=THRESHOLD,
+        )
 
-    luminosity = get_luminosity(annotation_num=1802,        
-                                video_path= INPUT_VIDEO_PATH,
-                                fig_output_path= OUTPUT_LUMINOSITY_PATH / f"luminosity_{INPUT_VIDEO_PATH.stem}.html",
-                                csv_ouput_path = OUTPUT_LUMINOSITY_PATH / f"luminosity_{INPUT_VIDEO_PATH.stem}.csv",
-                                max_n_frames=None,
-                                label_studio_url= "http://l-t4-mamserver.imn.u-bordeaux2.fr/labelstudioapp",
-                                api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6ODA3NTE1MDkzNCwiaWF0IjoxNzY3OTUwOTM0LCJqdGkiOiI4OGEwYTE5NDZkODM0NTlhYjQyMzIzN2I1MTQ0N2ZlYiIsInVzZXJfaWQiOiIyNCJ9.dNTu0zJNPHax5tnfYWanvZlH8SZ9VHQvOGZ_GEyN0l8"
-    )
+        ax.set_title(f"Trajectory of {csv_path.stem}, threshold 0.5,\nL1, NoStim, Successful")
+        # plt.show()
+        fig.savefig(output_fig_path)   
 
+        plt.close(fig) 
+
+    # ---------------------------------------------- annotate single trajectory of bodypart -------------------------------------------------
 
     
+
+    # ---------------------------------------------- plot stacked + average trajectory of bodypart -------------------------------------------------
+
+
+    # plot_stacked_trajectories(csv_dir= BODYPART_POINTS_PATH , 
+    #                             output_fig_path= OUTPUT_TRAJECTORY_PATH / f"trajectory_stacked.png",
+    #                             bodyparts= ["left_hand"], 
+    #                             invert_y=True,
+    #                             show=False,
+    #                             threshold=0.5)
+
+
+    # plot_average_trajectories(csv_dir= BODYPART_POINTS_PATH, 
+    #                             output_fig_path= OUTPUT_TRAJECTORY_PATH / f"trajectory_average.png",
+    #                             bodyparts= ["left_hand"], 
+    #                             invert_y=True,
+    #                             show=False,
+    #                             threshold=0.5)
+
+    # # ---------------------------------------------- get luminosity info -------------------------------------------------
+
+    # luminosity = get_luminosity(annotation_num=1802,        
+    #                             video_path= INPUT_VIDEO_PATH,
+    #                             fig_output_path= OUTPUT_LUMINOSITY_PATH / f"luminosity_{INPUT_VIDEO_PATH.stem}.html",
+    #                             csv_ouput_path = OUTPUT_LUMINOSITY_PATH / f"luminosity_{INPUT_VIDEO_PATH.stem}.csv",
+    #                             max_n_frames=None,
+    #                             label_studio_url= "http://l-t4-mamserver.imn.u-bordeaux2.fr/labelstudioapp",
+    #                             api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6ODA3NTE1MDkzNCwiaWF0IjoxNzY3OTUwOTM0LCJqdGkiOiI4OGEwYTE5NDZkODM0NTlhYjQyMzIzN2I1MTQ0N2ZlYiIsInVzZXJfaWQiOiIyNCJ9.dNTu0zJNPHax5tnfYWanvZlH8SZ9VHQvOGZ_GEyN0l8"
+    # )
+
+    # ---------------------------------------------- compute metrics -------------------------------------------------
+
+    print(f"\nComputing metric of {BODYPART_POINTS_PATH / 'pred_results_clip_00.csv'} :")
+
+    # # distance
+    # distance = compute_metric(csv_path=BODYPART_POINTS_PATH / "pred_results_clip_00.csv",
+    #                           bodyparts="left_hand",
+    #                           metric=get_distance)
     
+    # # velocity
+    # velocity = compute_metric(csv_path=BODYPART_POINTS_PATH / "pred_results_clip_00.csv",
+    #                           bodyparts="left_hand",
+    #                           metric=get_velocity)
+
+    # instantaneous velocity
+    instant_velocity = compute_metric(csv_path=BODYPART_POINTS_PATH / "pred_results_clip_00.csv",
+                              bodyparts="left_hand",
+                              metric=get_instantaneous_velocity)
+    
+
+    # print(f"  distance = {distance:.02f}")
+    # print(f"  velocity = {velocity:.02f}")
+    print(f"  instaneous velocity = {instant_velocity}")
