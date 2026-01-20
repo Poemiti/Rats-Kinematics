@@ -49,6 +49,15 @@ class View(tk.Tk):
         self.frames = {}
         self.buttons = {}
         self.result_box = None
+        
+        self.info_frame = ttk.Frame(self)
+        self.info_frame.pack(fill="x", padx=5, pady=5)
+
+        self.result_frame = ttk.Frame(self)
+        self.result_frame.pack(fill="both", expand=True, padx=5, pady=5)
+
+        self.n_file_label = ttk.Label(self.info_frame, text="Files number = 0")
+        self.n_file_label.pack(anchor="w")
 
     def save_button(self, callback) :
         btn = ttk.Button(
@@ -113,15 +122,18 @@ class View(tk.Tk):
             if val == selected_value:
                 btn.state(["pressed"])
 
-    def show_results(self, dataframe):
+    def show_results(self, dataframe) :
+        # Update file count
+        self.n_file_label.config(text=f"Files number = {len(dataframe)}")
+
+        # Replace result box only
         if self.result_box:
             self.result_box.destroy()
 
-        self.result_box = tk.Text(self, height=10)
+        self.result_box = tk.Text(self.result_frame, height=10)
         self.result_box.pack(fill="both", expand=True)
 
         self.result_box.insert("end", dataframe.to_string())
-    
     
 
 
@@ -129,17 +141,8 @@ class View(tk.Tk):
 class Model:   # focus on filtration manipulation
     def __init__(self, dataframe: pd.DataFrame):
         self._df = dataframe
-        self.filters = {
-            "rat_name": None,
-            "rat_type": None,
-            "condition": None,
-            "stim_location": None,
-            "task": None,
-            "handedness": None,
-            "session": None,
-            "view": None,
-            "laser_intensity": None,
-            }
+        self.filters = {column: None for column in dataframe.columns[1:]} 
+        # add filter for every columns of the dataframe
 
     def set_filter(self, key, value):
         self.filters[key] = value
@@ -160,18 +163,18 @@ class Model:   # focus on filtration manipulation
 
 
 
-
-
 if __name__ == "__main__" : 
 
     DATABASE_DIR = Path("../data/database")
     RAW_VIDEO_DIR = Path("/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024")
     PREDICTION_DIR =  Path("../data/csv_results")
+    CLIP_DIR = Path("../data/clips")
 
     DATABASE: pd.DataFrame = make_database(RAW_VIDEO_DIR, is_video)
-    DATABASE_PRED: pd.DataFrame = make_database(PREDICTION_DIR, is_csv)
+    # DATABASE_PRED: pd.DataFrame = make_database(PREDICTION_DIR, is_csv)
+    # DATABASE_CLIP : pd.DataFrame = make_database(CLIP_DIR, is_video)
 
-    print(DATABASE_PRED)
+    print(DATABASE)
 
     model = Model(DATABASE) # or DATABASE_PRED
     view = View()
