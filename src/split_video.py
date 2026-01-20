@@ -161,7 +161,7 @@ def split_video(input_path: Path, output_path: Path,
 
             "-c", "copy",
 
-            str(output_path / f"clip_{i:02d}.mp4")
+            str(output_path / f"{output_path.stem}_clip_{i:02d}.mp4")
         ]
         run_ffmpeg(ffmpeg_args)
 
@@ -176,7 +176,7 @@ def split_video(input_path: Path, output_path: Path,
 
 def run_ffmpeg(ffmpeg_args: list[str]) -> None : 
     try:
-            subprocess.run(ffmpeg_args, check=True)
+        subprocess.run(ffmpeg_args, check=True)
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"FFmpeg failed:\n{e}")
 
