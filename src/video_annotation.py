@@ -311,24 +311,25 @@ def annotate_single_bodypart(
 
 if __name__ == "__main__" : 
 
-        # -------------------------------------- setup path ------------------------------------
+    # -------------------------------------- setup path ------------------------------------
 
     DATABASE_PATH = "../exploration/no_KO_video_list.csv"
     DATABASE = pd.read_csv(DATABASE_PATH)
-    VIDEO_EXEMPLE = Path(DATABASE.iloc[0]["filename"])
+    VIDEO_EXEMPLE = Path(DATABASE["filename"][0]).stem
+    RAT_NAME = "#516"
 
     # inputs (they should already exist)
     GENERATED_DATA_DIR = Path("../exploration/data")
     MODEL_PATH = Path("/media/filer2/T4b/Models/DLC/REJANE_rat_right_model-2025-06-18/DLC-project-2025-06-18")
-    INPUT_VIDEO_PATH = GENERATED_DATA_DIR / "direct_clips" / VIDEO_EXEMPLE.stem / "clip_00.mp4"
+    INPUT_VIDEO_PATH = GENERATED_DATA_DIR / "clips" / RAT_NAME / VIDEO_EXEMPLE / "clip_00.mp4"
 
     # outputs
-    OUTPUT_H5_PATH = GENERATED_DATA_DIR / "dlc_results" / VIDEO_EXEMPLE.stem 
-    OUTPUT_CSV_PATH = GENERATED_DATA_DIR / "csv_results" / VIDEO_EXEMPLE.stem 
-    OUTPUT_VIDEO_PATH = GENERATED_DATA_DIR / "video_annotation" / VIDEO_EXEMPLE.stem
+    OUTPUT_H5_PATH = GENERATED_DATA_DIR / "dlc_results" / VIDEO_EXEMPLE 
+    OUTPUT_CSV_PATH = GENERATED_DATA_DIR / "csv_results" / VIDEO_EXEMPLE 
+    OUTPUT_VIDEO_PATH = GENERATED_DATA_DIR / "video_annotation" / VIDEO_EXEMPLE
 
 
-    # -------------------------------------- video anotation ------------------------------------
+   # -------------------------------------- prediction ------------------------------------
 
     print("\nVideo Annotation ...\n")
 
@@ -355,6 +356,16 @@ if __name__ == "__main__" :
                             radius=5, likelihood_threshold=0.5)
     
     anot_end_csv = time.perf_counter()
+
+
+    # -------------------------------------- video anotation of single bodypart ------------------------------------
+
+    annotate_single_bodypart(video_path= INPUT_VIDEO_PATH,
+                             csv_path=OUTPUT_CSV_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.csv",
+                             output_path=OUTPUT_VIDEO_PATH / f"annotated_{INPUT_VIDEO_PATH.stem}.mp4",
+                             bodypart_name="left_hand",
+                             radius=5,
+                             likelihood_threshold=0.5)
 
     # -------------------------------------- display performance ------------------------------------
 
