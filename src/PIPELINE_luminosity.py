@@ -9,7 +9,7 @@ import time
 from sort_files import make_database, is_csv, is_video
 from database_filter import Model, Controller, View
 from trajectory_analysis import get_luminosity
-from classify_clips import classify_clip
+from led_detection import classify_clip
 
 
 
@@ -22,23 +22,23 @@ DATABASE_DIR = GENERATED_DATA_DIR / "database"
 
 # ------------------------------------ make database ---------------------------------------
 
-# raw_database = make_database(CLIP_DIR, is_video)
+raw_database = make_database(CLIP_DIR, is_video)
 
-# model = Model(raw_database) # or DATABASE_PRED
-# view = View()
-# controller = Controller(model, view)
-# view.mainloop()
+model = Model(raw_database) # or DATABASE_PRED
+view = View()
+controller = Controller(model, view)
+view.mainloop()
 
-# DATABASE = controller.filtered_dataset.reset_index(drop=True)
-# print(DATABASE)
-
-DATABASE = pd.read_csv(GENERATED_DATA_DIR / "database/#517_CHR_beta_H001.csv")
+DATABASE = controller.filtered_dataset.reset_index(drop=True)
+print(DATABASE)
 
 # save database
-# dataset_name = f"{controller.dataset_name.get().strip()}.csv"
-# DATABASE.to_csv(DATABASE_DIR / dataset_name)
-# print(f"\nFiltered dataset saved as : {DATABASE_DIR / dataset_name}")
-# print(f"Number of files in {dataset_name} : {len(DATABASE)}")
+dataset_name = f"{controller.dataset_name.get().strip()}.csv"
+DATABASE.to_csv(DATABASE_DIR / dataset_name)
+print(f"\nFiltered dataset saved as : {DATABASE_DIR / dataset_name}")
+print(f"Number of files in {dataset_name} : {len(DATABASE)}")
+
+# DATABASE = pd.read_csv(GENERATED_DATA_DIR / "database/#517_CHR_beta_H001.csv")
 
 RAT_NAME = DATABASE['rat_name'][0]
 
@@ -48,7 +48,7 @@ OUTPUT_TRAJECTORY_PATH.mkdir(parents=True, exist_ok=True)
 LUMINOSITY_DIR.mkdir(parents=True, exist_ok=True)
 
 
-# ------------------------------------ get luminosity ---------------------------------------
+# ------------------------------------ get luminosity + classify ---------------------------------------
 
 COUNTER = 0
 COUNTER_LIMIT = 1
@@ -79,8 +79,6 @@ for video_path in DATABASE["filename"] :
     print(luminosities)
 
     classify_clip(video_path, luminosities)
-
-
 
     COUNTER += 1
 
