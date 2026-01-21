@@ -2,8 +2,7 @@
 *__pycache__*
 
 data/
-exploration/figures/
-exploration/clip_video_test/
+exploration/
 
 *.csv 
 *.h5
