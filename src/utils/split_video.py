@@ -7,7 +7,32 @@ import cv2
 
 def extract_frames(input_path: Path, output_path: Path, duration: float, fps: int = None) -> None:
     """
-    From one video, makes clips of a certain duration (in seconds) and saves frames in folders.
+    Extract frames every 'duration' from a single video and save them into clip folders.
+
+    The video is read sequentially and frames are saved as PNG images.
+    Frames are grouped into a clip of fixed duration (in seconds).
+
+    If `fps` is not provided, the video frame rate is inferred
+    using `get_video_properties`.
+
+    Parameters
+    ----------
+    input_path : pathlib.Path
+        Path to the input video file.
+    output_path : pathlib.Path
+        Base directory where extracted frames will be saved.
+        Frames are stored under:
+        ``output_path / input_path.stem / clip_XX / frame_YYY.png``.
+    duration : float
+        Duration of the clip to extract, in seconds.
+    fps : int, optional
+        Frame rate to assume for extraction. If None, the FPS
+        is read from the video metadata.
+
+    Returns
+    -------
+    None
+
     """
     if fps is None : 
         metadata = get_video_properties(input_path, duration)
@@ -38,15 +63,37 @@ def extract_frames(input_path: Path, output_path: Path, duration: float, fps: in
             frame_count = 0
             folder_count += 1
             print(f"Frames saved in {clip_dir} !")
-            break  # break for now to get just one clip #### TO CHANGE
 
     video.release()
 
 
 def get_video_properties(video_path: Path, CLIP_DURATION: float = 12.5, fps = None) -> dict:
     """
-    Returns video metadata as a dictionary.
+    Returns basic metadata (dict) and clip statistics from a video file.
+
+    Parameters
+    ----------
+    video_path : pathlib.Path
+        Path to the video file.
+    CLIP_DURATION : float, optional
+        Desired clip duration in seconds, used to estimate
+        the number of clips. Default is 12.5.
+    fps : int, optional
+        Frame rate to use. If None, the FPS is read from the video file.
+
+    Returns
+    -------
+    dict
+        Dictionary containing video metadata :
+        - ``video_path`` : Path
+        - ``resolution`` : tuple[int, int]
+        - ``fps`` : int
+        - ``frame_count`` : int
+        - ``duration_sec`` : float
+        - ``frames_per_clip`` : int
+        - ``expected_clips`` : int
     """
+
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
         raise RuntimeError(f"Cannot open video: {video_path}")
@@ -77,8 +124,25 @@ def get_video_properties(video_path: Path, CLIP_DURATION: float = 12.5, fps = No
 
 def frames_to_video(frames_dir: Path, output_video_path: Path, fps: float = 30) -> None:
     """
-    Converts a folder of frames to a video file.
+    Assemble a sequence of image frames into a video file.
+
+    Frames must be named using the pattern ``frame_XXX.png`` and
+    are written in sorted order into an MP4 video.
+
+    Parameters
+    ----------
+    frames_dir : pathlib.Path
+        Directory containing frame images.
+    output_video_path : pathlib.Path
+        Directory where the output video will be written.
+    fps : float, optional
+        Frame rate of the output video. Default is 30.
+
+    Returns
+    -------
+    None
     """
+
     print("\nConverting frames to video...")
     output_video_path.mkdir(exist_ok=True)
 
@@ -110,6 +174,33 @@ def split_video(input_path: Path, output_path: Path,
                 CLIP_DURATION: float = 3,
                 FPS: int = None,
                 CRF: int = 23) -> None:
+    """
+    Split a video into fixed-duration clips using FFmpeg.
+
+    The video is first re-encoded to a constant frame rate and
+    compressed using H.264. It is then split into multiple clips
+    without re-encoding.
+    Requires FFmpeg to be installed and available in PATH.
+
+    Parameters
+    ----------
+    input_path : pathlib.Path
+        Path to the input video file.
+    output_path : pathlib.Path
+        Directory where output clips will be saved.
+        Output clip names follow the pattern: ``{output_path.stem}_clip_XX.mp4``
+    CLIP_DURATION : float, optional
+        Duration of each clip in seconds. Default is 3.
+    FPS : int, optional
+        Target frame rate. If None, the original FPS is preserved.
+    CRF : int, optional
+        Constant Rate Factor for H.264 compression
+        (lower = better quality). Default is 23.
+
+    Returns
+    -------
+    None
+    """
 
     output_path.mkdir(parents=True, exist_ok=True)
     fixed_video_path = output_path / "fixed_125fps.mp4"
@@ -175,21 +266,39 @@ def split_video(input_path: Path, output_path: Path,
 
 
 def run_ffmpeg(ffmpeg_args: list[str]) -> None : 
+    """
+    Execute an FFmpeg command.
+    Requiere FFmpeg to be installed
+
+    Parameters
+    ----------
+    ffmpeg_args : list of str
+        Full FFmpeg command as a list of arguments.
+
+    Returns
+    -------
+    None
+    """
+
     try:
         subprocess.run(ffmpeg_args, check=True)
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"FFmpeg failed:\n{e}")
 
 
+
 if __name__ == "__main__":
     # ---------------------------------------------- setup path -------------------------------------------------
 
-    GENERATED_DATA_DIR = Path("../exploration/data")
-    GENERATED_FRAMES_DIR = GENERATED_DATA_DIR / "frames" 
-    GENERATED_VIDEOS_DIR = GENERATED_DATA_DIR / "direct_clips"
-    GENERATED_FRAME2VIDEOS_DIR = GENERATED_DATA_DIR / "frame_to_clips"
+    # inputs (should exist)
+    GENERATED_DATA_DIR = Path("../../exploration/data")
+    DATABASE_PATH = GENERATED_DATA_DIR / "database/rat_517_H001.csv"  # if it does not exist, make one with make_database (in file_management.py)
     INPUT_VIDEO_DIR = Path("/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024")
-    DATABASE_PATH = "../exploration/no_KO_video_list.csv"
+
+    # outputs
+    GENERATED_FRAMES_DIR = GENERATED_DATA_DIR / "frames" 
+    GENERATED_VIDEOS_DIR = GENERATED_DATA_DIR / "clips"
+    GENERATED_FRAME2VIDEOS_DIR = GENERATED_DATA_DIR / "frame_to_clips"
 
     GENERATED_DATA_DIR.mkdir(parents=True, exist_ok=True)
     GENERATED_FRAMES_DIR.mkdir(exist_ok=True)
@@ -202,7 +311,7 @@ if __name__ == "__main__":
     VIDEO_EXEMPLE = Path(DATABASE.iloc[0]["filename"])
     CLIP_DURATION = 12.5  # sec,  3 sec if fps=125, 12.5 sec if fps=30  (1 trial = 375 frames)
     FPS = 30   # used if you want to set the fps for the outputs clip
-    CRF = 28    # compression value (if compression is needed)
+    CRF = 28   # compression value (the higher, the greater is the compression)
 
     # ------------------------------------------- get metadata (cv2) -------------------------------------------------
 

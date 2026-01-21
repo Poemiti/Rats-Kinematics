@@ -42,39 +42,7 @@ Expected Total number of clips                            :  27692
 | ----              | ----                    | ----                       | ----                    |
 | splitting         | 37.32 sec (1 raw video) | 6.68 h                     | split_video             |
 | point prediction  | 30.74 sec (1 clip)      | 236.47 h                   | dlc_predict_Julien      |
-| video annotation  | 0.79 sec  (1 clip)      | 6.05 h                     | annotate_video_from_csv |
-
-
-## Function available
-in src/
-`PIPELINE_prediction.py` : MAIN PIPELINE for prediction (conda env = DEEPLABCUT)  
-`PIPELINE_analysis.py`   : MAIN PIPELINE for analysis of predictions (conda env = kinematics)    
-  
-`split_video_by_trial.py ` : function to split video into clips of a certain duration   
-`tkinter_analysis` : mvc app to filter files from a specified directory  
-  
-| Function name          | Output                         |
-| ---------------------- | ------------------------------ |
-| `extract_frames`       | Collection of `frame.png`      |
-| `frames_to_video`      | One `clip.mp4`                 |
-| `split_video`          | Collection of `clip.mp4`       |
-| `get_video_properties` | Dictionary of video properties |
-  
-`split_video_by_trial.py` : function to split video into clips of a certain duration  
-  
-| Function name             | Output                      |
-| ------------------------- | --------------------------- |
-| `dlc_predict_Rejane`      | `results.h5`, `results.csv` |
-| `dlc_predict_Julien`      | `results.h5`, `results.csv` |
-| `annotate_video`          | `annotated_clip.mp4`        |
-| `annotate_video_from_csv` | `annotated_clip.mp4`        |
-  
-`trajectory_analysis.py` : analysis function  
-  
-| Function name                 | Output                            |
-| ----------------------------- | --------------------------------- |
-| `plot_bodyparts_trajectories` | `plt.show()`                      |
-| `get_luminosity`              | `xarray` of luminosity properties |
+| video annotation  | 0.79 sec  (1 clip)      | 6.05 h                     | annotate_video_from_csv 
 
 
 ## Folder sytem
@@ -106,28 +74,9 @@ in src/
 
 -- exploration/                     # jupyter notebook to explore / test things
     |
-|-- data/                           # generated data from src/ python files (on their own, it s for test only)
-        |
-        | -- csv_results/           # results from the dlc model prediction (csv and h5)
-        | -- dlc_results/
-        |
-        | -- frames/                # generated frames for each clip
-        | -- frame2clips/           # generated videos (clips) from the frames
-        | -- direct_clips/          # generated videos (clips) from the raw video
-        |
-        | -- temporary/             # temporary dlc prediction (always empty because it erase the temporary files generated)
-        | -- video_annotation/      # clip + point annotation on top
-        | -- luminosity_figures/    # track led lightening : csv + image html
-        | -- trajectory_figures/    # .png of the trajectory of video (single clip, stacked clips, average clip)
-    |
-    | -- figures/                   # generated figures from the notebooks
-    | -- clip_video_test/           # generated videos from the src/split_video_by_trial.py
-    |
-    | led_recon.ipynb               # test on led recognition (automatic)
-    | video_sorting.ipynb           # exploration of the videos and the expermimental condition
-    |
-    | video_list_sorted.csv         # output of video_sorting.py
-    | no_KO_video_list.csv
+    |-- data/                           # generated data of utils files on their own, it s for test only
+            |
+            | ...
 
 -- src/                             # "official" scripts
     |

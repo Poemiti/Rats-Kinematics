@@ -4,9 +4,8 @@ from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
-import time
 
-from sort_files import make_database, is_csv, is_video
+from sort_files import make_database, is_csv, is_video, is_left_view
 from database_filter import Model, Controller, View
 from trajectory_analysis import get_luminosity
 from led_detection import classify_clip
@@ -57,20 +56,29 @@ for video_path in DATABASE["filename"] :
     if COUNTER >= COUNTER_LIMIT : 
         break
 
-
     video_path = Path(video_path)
 
     html_output_path = LUMINOSITY_DIR / f"{video_path.stem}_luminosity.html"
     csv_output_path = LUMINOSITY_DIR / f"{video_path.stem}_luminosity.csv"
 
-    luminosities: pd.DataFrame = get_luminosity(annotation_num=1802,        
-                                video_path= video_path,
-                                fig_output_path= html_output_path,
-                                csv_ouput_path = csv_output_path,
-                                max_n_frames=None,
-                                label_studio_url= "http://l-t4-mamserver.imn.u-bordeaux2.fr/labelstudioapp",
-                                api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6ODA3NTE1MDkzNCwiaWF0IjoxNzY3OTUwOTM0LCJqdGkiOiI4OGEwYTE5NDZkODM0NTlhYjQyMzIzN2I1MTQ0N2ZlYiIsInVzZXJfaWQiOiIyNCJ9.dNTu0zJNPHax5tnfYWanvZlH8SZ9VHQvOGZ_GEyN0l8"
-    )
+    # choose annotation number (label_studio) based on the view
+    # H001 (left view) = 1812
+    # H002 (right view) = 1811
+
+    if is_left_view(str(video_path.stem)) : 
+        label_studio_annotation = 1812
+    else : 
+        label_studio_annotation = 1811
+    print(f"label studio annotation : {label_studio_annotation}")
+
+    luminosities: pd.DataFrame = get_luminosity(annotation_num=label_studio_annotation,        
+                                                video_path= video_path,
+                                                fig_output_path= html_output_path,
+                                                csv_ouput_path = csv_output_path,
+                                                max_n_frames=None,
+                                                label_studio_url= "http://l-t4-mamserver.imn.u-bordeaux2.fr/labelstudioapp",
+                                                api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6ODA3NTE1MDkzNCwiaWF0IjoxNzY3OTUwOTM0LCJqdGkiOiI4OGEwYTE5NDZkODM0NTlhYjQyMzIzN2I1MTQ0N2ZlYiIsInVzZXJfaWQiOiIyNCJ9.dNTu0zJNPHax5tnfYWanvZlH8SZ9VHQvOGZ_GEyN0l8"
+                                                )
 
     # clean dataframe
     luminosities.columns = luminosities.columns.droplevel(0) # columns = LED_1 ...

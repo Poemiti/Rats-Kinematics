@@ -79,7 +79,6 @@ def rename_clip(clip_path: Path, laser_on: bool, new_cue: str):
 
 
 
-
 def classify_clip(clip_path: Path, luminosities) : 
 
     cue_type = define_cue_type(luminosities["LED_1"])

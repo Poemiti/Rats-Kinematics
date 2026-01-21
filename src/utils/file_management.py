@@ -1,4 +1,3 @@
-import numpy as np 
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -6,15 +5,83 @@ import re
 import seaborn as sns
 from pathlib import Path
 
+# ----------------------------------- function for classifiaction of file based on their name --------------------------------------
+
+def is_left_view(filename : str) -> bool : 
+    """
+    Determine whether a video corresponds to the left camera view.
+    H001 : left view
+    H002 : right view
+
+    Parameters
+    ----------
+    filename : str
+        Name of the file to analyze.
+
+    Returns
+    -------
+    bool
+        True if the view identifier is ``H001`` (left view), False otherwise.
+    """
+
+    view  = extract_type(filename, r"H\d+")
+    print(f"view for {filename} : {view}")
+    if view == "H001" : 
+        return True
+    return False
+
 
 def is_video(filename : str) -> bool : 
+    """
+    Check if a file is a video file.
+    Supported video formats are ``.avi`` and ``.mp4``.
+
+    Parameters
+    ----------
+    filename : str
+        Name of the file.
+
+    Returns
+    -------
+    bool
+        True if the filename has a video extension, False otherwise.
+    """
     video_extensions = (".avi", ".mp4")
     return filename.lower().endswith(video_extensions)
 
 def is_csv(filename : str) -> bool : 
+    """
+    Check if a file is CSV
+
+    Parameters
+    ----------
+    filename : str
+        Name of the file.
+
+    Returns
+    -------
+    bool
+        True if the filename ends with ``.csv``, False otherwise.
+    """
     return filename.lower().endswith(".csv")
 
-def sort_componants(components : list) -> pd.DataFrame :
+def sort_componants(components : list[str]) -> pd.DataFrame :
+    """
+    Components are classified into numeric, alphabetic,
+    alphanumeric, or mixed categories and returned as a DataFrame.
+    Note : used to check how files are named
+
+    Parameters
+    ----------
+    components : list of str
+        List of string components to categorize.
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame with columns corresponding to component categories.
+    """
+        
     categorized = {
         "number": [],
         "alpha": [],
@@ -43,7 +110,21 @@ def sort_componants(components : list) -> pd.DataFrame :
 
 
 
-def decompose_video_name(filename : str) : 
+def decompose_filename(filename : str) -> list[str] : 
+    """
+    Decompose a video filename into underscore-separated components.
+    The file extension is removed before splitting.
+
+    Parameters
+    ----------
+    filename : str
+        Video filename (with extension).
+
+    Returns
+    -------
+    list of str
+        List of components extracted from the filename.
+    """
 
     # remove the format of the name (.avi, .mp4 ...)
     name, format = os.path.splitext(filename)
@@ -52,8 +133,23 @@ def decompose_video_name(filename : str) :
     return componants
 
 
-def dict_to_df(dict : dict) : 
-    
+def dict_to_df(dict : dict) -> pd.DataFrame : 
+    """
+    Convert a dictionary of lists into a pandas DataFrame.
+    Lists are padded with empty strings so that all columns
+    have the same length.
+
+    Parameters
+    ----------
+    dict : dict
+        Dictionary mapping column names to lists of values.
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame constructed from the dictionary.
+    """
+        
      # Find the maximum length of the columns
     max_len = max(len(lst) for lst in dict.values())
 
@@ -65,6 +161,22 @@ def dict_to_df(dict : dict) :
 
 
 def extract_type(input : str, regex : str) -> str : 
+    """
+    Extract a substring from a string using a regular expression.
+
+    Parameters
+    ----------
+    input : str
+        Input string to search.
+    regex : str
+        Regular expression pattern.
+
+    Returns
+    -------
+    str or None
+        The matched substring if found, otherwise None.
+    """
+
     match = re.search(regex, input)
 
     if match : 
@@ -74,8 +186,25 @@ def extract_type(input : str, regex : str) -> str :
 
 
 def classify_file(filename: str, videos: list) -> None:
+    """
+    Parse a video filename and extract experimental metadata.
+
+    The function decomposes the filename into tokens that are then
+    used to classify the file in certain categories.
+    The extracted metadata is appended as a dictionary to `videos`.
+
+    Parameters
+    ----------
+    filename : str
+        Full path or name of the video file.
+    videos : list
+        List to which the extracted metadata dictionary is appended.
+
+    Returns
+    -------
+    None"""
     
-    name_comp = decompose_video_name(filename)
+    name_comp = decompose_filename(filename)
 
     result = {
         "rat_name": "Unknown",
@@ -155,6 +284,24 @@ def display_count_per_rat_condition(df : pd.DataFrame,
                                     fig_output_path: Path, 
                                     condition : str, 
                                     show: bool = False) -> None :
+    """
+    Plot the number of videos per rat type and experimental condition.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame containing video metadata.
+    fig_output_path : pathlib.Path
+        Path where the figure will be saved.
+    condition : str
+        Column name representing the experimental condition.
+    show : bool, optional
+        Whether to display the figure interactively.
+
+    Returns
+    -------
+    None
+    """
 
     counts = (
         df.groupby(["rat_type", condition])
@@ -189,16 +336,36 @@ def display_count_per_rat_condition(df : pd.DataFrame,
 
 
 def display_images(
-    images_list: list[str],
-    titles_list: list[str] | None,
-    fig_output_path: Path,
-    figsize: tuple[float, float] = (12, 4),
-    images_per_row: int = 3,
-    show: bool = True
-) -> None:
+                images_list: list[str],
+                titles_list: list[str] | None,
+                fig_output_path: Path,
+                figsize: tuple[float, float] = (12, 4),
+                images_per_row: int = 3,
+                show: bool = True
+            ) -> None:
     """
-    Display images in a grid using matplotlib.
+    Display a list of images in a grid layout.
+
+    Parameters
+    ----------
+    images_list : list of str
+        Paths to image files.
+    titles_list : list of str or None
+        Optional list of titles for each image.
+    fig_output_path : pathlib.Path
+        Path where the figure will be saved.
+    figsize : tuple of float, optional
+        Size of the figure in inches.
+    images_per_row : int, optional
+        Number of images per row.
+    show : bool, optional
+        Whether to display the figure interactively.
+
+    Returns
+    -------
+    None
     """
+
     import math
 
     n = len(images_list)
@@ -244,6 +411,25 @@ def display_images(
 
 
 def make_database(root_dir, satisfy_condition):
+    """
+    Build a database of video metadata from a directory tree.
+    The directory is recursively scanned, and files satisfying
+    a given condition are classified and stored in a DataFrame.
+
+    Parameters
+    ----------
+    root_dir : str or pathlib.Path
+        Root directory to scan.
+    satisfy_condition : callable
+        Function that takes a filename and returns True if it
+        should be included.
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame containing extracted metadata for all matching files.
+    """
+
     sorted_videos = []
     for root, _, files in os.walk(root_dir):
         for name in files:
@@ -258,7 +444,7 @@ if __name__ == "__main__" :
 
     # ---------------------------------------------- setup path -------------------------------------------------
 
-    GENERATED_DATA_DIR = Path("../exploration/data") # root
+    GENERATED_DATA_DIR = Path("../../exploration/data") # root
     RAW_VIDEO_DIR = Path("/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024")
 
     DATABASE_DIR = GENERATED_DATA_DIR / "database" 
@@ -272,7 +458,7 @@ if __name__ == "__main__" :
     for root, dirs, files in os.walk(RAW_VIDEO_DIR):
         for name in files : 
             if is_video(name) :
-                comp = decompose_video_name(name)
+                comp = decompose_filename(name)
                 all_componants.update(comp)
 
 
@@ -282,27 +468,19 @@ if __name__ == "__main__" :
 
     # ----------------------------------------------  classify Video by condition -------------------------------------------------
 
-    ct_video = 0
-    sorted_videos = []
-    for root, dirs, files in os.walk(RAW_VIDEO_DIR):
-        for name in files:
-            if is_video(name):
-                classify_file(os.path.join(root, name), sorted_videos)
-                ct_video += 1
+    df = make_database(RAW_VIDEO_DIR, is_video)
 
-
-    df = pd.DataFrame(sorted_videos)
-    print(f"Nombre total de vidéo {ct_video}")
-    print(f"Nombre de video collecté : {len(df)}")
-    print(f"Final dataframe : \n{df}")
-
+    print(f"Number of video in database : {len(df)}")
+    print(f"Database : \n{df}")
 
     # filtration of the KO rat
     no_KO_rats_df = df[df["rat_type"] != "Unknown"]
     no_KO_rats_df.to_csv(DATABASE_DIR / "no_KO_video_list.csv")
 
+    print(f"Number of video after KO filtration : {len(no_KO_rats_df)}")
+
     display_count_per_rat_condition(no_KO_rats_df, 
-                                    DATABASE_DIR / "video_count_per_rats.png",
+                                    DATABASE_DIR /"video_count_per_rats.png",
                                     "rat_name")
     display_count_per_rat_condition(no_KO_rats_df, 
                                     DATABASE_DIR / "video_count_per_condition.png",
