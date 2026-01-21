@@ -18,9 +18,7 @@
 
 ### Label studio annotation signification
 
-| Rat name   | annotation number        |
-| --------   | ------------             |
-|            | H001        | H002       |
+| Rat name   | H001        | H002       |
 | --------   | -------     | -------    |
 | 516        | 1812        | 1811       |
 | 517        | 1812        | 1811       |
