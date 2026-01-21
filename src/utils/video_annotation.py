@@ -2,15 +2,45 @@ from pathlib import Path
 import time
 import xarray as xr
 import pandas as pd
+import cv2
+import numpy as np
+import xarray as xr
+import matplotlib.cm as cm
+import numba
 
 from dlc_prediction import dlc_predict_Julien
+from deeplabcut.pose_estimation_pytorch import set_load_weights_only
+
 
 def annotate_video_from_xr(video_path: Path, output_path: Path, pose: xr.DataArray, radius=5, likelihood_threshold: int = 0.5):
-    import cv2
-    import numpy as np
-    import xarray as xr
-    import matplotlib.cm as cm
-    import numba
+    """
+    Annotate a video with pose estimation data stored in an xarray DataArray.
+
+    This function overlays colored dots on each frame to represent
+    detected body part positions. One color is assigned per body part.
+    Annotations are applied only when the likelihood exceeds a given threshold.
+
+    Parameters
+    ----------
+    video_path : pathlib.Path
+        Path to the input video file.
+    output_path : pathlib.Path
+        Path where the annotated video will be saved.
+    pose : xarray.DataArray
+        Pose estimation data with dimensions:
+        ``(frame_num, bodyparts, coords)``,
+        where ``coords`` includes ``x``, ``y``, and ``likelihood``.
+    radius : int, optional
+        Radius (in pixels) of the circles drawn for each body part.
+        Default is 5.
+    likelihood_threshold : float, optional
+        Minimum likelihood required to draw a body part.
+        Default is 0.5.
+
+    Returns
+    -------
+    None
+    """
 
     radius=5
 
@@ -106,12 +136,35 @@ def annotate_video_from_xr(video_path: Path, output_path: Path, pose: xr.DataArr
 
 
 def annotate_video_from_csv(video_path: Path, csv_path: Path, output_path: Path, radius=5, likelihood_threshold=0.8, ):
-    import cv2
-    import numpy as np
-    import matplotlib.cm as cm
-    import numba
+    """
+    Annotate a video with pose estimation data stored in csv.
 
-    
+    This function overlays colored dots on each frame to represent
+    detected body part positions. One color is assigned per body part.
+    Annotations are applied only when the likelihood exceeds a given threshold.
+
+    Parameters
+    ----------
+    video_path : pathlib.Path
+        Path to the input video file.
+    csv_path : pathlib.Path
+        csv file where data has a multi-index header with:
+        ``(frame_num, bodyparts, coords)``,
+        where ``coords`` includes ``x``, ``y``, and ``likelihood``.
+    output_path : pathlib.Path
+        Path where the annotated video will be saved.
+    radius : int, optional
+        Radius (in pixels) of the circles drawn for each body part.
+        Default is 5.
+    likelihood_threshold : float, optional
+        Minimum likelihood required to draw a body part.
+        Default is 0.5.
+
+    Returns
+    -------
+    None
+    """
+
     # Load CSV
     df = pd.read_csv(csv_path, header=[0, 1, 2])
 
@@ -207,19 +260,41 @@ def annotate_video_from_csv(video_path: Path, csv_path: Path, output_path: Path,
     out.release()
 
 
-def annotate_single_bodypart(
-    video_path: Path,
-    csv_path: Path,
-    output_path: Path,
-    bodypart_name: str,
-    radius=5,
-    likelihood_threshold=0.8,
-):
-    import cv2
-    import numpy as np
-    import pandas as pd
-    import matplotlib.cm as cm
-    import numba
+def annotate_single_bodypart(video_path: Path,
+                            csv_path: Path,
+                            output_path: Path,
+                            bodypart_name: str,
+                            radius=5,
+                            likelihood_threshold=0.8,
+                        ):
+    """
+    Annotate a video with the trajectory of a single body part.
+
+    The body part position is accumulated over time and displayed
+    as a persistent trajectory overlay. Only detections exceeding
+    the likelihood threshold are drawn.
+
+    Parameters
+    ----------
+    video_path : pathlib.Path
+        Path to the input video file.
+    csv_path : pathlib.Path
+        Path to the DeepLabCut CSV file.
+    output_path : pathlib.Path
+        Path where the annotated video will be saved.
+    bodypart_name : strs
+        Name of the body part to visualize.
+    radius : int, optional
+        Radius (in pixels) of the drawn trajectory points.
+        Default is 5.
+    likelihood_threshold : float, optional
+        Minimum likelihood required to draw a point.
+        Default is 0.8.
+
+    Returns
+    -------
+    None
+    """
 
     # Load CSV
     df = pd.read_csv(csv_path, header=[0, 1, 2])
@@ -311,22 +386,25 @@ def annotate_single_bodypart(
 
 if __name__ == "__main__" : 
 
+    # Disable "weights only" before analyzing
+    set_load_weights_only(False)
+
     # -------------------------------------- setup path ------------------------------------
 
-    DATABASE_PATH = "../exploration/no_KO_video_list.csv"
-    DATABASE = pd.read_csv(DATABASE_PATH)
-    VIDEO_EXEMPLE = Path(DATABASE["filename"][0]).stem
-    RAT_NAME = "#516"
+    # inputs (should exist)
+    GENERATED_DATA_DIR = Path("../../exploration/data")
+    DATABASE_PATH = GENERATED_DATA_DIR / "database/rat_517_H001.csv"  # if it does not exist, make one with make_database (in file_management.py)
 
-    # inputs (they should already exist)
-    GENERATED_DATA_DIR = Path("../exploration/data")
+    # get the path for a video (path in a premade database)
+    database = pd.read_csv(DATABASE_PATH)
+    VIDEO_EXEMPLE = Path(database.iloc[0]["filename"])
+    INPUT_VIDEO_PATH = GENERATED_DATA_DIR / "clips" / VIDEO_EXEMPLE.stem / f"{VIDEO_EXEMPLE.stem}_clip_00.mp4"
     MODEL_PATH = Path("/media/filer2/T4b/Models/DLC/REJANE_rat_right_model-2025-06-18/DLC-project-2025-06-18")
-    INPUT_VIDEO_PATH = GENERATED_DATA_DIR / "clips" / RAT_NAME / VIDEO_EXEMPLE / "clip_00.mp4"
 
     # outputs
-    OUTPUT_H5_PATH = GENERATED_DATA_DIR / "dlc_results" / VIDEO_EXEMPLE 
-    OUTPUT_CSV_PATH = GENERATED_DATA_DIR / "csv_results" / VIDEO_EXEMPLE 
-    OUTPUT_VIDEO_PATH = GENERATED_DATA_DIR / "video_annotation" / VIDEO_EXEMPLE
+    OUTPUT_H5_PATH = GENERATED_DATA_DIR / "dlc_results" / VIDEO_EXEMPLE.stem 
+    OUTPUT_CSV_PATH = GENERATED_DATA_DIR / "csv_results" / VIDEO_EXEMPLE.stem
+    OUTPUT_VIDEO_PATH = GENERATED_DATA_DIR / "video_annotation" / VIDEO_EXEMPLE.stem
 
 
    # -------------------------------------- prediction ------------------------------------
@@ -334,14 +412,13 @@ if __name__ == "__main__" :
     print("\nVideo Annotation ...\n")
 
     dlc_points_xr = dlc_predict_Julien(MODEL_PATH, 
-                                       INPUT_VIDEO_PATH, 
-                                       OUTPUT_CSV_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.csv")
+                                       INPUT_VIDEO_PATH)
 
 
     anot_start = time.perf_counter()
 
     annotate_video_from_xr(INPUT_VIDEO_PATH, 
-                           OUTPUT_VIDEO_PATH / f"annotated_{INPUT_VIDEO_PATH.stem}.mp4", 
+                           OUTPUT_VIDEO_PATH / f"annotated_xr_allbodypart_{INPUT_VIDEO_PATH.stem}.mp4", 
                            dlc_points_xr, radius=5, likelihood_threshold=0.5) # default radius
 
     anot_end = time.perf_counter()
@@ -352,7 +429,7 @@ if __name__ == "__main__" :
 
     annotate_video_from_csv(INPUT_VIDEO_PATH, 
                             OUTPUT_CSV_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.csv", 
-                            OUTPUT_VIDEO_PATH / f"annotated_csv_{INPUT_VIDEO_PATH.stem}.mp4", 
+                            OUTPUT_VIDEO_PATH / f"annotated_csv_allbodypart_{INPUT_VIDEO_PATH.stem}.mp4", 
                             radius=5, likelihood_threshold=0.5)
     
     anot_end_csv = time.perf_counter()
@@ -362,7 +439,7 @@ if __name__ == "__main__" :
 
     annotate_single_bodypart(video_path= INPUT_VIDEO_PATH,
                              csv_path=OUTPUT_CSV_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.csv",
-                             output_path=OUTPUT_VIDEO_PATH / f"annotated_{INPUT_VIDEO_PATH.stem}.mp4",
+                             output_path=OUTPUT_VIDEO_PATH / f"annotated_lefthand_{INPUT_VIDEO_PATH.stem}.mp4",
                              bodypart_name="left_hand",
                              radius=5,
                              likelihood_threshold=0.5)
