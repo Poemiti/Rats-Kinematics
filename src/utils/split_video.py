@@ -307,8 +307,8 @@ if __name__ == "__main__":
 
     # ---------------------------------------------- setup constant -------------------------------------------------
 
-    DATABASE = pd.read_csv(DATABASE_PATH)
-    VIDEO_EXEMPLE = Path(DATABASE.iloc[0]["filename"])
+    database = pd.read_csv(DATABASE_PATH)
+    VIDEO_EXEMPLE = Path(database.iloc[0]["filename"])
     CLIP_DURATION = 12.5  # sec,  3 sec if fps=125, 12.5 sec if fps=30  (1 trial = 375 frames)
     FPS = 30   # used if you want to set the fps for the outputs clip
     CRF = 28   # compression value (the higher, the greater is the compression)
@@ -339,14 +339,12 @@ if __name__ == "__main__":
 
     output_clips_path = GENERATED_VIDEOS_DIR / VIDEO_EXEMPLE.stem
     split_start = time.perf_counter()
-    split_video(VIDEO_EXEMPLE, output_clips_path, CLIP_DURATION, FPS=None ,CRF=CRF)
+    split_video(input_path=VIDEO_EXEMPLE, 
+                output_path=output_clips_path, 
+                CLIP_DURATION=CLIP_DURATION, 
+                FPS=None ,CRF=CRF)
     split_end = time.perf_counter()
 
-
-    print("\nClip metadata")
-    meta = get_video_properties(GENERATED_VIDEOS_DIR / VIDEO_EXEMPLE.stem / "clip_00.mp4", CLIP_DURATION)
-    for key, val in meta.items() : 
-        print(f"  {key} : {val}")
 
     # -----------------------------------  Display perfomance -------------------------------------------------
 

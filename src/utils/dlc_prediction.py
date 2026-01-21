@@ -68,7 +68,9 @@ def cleanup_temp_directory(analysis_output_path: Path):
 
 
 
-def dlc_predict_Julien(model_path: Path, video_path: Path, output_csv_path : Path = None) -> xr.DataArray:
+def dlc_predict_Julien(model_path: Path, 
+                       video_path: Path, 
+                       output_csv_path : Path = None) -> xr.DataArray:
     import deeplabcut, tempfile
 
     with tempfile.TemporaryDirectory() as dlc_dest:
@@ -110,14 +112,16 @@ if __name__ == "__main__":
 
     # -------------------------------------- setup path ------------------------------------
 
-    DATABASE_PATH = "../exploration/no_KO_video_list.csv"
-    DATABASE = pd.read_csv(DATABASE_PATH)
-    VIDEO_EXEMPLE = Path(DATABASE.iloc[0]["filename"])
-
-    # inputs (they should already exist)
-    GENERATED_DATA_DIR = Path("../exploration/data")
+    # inputs (should exist)
+    GENERATED_DATA_DIR = Path("../../exploration/data")
+    DATABASE_PATH = GENERATED_DATA_DIR / "database/rat_517_H001.csv"  # if it does not exist, make one with make_database (in file_management.py)
+    INPUT_VIDEO_DIR = Path("/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024")
     MODEL_PATH = Path("/media/filer2/T4b/Models/DLC/REJANE_rat_right_model-2025-06-18/DLC-project-2025-06-18")
-    INPUT_VIDEO_PATH = GENERATED_DATA_DIR / "direct_clips" / VIDEO_EXEMPLE.stem / "clip_00.mp4"
+
+    # get the path for a video (path in a premade database)
+    database = pd.read_csv(DATABASE_PATH)
+    VIDEO_EXEMPLE = Path(database.iloc[0]["filename"])
+    INPUT_VIDEO_PATH = GENERATED_DATA_DIR / "clips" / VIDEO_EXEMPLE.stem / f"{VIDEO_EXEMPLE.stem}_clip_00.mp4"
 
     # outputs
     OUTPUT_H5_PATH = GENERATED_DATA_DIR / "dlc_results" / VIDEO_EXEMPLE.stem 
@@ -131,7 +135,7 @@ if __name__ == "__main__":
     OUTPUT_CSV_PATH.mkdir(parents=True, exist_ok=True)
     OUTPUT_VIDEO_PATH.mkdir(parents=True, exist_ok=True)
     TEMPORARY_PATH.mkdir(parents=True, exist_ok=True)
-    
+
     # -------------------------------------- make prediction : Rejane version ------------------------------------
     
     print("\nDLC prediction - Rejane Methode ...\n")
