@@ -16,6 +16,21 @@
 - LED 4 : OPTO, activation du laser de stimulation (si applicable),  
 - LED 5 : REWARD, validation de la tâche correcte, entraînant une récompense.  
 
+### Label studio annotation signification
+
+| Rat name   | annotation number        |
+| --------   | ------------             |
+|            | H001        | H002       |
+| --------   | -------     | -------    |
+| 516        | 1812        | 1811       |
+| 517        | 1812        | 1811       |
+| 519        | 1812        | 1811       |
+| 521        | 1812        | 1811       |
+| 525        | 1812        | 1811       |
+| 527        | 1812        | 1811       |
+| 529        | 1812        | 1811       |
+| 531        | 1812        | 1811       |
+
 
 ## Perfomance prediction
 
