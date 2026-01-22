@@ -185,17 +185,17 @@ def extract_type(input : str, regex : str) -> str :
     return None
 
 
-def classify_file(filename: str, videos: list) -> None:
+def classify_file(file_path: Path, videos: list) -> None:
     """
-    Parse a video filename and extract experimental metadata.
+    Parse a video file_path and extract experimental metadata.
 
-    The function decomposes the filename into tokens that are then
+    The function decomposes the file_path into tokens that are then
     used to classify the file in certain categories.
     The extracted metadata is appended as a dictionary to `videos`.
 
     Parameters
     ----------
-    filename : str
+    file_path : pathlib.Path
         Full path or name of the video file.
     videos : list
         List to which the extracted metadata dictionary is appended.
@@ -204,7 +204,7 @@ def classify_file(filename: str, videos: list) -> None:
     -------
     None"""
     
-    name_comp = decompose_filename(filename)
+    name_comp = decompose_filename(file_path.stem)
 
     result = {
         "rat_name": "Unknown",
@@ -263,6 +263,10 @@ def classify_file(filename: str, videos: list) -> None:
         ]:
             result["task"] = token
 
+            # if "CueL1" in name_comp or "CueL2" in name_comp : 
+            #     print(name_comp)
+            #     print(result["task"], token)
+
         if result["laser_intensity"] == "Unknown":
             match = extract_type(token, r"\d,\d*(mW)")
             if match:
@@ -275,7 +279,7 @@ def classify_file(filename: str, videos: list) -> None:
                 result["laser_on"] = match
 
     videos.append({
-        "filename": filename,
+        "filename": str(file_path),
         **result
     })
 
@@ -410,7 +414,7 @@ def display_images(
 
 
 
-def make_database(root_dir, satisfy_condition):
+def make_database(root_dir : Path, satisfy_condition):
     """
     Build a database of video metadata from a directory tree.
     The directory is recursively scanned, and files satisfying
@@ -431,11 +435,106 @@ def make_database(root_dir, satisfy_condition):
     """
 
     sorted_videos = []
-    for root, _, files in os.walk(root_dir):
-        for name in files:
-            if satisfy_condition(name) : 
-                classify_file(os.path.join(root, name), sorted_videos)
+    for file_path in root_dir.rglob("*"):
+        if file_path.is_file() and satisfy_condition(file_path.name):
+            classify_file(file_path, sorted_videos)
     return pd.DataFrame(sorted_videos)
+
+
+
+def make_directory_name(name : str) : 
+    """
+    Generate a directory name by extracting metadata tokens from a filename or a directory name.
+    Note : This function is used when doing the analysis of multiple clips that
+    come from seperate video, but have the same experimental setting. Especially
+    regarding the cue 
+
+    The function parses the name using regular expressions to extract:
+        - rat identifier (e.g. '#517')
+        - rat type (CTRL or CHR)
+        - stimulation location (LeftHemi, RightHemi, Ipsi, Bilateral, Contra)
+        - laser stim type (Conti, NOstim, Beta)
+        - cue type (CueL1, CueL2, NoCue)
+        - view identifier ('H001', 'H002')
+        - laser state (LaserOn or LaserOff)
+
+    Extracted components are concatenated using underscores ('_').
+    Any empty or missing components are omitted.
+
+    Parameters
+    ----------
+    name : str
+        The filename/dir from which metadata will be extracted.
+
+    Returns
+    -------
+    str
+        A directory name composed of the extracted metadata fields.
+    """
+    name_comp = name.split("_")
+
+    result = {
+        "rat_name": "Unknown",
+        "rat_type": "Unknown",
+        "condition": "Unknown",
+        "stim_location": "Unknown",
+        "cue_type": "Unknown",
+        "view": "Unknown",
+        "laser_on" : "Unknown",
+        "laser_intensity": "Unknown"
+    }
+
+    for token in name_comp:
+
+        if result["rat_name"] == "Unknown" :
+            match = extract_type(token, r"^#(\d\d\d)")
+            if match:
+                result["rat_name"] = match
+
+        if result["rat_type"] == "Unknown":
+            match = extract_type(token, r"(CTRL|CHR)")
+            if match:
+                result["rat_type"] = match
+
+        if result["condition"] == "Unknown":
+            match = extract_type(token, r"(Conti|NOstim|Beta)")
+            if match:
+                result["condition"] = match
+
+        if result["stim_location"] == "Unknown":
+            match = extract_type(token, r"(LeftHemi|RightHemi|Ipsi|ipsi|Bilateral|Contra)")
+            if match:
+                result["stim_location"] = match
+
+        if result["view"] == "Unknown":
+            match = extract_type(token, r"H\d+")
+            if match:
+                result["view"] = match
+
+        if result["cue_type"] == "Unknown" :
+            match = extract_type(token, r"(CueL1|CueL2)")
+            if match:
+                result["cue_type"] = match
+
+        if result["laser_intensity"] == "Unknown":
+            match = extract_type(token, r"\d,\d*(mW)")
+            if match:
+                result["laser_intensity"] = match
+
+        # this will work only for the renamed clips (led_detection.py)
+        if result["laser_on"] == "Unknown" :
+            match = extract_type(token, r'(LaserOn|LaserOff)')
+            if match : 
+                result["laser_on"] = match
+
+    new_name = [val for val in result.values() if val != "Unknown"]
+    print(f"old name : {name}")
+    print(f"new name : {new_name}")
+
+    return "_".join(new_name)
+
+    
+        
 
 
 
