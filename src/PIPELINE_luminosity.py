@@ -5,10 +5,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-from sort_files import make_database, is_csv, is_video, is_left_view
-from database_filter import Model, Controller, View
-from trajectory_analysis import get_luminosity
-from led_detection import classify_clip
+from utils.file_management import make_database, is_csv, is_video, is_left_view
+from utils.database_filter import Model, Controller, View
+from utils.led_detection import classify_clip, get_luminosity
 
 
 
@@ -21,23 +20,25 @@ DATABASE_DIR = GENERATED_DATA_DIR / "database"
 
 # ------------------------------------ make database ---------------------------------------
 
-raw_database = make_database(CLIP_DIR, is_video)
+# raw_database = make_database(CLIP_DIR, is_video)
 
-model = Model(raw_database) # or DATABASE_PRED
-view = View()
-controller = Controller(model, view)
-view.mainloop()
+# model = Model(raw_database) # or DATABASE_PRED
+# view = View()
+# controller = Controller(model, view)
+# view.mainloop()
 
-DATABASE = controller.filtered_dataset.reset_index(drop=True)
-print(DATABASE)
+# DATABASE = controller.filtered_dataset.reset_index(drop=True)
+# print(DATABASE)
 
-# save database
-dataset_name = f"{controller.dataset_name.get().strip()}.csv"
-DATABASE.to_csv(DATABASE_DIR / dataset_name)
-print(f"\nFiltered dataset saved as : {DATABASE_DIR / dataset_name}")
-print(f"Number of files in {dataset_name} : {len(DATABASE)}")
+# # save database
+# dataset_name = f"{controller.dataset_name.get().strip()}.csv"
+# DATABASE.to_csv(DATABASE_DIR / dataset_name)
+# print(f"\nFiltered dataset saved as : {DATABASE_DIR / dataset_name}")
+# print(f"Number of files in {dataset_name} : {len(DATABASE)}")
 
-# DATABASE = pd.read_csv(GENERATED_DATA_DIR / "database/#517_CHR_beta_H001.csv")
+# ------------------------------------ OR import database ---------------------------------------
+
+DATABASE = pd.read_csv(GENERATED_DATA_DIR / "database/#517_CHR_beta_H001.csv")
 
 RAT_NAME = DATABASE['rat_name'][0]
 

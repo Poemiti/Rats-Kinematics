@@ -113,7 +113,7 @@ if __name__ == "__main__":
     # -------------------------------------- setup path ------------------------------------
 
     # inputs (should exist)
-    GENERATED_DATA_DIR = Path("../../exploration/data")
+    GENERATED_DATA_DIR = Path("../exploration/data")
     DATABASE_PATH = GENERATED_DATA_DIR / "database/rat_517_H001.csv"  # if it does not exist, make one with make_database (in file_management.py)
     INPUT_VIDEO_DIR = Path("/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024")
     MODEL_PATH = Path("/media/filer2/T4b/Models/DLC/REJANE_rat_right_model-2025-06-18/DLC-project-2025-06-18")

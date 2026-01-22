@@ -3,10 +3,9 @@
 from pathlib import Path
 import pandas as pd
 
-from sort_files import is_video, make_database
-from split_video import split_video
-
-from database_filter import Model, View, Controller
+from utils.file_management import is_video, make_database
+from utils.split_video import split_video
+from utils.database_filter import Model, View, Controller
 
 
 

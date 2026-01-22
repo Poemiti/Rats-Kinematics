@@ -444,7 +444,7 @@ if __name__ == "__main__" :
 
     # ---------------------------------------------- setup path -------------------------------------------------
 
-    GENERATED_DATA_DIR = Path("../../exploration/data") # root
+    GENERATED_DATA_DIR = Path("../exploration/data") # root
     RAW_VIDEO_DIR = Path("/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024")
 
     DATABASE_DIR = GENERATED_DATA_DIR / "database" 

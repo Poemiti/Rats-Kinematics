@@ -45,7 +45,7 @@ def extract_frames(input_path: Path, output_path: Path, duration: float, fps: in
     frame_count = 0
 
 
-    print("\nFrame extraction in progress...")
+    print(f"\nFrame extraction of : {input_path.stem}")
     print(f"Video FPS = {fps} | Frames per clip = {frames_per_clip}")
 
     while True:
@@ -63,6 +63,7 @@ def extract_frames(input_path: Path, output_path: Path, duration: float, fps: in
             frame_count = 0
             folder_count += 1
             print(f"Frames saved in {clip_dir} !")
+            break  # on fait que le 1er clip
 
     video.release()
 
@@ -291,7 +292,7 @@ if __name__ == "__main__":
     # ---------------------------------------------- setup path -------------------------------------------------
 
     # inputs (should exist)
-    GENERATED_DATA_DIR = Path("../../exploration/data")
+    GENERATED_DATA_DIR = Path("../exploration/data")
     DATABASE_PATH = GENERATED_DATA_DIR / "database/rat_517_H001.csv"  # if it does not exist, make one with make_database (in file_management.py)
     INPUT_VIDEO_DIR = Path("/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024")
 
@@ -355,7 +356,7 @@ if __name__ == "__main__":
     print(f"  Direct video splitting time   : {(split_end - split_start):.2f} sec")
 
 
-    n_vid = len(DATABASE)
+    n_vid = len(database)
     n_clip_total = n_vid * metadata['expected_clips'] 
     total_time_frame_extract = ((n_clip_total * (end_time - start_time)) / 60 ) / 60 # h
     total_time_video_making = ((n_clip_total * (vid_end - vid_start)) / 60) / 60 # h

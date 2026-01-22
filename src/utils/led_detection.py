@@ -7,7 +7,7 @@ import xarray as xr
 import plotly.express as px
 import tqdm
 
-from file_management import is_left_view
+from utils.file_management import is_left_view
 
 
 def get_luminosity(annotation_num, video_path, fig_output_path, csv_ouput_path: Path, max_n_frames, label_studio_url, api_key):
@@ -266,7 +266,7 @@ if __name__ == "__main__" :
     # ---------------------------------------------- setup path -------------------------------------------------
 
     # inputs (should exist)
-    GENERATED_DATA_DIR = Path("../../exploration/data")
+    GENERATED_DATA_DIR = Path("../exploration/data")
     DATABASE_PATH = GENERATED_DATA_DIR / "database/rat_517_H001.csv"  # if it does not exist, make one with make_database (in file_management.py)
 
     # get the path for a video (path in a premade database)

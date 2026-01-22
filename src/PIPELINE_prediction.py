@@ -7,9 +7,9 @@ from colorama import Back, Style, init
 from deeplabcut.pose_estimation_pytorch import set_load_weights_only
 
 
-from sort_files import is_video, classify_video
-from split_video import split_video
-from dlc_prediction import dlc_predict_Julien, annotate_video_from_csv
+from utils.file_management import is_video, classify_video
+from utils.split_video import split_video
+from utils.dlc_prediction import dlc_predict_Julien, annotate_video_from_csv
 
 # Disable "weights only" before analyzing
 set_load_weights_only(False)

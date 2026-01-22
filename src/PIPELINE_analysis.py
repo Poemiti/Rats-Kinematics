@@ -6,58 +6,52 @@ import matplotlib.pyplot as plt
 import os
 import time
 
-from sort_files import is_video, classify_file
-from trajectory_analysis import plot_bodyparts_trajectories, plot_stacked_trajectories, plot_average_trajectories
-from video_annotation import annotate_single_bodypart
+from utils.file_management import is_video, classify_file
+from utils.trajectory_analysis import plot_bodyparts_trajectories, plot_stacked_trajectories, plot_average_trajectories
+from utils.video_annotation import annotate_single_bodypart
 
-# ------------------------------------ setup parameters ---------------------------------------
-
-RAT_NAME = "#517"
-BODYPART = ["left_hand"]
-SINGLE_TRAJ = True
 THRESHOLD = 0.5
-VIEW = "H001"
-
-print(f"\nTrajectory analysis parameters : ")
-print(f"  Rat analysed : {RAT_NAME}")
-print(f"  Bodypart analysed : {BODYPART}")
-print(f"  Threshold set for point selection : {THRESHOLD}")
-print(f"  View selected : {VIEW}")
-print(f"  Save every clip trajectory as single files ? : {SINGLE_TRAJ}\n")
-
+BODYPART = 'left_hand'
+SINGLE_TRAJ = False
 
 # ------------------------------------ setup path ---------------------------------------
 
 GENERATED_DATA_DIR = Path("../data")
 CLIP_DIR = GENERATED_DATA_DIR / "clips"
 PREDICTION_DIR = GENERATED_DATA_DIR / "csv_results"
-DATABASE_DIR = GENERATED_DATA_DIR / "database"
-# LUMINOSITY_DIR = GENERATED_DATA_DIR / "luminosity" 
+DATABASE_DIR = GENERATED_DATA_DIR / "database" 
+
+# ------------------------------------ make database ---------------------------------------
+
+# raw_database = make_database(CLIP_DIR, is_video)
+
+# model = Model(raw_database) # or DATABASE_PRED
+# view = View()
+# controller = Controller(model, view)
+# view.mainloop()
+
+# DATABASE = controller.filtered_dataset.reset_index(drop=True)
+# print(DATABASE)
+
+# # save database
+# dataset_name = f"{controller.dataset_name.get().strip()}.csv"
+# DATABASE.to_csv(DATABASE_DIR / dataset_name)
+# print(f"\nFiltered dataset saved as : {DATABASE_DIR / dataset_name}")
+# print(f"Number of files in {dataset_name} : {len(DATABASE)}")
+
+# ------------------------------------ OR import database ---------------------------------------
+
+DATABASE = pd.read_csv(GENERATED_DATA_DIR / "database/#517_CHR_beta_H001.csv")
+
+RAT_NAME = DATABASE['rat_name'][0]
 
 OUTPUT_TRAJECTORY_PATH = GENERATED_DATA_DIR / "trajectory_figures" / RAT_NAME
-
 OUTPUT_TRAJECTORY_PATH.mkdir(parents=True, exist_ok=True)
-
-
-# ------------------------------------ classify csv results ---------------------------------------
-
-
-sorted_videos = []
-ct_video = 0
-for root, dirs, files in os.walk(PREDICTION_DIR): 
-    for name in files: 
-        classify_file(os.path.join(root, name), sorted_videos) 
-        ct_video += 1
-
-DATABASE = pd.DataFrame(sorted_videos)
-DATABASE.to_csv(DATABASE_DIR / f"pred_database_rat{RAT_NAME}.csv")
-
-DATABASE = DATABASE[DATABASE["view"] == VIEW]
 
 # ------------------------------------ plot trajectory ---------------------------------------
 
 COUNTER = 0
-COUNTER_LIMIT = 1
+COUNTER_LIMIT = 10
 
 for csv_path in DATABASE["filename"] : 
     
@@ -104,7 +98,7 @@ for csv_path in DATABASE["filename"] :
             bodyparts_point = pd.read_csv(csv_path)
 
             ax = plot_bodyparts_trajectories(csv_path= csv_path, 
-                                            bodyparts= BODYPART, 
+                                            bodyparts= [BODYPART], 
                                             invert_y=True,
                                             threshold=THRESHOLD)
             
@@ -117,7 +111,7 @@ for csv_path in DATABASE["filename"] :
             plt.close(fig)
             single_end = time.perf_counter()
 
-            # -------------------------------------------- video trajectory ----------------------------------------------
+            # -------------------------------------------- single bodypart trajectory ----------------------------------------------
 
             output_annotated_clip_dir = output_fig_dir / "annotated_clips"
             output_annotated_clip_dir.mkdir(parents=True, exist_ok=True)
@@ -126,7 +120,7 @@ for csv_path in DATABASE["filename"] :
             annotate_single_bodypart(video_path=CLIP_DIR / csv_dir.stem / f"{clip_name}.mp4",
                                     csv_path=PREDICTION_DIR / csv_dir.stem / f"pred_results_{clip_name}.csv",
                                     output_path=output_annotated_clip_dir / f"annotated_{clip_name}.mp4",
-                                    bodypart_name=BODYPART[0],
+                                    bodypart_name=BODYPART,
                                     radius=5,
                                     likelihood_threshold= THRESHOLD)
             anot_end = time.perf_counter()

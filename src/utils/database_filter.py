@@ -4,7 +4,7 @@ import pandas as pd
 import tkinter as tk
 from tkinter import ttk
 
-from file_management import make_database, is_csv, is_video
+from utils.file_management import make_database, is_csv, is_video
 
 class Controller:           # where we controle what does each button do 
     def __init__(self, model, view):
