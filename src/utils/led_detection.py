@@ -20,7 +20,7 @@ def get_luminosity(annotation_num, video_path, fig_output_path, csv_ouput_path: 
         label = item["value"]["ellipselabels"][0]
         led_info[label] = {"x_per": item["value"]["x"], "y_per": item["value"]["y"], "radiusX_per": item["value"]["radiusX"], "radiusY_per": item["value"]["radiusY"]}
     leds = pd.DataFrame(led_info).T.to_xarray().rename(index="led_name")
-    print(leds)
+    # print(leds)
 
     cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
@@ -32,7 +32,7 @@ def get_luminosity(annotation_num, video_path, fig_output_path, csv_ouput_path: 
     image["y"] = xr.DataArray(np.arange(h), dims="y")
     image["x"] = xr.DataArray(np.arange(w), dims="x")
     image["mask"] = ((image["x"] - leds["x_per"]*w/100)**2/(leds["radiusX_per"]*w/100)**2 + (image["y"] - leds["y_per"]*h/100)**2/(leds["radiusY_per"]*h/100)**2) < 1
-    print(image)
+    # print(image)
 
     if fig_output_path:
         cap = cv2.VideoCapture(video_path)
@@ -124,10 +124,10 @@ def define_cue_type(luminosities) :
     for t, luminosity in enumerate(luminosities) :
         luminosity = float(luminosity) 
 
-        if luminosity > 50 : 
+        if luminosity >= 50 : 
             time += 1
 
-        if time > 5 : 
+        if luminosity < 50 and time > 5 : 
             cue_count += 1
             time = 0
 
@@ -136,6 +136,8 @@ def define_cue_type(luminosities) :
 
     elif cue_count == 2 : 
         cue_type = "CueL2"
+
+    print(f"\ncue count : {cue_count}")
         
     return cue_type
 
@@ -175,7 +177,7 @@ def is_led_on(luminosities) -> bool :
 
 
 
-def rename_clip(clip_path: Path, laser_on: bool, new_cue: str):
+def rename_file(file_path: Path, laser_on: bool, new_cue: str):
     """
     Rename a video clip based on detected cue and laser state.
 
@@ -205,57 +207,28 @@ def rename_clip(clip_path: Path, laser_on: bool, new_cue: str):
     ]) + r")"
 
 
-    name = clip_path.stem
-    suffix = clip_path.suffix
+    name = file_path.stem
+    suffix = file_path.suffix
 
     # Replace cue if present
     name, cue_count = re.subn(CUE_PATTERN, new_cue, name)
     if cue_count == 0:
-        print(f"[WARN] No cue token found in: {clip_path.name}")
+        print(f"[WARN] No cue token found in: {file_path.name}")
 
     if laser_on :
-        name += "LaserOn"
+        name += "_LaserOn"
     else : 
-        name += "LaserOff"
+        name += "_LaserOff"
 
-    new_path = clip_path.with_name(name + suffix)
+    new_path = file_path.with_name(name + suffix)
 
     if new_path.exists():
         raise FileExistsError(f"Target already exists: {new_path}")
 
-    # clip_path.rename(new_path)
+    # /!\ WARNING this line rename file, must uncomment manually 
+    file_path.rename(new_path)
 
-    print(f"\nRenamed {clip_path.name} into : \n\t{new_path.name}")
-
-
-
-def classify_clip(clip_path: Path, luminosities) : 
-    """
-    Classify a video clip based on LED signals and rename it accordingly.
-
-    The function determines:
-    - Cue type from LED_1 luminosity
-    - Laser activation from LED_4 luminosity
-
-    It then renames the clip using this information.
-
-    Parameters
-    ----------
-    clip_path : pathlib.Path
-        Path to the video clip.
-    luminosities : dict or pandas.DataFrame
-        Container holding LED luminosity signals.
-        Must contain keys or columns ``"LED_1"`` and ``"LED_4"``.
-
-    Returns
-    -------
-    None
-    """
-
-    cue_type = define_cue_type(luminosities["LED_1"])
-    led_on = is_led_on(luminosities["LED_4"])
-
-    rename_clip(clip_path, led_on, cue_type)
+    print(f"\nRenamed {file_path.name} into : \n\t{new_path.name}")
 
 
 
@@ -307,7 +280,3 @@ if __name__ == "__main__" :
     luminosity = luminosity.drop([1]).reset_index(drop=True)  # remove useless row
 
     print(luminosity)
-
-    classify_clip(INPUT_VIDEO_PATH, 
-                  luminosities=luminosity)
-
