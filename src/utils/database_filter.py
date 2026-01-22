@@ -13,13 +13,17 @@ class Controller:           # where we controle what does each button do
         self.filtered_dataset = None
         self.dataset_name = view.dataset_name_input()
 
+        # display existing database
+        for database_path in model.existing_database : 
+            view.database_buttons(database_path.stem,
+                                  lambda p=database_path: self.on_database_selected(p))
+
+        # display filter buttons
         for column in model.filters.keys():
             values = model.get_unique_values(column)
-            view.filter_buttons(
-                column,
-                values,
-                self.on_filter_selected
-            )
+            view.filter_buttons(column,
+                                values,
+                                self.on_filter_selected)
 
         view.save_button(self.on_save)
         view.reset_button(self.on_reset)
@@ -39,6 +43,11 @@ class Controller:           # where we controle what does each button do
         self.view.clear_all_selections()
         self.view.show_results(self.model.get_filtered())
 
+    def on_database_selected(self, name) : 
+        self.filtered_dataset = self.model.get_existing_database(name)
+        self.view.destroy()
+
+
 
 
 class View(tk.Tk):          # does all the graphical aspect
@@ -50,57 +59,60 @@ class View(tk.Tk):          # does all the graphical aspect
         self.buttons = {}
         self.result_box = None
         
+        # ---------- TOP FRAMES ----------
         self.info_frame = ttk.Frame(self)
-        self.info_frame.pack(fill="x", padx=5, pady=5)
+        self.info_frame.pack(side="top", fill="x", padx=5, pady=5)
 
         self.result_frame = ttk.Frame(self)
-        self.result_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        self.result_frame.pack(side="top", fill="both", expand=True, padx=5, pady=5)
 
+        # ---------- BOTTOM CONTAINER ----------
+        self.bottom_frame = ttk.Frame(self)
+        self.bottom_frame.pack(side="top", fill="x", padx=5, pady=5)
+
+        self.filter_frame = ttk.Frame(self.bottom_frame)
+        self.filter_frame.pack(side="left", fill="both", expand=True, padx=5, pady=5)
+
+        self.database_frame = ttk.Frame(self.bottom_frame)
+        self.database_frame.pack(side="right", fill="both", expand=True, padx=5, pady=5)
+
+        self.save_reset_frame = ttk.Frame(self.filter_frame)
+        self.save_reset_frame.pack(side="bottom", fill="x", expand=False, padx=5, pady=5)
+
+        # ---------- labels ----------
         self.n_file_label = ttk.Label(self.info_frame, text="Files number = 0")
         self.n_file_label.pack(anchor="w")
 
+        self.database_label = ttk.Label(
+            self.database_frame,
+            text="Already existing database:"
+        )
+        self.database_label.pack(anchor="w")
+
+    # ---------------------------- buttons -------------------------------
+
     def save_button(self, callback) :
         btn = ttk.Button(
-            self,
+            self.save_reset_frame,
             text="save",
             command=callback
         )
-        btn.pack(side="bottom", padx=5, pady=5)
+        btn.pack(side="right", padx=5, pady=2)
         self.buttons["save"] = btn
 
-    # add a reset button
+
     def reset_button(self, callback) :
         btn = ttk.Button(
-            self,
+            self.save_reset_frame,
             text="reset",
             command=callback
         )
-        btn.pack(side="bottom", padx=5, pady=5)
+        btn.pack(side="right", padx=5, pady=2)
         self.buttons["reset"] = btn
-
-    # clear al the selection of every filter
-    def clear_all_selections(self):
-        for group in self.buttons:
-            if group in ("save", "reset"):
-                continue
-            for btn in self.buttons[group].values():
-                btn.state(["!pressed"])
-
-    # input string var to rename the filtered dataset
-    def dataset_name_input(self):
-        frame = ttk.LabelFrame(self, text="Enter dataset name (for saving) :")
-        frame.pack(fill="x", padx=5, pady=5)
-
-        self.dataset_name = tk.StringVar()
-
-        entry = ttk.Entry(frame, textvariable=self.dataset_name, width=40)
-        entry.pack(side="left", padx=5, pady=5)
-
-        return self.dataset_name
 
 
     def filter_buttons(self, name, values, callback):
-        frame = ttk.LabelFrame(self, text=name)
+        frame = ttk.LabelFrame(self.filter_frame, text=name)
         frame.pack(fill="both", padx=5, pady=5)
 
         self.buttons[name] = {}
@@ -111,10 +123,42 @@ class View(tk.Tk):          # does all the graphical aspect
                 text=str(val),
                 command=lambda v=val: callback(name, v)
             )
-            btn.pack(side="left", padx=2)
+            btn.pack(side="left", padx=2, pady=3)
             self.buttons[name][val] = btn
 
         self.frames[name] = frame
+
+
+    def database_buttons(self, name, callback) : 
+        btn = ttk.Button(self.database_frame,
+                         text=str(name),
+                         command=callback
+        )
+        btn.pack(fill="both", padx=5, pady=5)
+
+    # --------------------------- Entry (user input) --------------------------------
+    
+    # input string var to rename the filtered dataset
+    def dataset_name_input(self):
+        frame = ttk.LabelFrame(self.filter_frame, text="Enter dataset name (for saving) :")
+        frame.pack(fill="x", padx=5, pady=5)
+
+        self.dataset_name = tk.StringVar()
+
+        entry = ttk.Entry(frame, textvariable=self.dataset_name, width=40)
+        entry.pack(side="left", padx=5, pady=5)
+
+        return self.dataset_name
+    
+    # ----------------------------- utilities ------------------------------------------
+    
+    def clear_all_selections(self):
+        for group in self.buttons:
+            if group in ("save", "reset"):
+                continue
+            for btn in self.buttons[group].values():
+                btn.state(["!pressed"])
+
 
     def highlight_selection(self, group, selected_value):
         for val, btn in self.buttons[group].items():
@@ -138,10 +182,10 @@ class View(tk.Tk):          # does all the graphical aspect
 
 
 class Model:                # focus on filtration manipulation
-    def __init__(self, dataframe: pd.DataFrame):
+    def __init__(self, dataframe: pd.DataFrame, database_dir : Path):
         self._df = dataframe
-        self.filters = {column: None for column in dataframe.columns[1:]} 
-        # add filter for every columns of the dataframe
+        self.filters = {column: None for column in dataframe.columns[1:]} # add filter for every columns of the dataframe
+        self.existing_database = [path for path in database_dir.glob("*.csv")]
 
     def set_filter(self, key, value):
         self.filters[key] = value
@@ -153,13 +197,15 @@ class Model:                # focus on filtration manipulation
     def get_unique_values(self, column):
         return sorted(self._df[column].unique())
 
-    def get_filtered(self):
+    def get_filtered(self) -> pd.DataFrame : 
         df = self._df
         for key, value in self.filters.items():
             if value is not None:
                 df = df[df[key] == value]
         return df
-
+    
+    def get_existing_database(self, csv_path : Path) -> pd.DataFrame : 
+        return pd.read_csv(csv_path, index_col=0)
 
 
 if __name__ == "__main__" : 
@@ -173,13 +219,15 @@ if __name__ == "__main__" :
 
     # ----------------------------- exemple of usage of this GUI ----------------------
 
+    print(f"Making database from {RAW_VIDEO_DIR}")
+
     # make the database from the directory
     DATABASE: pd.DataFrame = make_database(RAW_VIDEO_DIR, is_video)
 
-    print(DATABASE)
+    # print(DATABASE)
 
     # gui 
-    model = Model(DATABASE) # or DATABASE_PRED
+    model = Model(DATABASE, DATABASE_DIR) # or DATABASE_PRED
     view = View()
     controller = Controller(model, view)
     view.mainloop()
@@ -188,7 +236,10 @@ if __name__ == "__main__" :
     FILTERED_DATABASE = controller.filtered_dataset
 
     # save the dataset with the name put in the gui
-    dataset_name = f"{controller.dataset_name.get().strip()}.csv"
-    FILTERED_DATABASE.to_csv(DATABASE_DIR / dataset_name)
-    print(f"Filtered dataset saved as : {DATABASE_DIR / dataset_name}")
-    print(f"Number of files in {dataset_name} : {len(FILTERED_DATABASE)}")
+    if controller.dataset_name.get() : 
+        dataset_name = f"{controller.dataset_name.get().strip()}.csv"
+        FILTERED_DATABASE.to_csv(DATABASE_DIR / dataset_name)
+        print(f"Filtered dataset saved as : {DATABASE_DIR / dataset_name}")
+
+    print(f"Number of files in database : {len(FILTERED_DATABASE)}")
+    print(FILTERED_DATABASE)
