@@ -7,7 +7,7 @@ import os
 
 from utils.file_management import make_database, is_csv, is_video, is_left_view
 from utils.database_filter import Model, Controller, View
-from utils.led_detection import classify_clip, get_luminosity
+from utils.led_detection import get_luminosity, rename_file, define_cue_type, is_led_on
 
 
 
@@ -15,62 +15,60 @@ from utils.led_detection import classify_clip, get_luminosity
 
 GENERATED_DATA_DIR = Path("../data")
 CLIP_DIR = GENERATED_DATA_DIR / "clips"
-PREDICTION_DIR = GENERATED_DATA_DIR / "csv_results"
+TRAJECTORY_DIR = GENERATED_DATA_DIR / "csv_results"
 DATABASE_DIR = GENERATED_DATA_DIR / "database" 
 
-# ------------------------------------ make database ---------------------------------------
+# ------------------------------------ make database out of the clip directory ---------------------------------------
 
-# raw_database = make_database(CLIP_DIR, is_video)
+raw_database = make_database(CLIP_DIR, is_video)
 
-# model = Model(raw_database) # or DATABASE_PRED
-# view = View()
-# controller = Controller(model, view)
-# view.mainloop()
+model = Model(raw_database, DATABASE_DIR)
+view = View()
+controller = Controller(model, view)
+view.mainloop()
 
-# DATABASE = controller.filtered_dataset.reset_index(drop=True)
-# print(DATABASE)
+DATABASE = controller.filtered_dataset.reset_index(drop=True)
+print(DATABASE)
 
-# # save database
-# dataset_name = f"{controller.dataset_name.get().strip()}.csv"
-# DATABASE.to_csv(DATABASE_DIR / dataset_name)
-# print(f"\nFiltered dataset saved as : {DATABASE_DIR / dataset_name}")
-# print(f"Number of files in {dataset_name} : {len(DATABASE)}")
+# save database
+if controller.dataset_name.get() :
+    dataset_name = f"{controller.dataset_name.get().strip()}.csv"
+    DATABASE.to_csv(DATABASE_DIR / dataset_name)
+    print(f"\nFiltered dataset saved as : {DATABASE_DIR / dataset_name}")
 
-# ------------------------------------ OR import database ---------------------------------------
-
-DATABASE = pd.read_csv(GENERATED_DATA_DIR / "database/#517_CHR_beta_H001.csv")
+print(f"\nNumber of files in database : {len(DATABASE)}")
 
 RAT_NAME = DATABASE['rat_name'][0]
 
-OUTPUT_TRAJECTORY_PATH = GENERATED_DATA_DIR / "trajectory_figures" / RAT_NAME
 LUMINOSITY_DIR = GENERATED_DATA_DIR / "luminosity" / RAT_NAME
-OUTPUT_TRAJECTORY_PATH.mkdir(parents=True, exist_ok=True)
 LUMINOSITY_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ------------------------------------ get luminosity + classify ---------------------------------------
 
 COUNTER = 0
-COUNTER_LIMIT = 1
+COUNTER_LIMIT = 10
 
 for video_path in DATABASE["filename"] : 
     if COUNTER >= COUNTER_LIMIT : 
         break
 
+    print(f"\nGetting luminosity of {video_path}")
     video_path = Path(video_path)
+    
+    output_dir = LUMINOSITY_DIR / video_path.parent.stem  # get the folder name
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    html_output_path = LUMINOSITY_DIR / f"{video_path.stem}_luminosity.html"
-    csv_output_path = LUMINOSITY_DIR / f"{video_path.stem}_luminosity.csv"
+    html_output_path = output_dir / f"luminosity_{video_path.stem}.html"
+    csv_output_path = output_dir / f"luminosity_{video_path.stem}.csv"
 
-    # choose annotation number (label_studio) based on the view
-    # H001 (left view) = 1812
-    # H002 (right view) = 1811
+    # choose annotation number (label_studio) based on the view (voir readme)
 
     if is_left_view(str(video_path.stem)) : 
-        label_studio_annotation = 1812
+        label_studio_annotation = 1814
     else : 
         label_studio_annotation = 1811
-    print(f"label studio annotation : {label_studio_annotation}")
+    print(f"label studio annotation : {label_studio_annotation}\n")
 
     luminosities: pd.DataFrame = get_luminosity(annotation_num=label_studio_annotation,        
                                                 video_path= video_path,
@@ -87,8 +85,18 @@ for video_path in DATABASE["filename"] :
 
     print(luminosities)
 
-    classify_clip(video_path, luminosities)
+    # rename both clip AND csv (for later filtering)
+    clip_number = str(video_path.stem)[-8:]
+    trajectory_csv_dir = TRAJECTORY_DIR / str(video_path.stem)[:-8]
+    trajectory_csv_path = trajectory_csv_dir / f"{str(video_path.stem)[:-8]}_pred_results{clip_number}.csv"
+    
+    if not trajectory_csv_path.exists() : 
+        raise FileExistsError(f'This trajectory csv file does not exist : {trajectory_csv_path}')
+
+    cue_type = define_cue_type(luminosities["LED_1"])
+    led_on = is_led_on(luminosities["LED_4"])
+
+    rename_file(video_path, laser_on=led_on, new_cue=cue_type)
+    rename_file(trajectory_csv_path, laser_on=led_on, new_cue=cue_type)
 
     COUNTER += 1
-
-

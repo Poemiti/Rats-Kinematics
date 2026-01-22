@@ -6,13 +6,14 @@ import matplotlib.pyplot as plt
 import os
 import time
 
-from utils.file_management import is_video, classify_file
-from utils.trajectory_analysis import plot_bodyparts_trajectories, plot_stacked_trajectories, plot_average_trajectories
+from utils.database_filter import Model, View, Controller
+from utils.file_management import is_video, make_database, make_directory_name, is_csv
+from utils.trajectory_analysis import plot_bodyparts_trajectories, plot_stacked_trajectories, plot_average_trajectories, compute_metric, get_distance, get_velocity
 from utils.video_annotation import annotate_single_bodypart
 
 THRESHOLD = 0.5
-BODYPART = 'left_hand'
-SINGLE_TRAJ = False
+BODYPART = ['left_hand']
+SINGLE_TRAJ = True
 
 # ------------------------------------ setup path ---------------------------------------
 
@@ -23,124 +24,108 @@ DATABASE_DIR = GENERATED_DATA_DIR / "database"
 
 # ------------------------------------ make database ---------------------------------------
 
-# raw_database = make_database(CLIP_DIR, is_video)
 
-# model = Model(raw_database) # or DATABASE_PRED
-# view = View()
-# controller = Controller(model, view)
-# view.mainloop()
+raw_database = make_database(PREDICTION_DIR, is_csv)
 
-# DATABASE = controller.filtered_dataset.reset_index(drop=True)
-# print(DATABASE)
+model = Model(raw_database, DATABASE_DIR)
+view = View()
+controller = Controller(model, view)
+view.mainloop()
 
-# # save database
-# dataset_name = f"{controller.dataset_name.get().strip()}.csv"
-# DATABASE.to_csv(DATABASE_DIR / dataset_name)
-# print(f"\nFiltered dataset saved as : {DATABASE_DIR / dataset_name}")
-# print(f"Number of files in {dataset_name} : {len(DATABASE)}")
+DATABASE = controller.filtered_dataset.reset_index(drop=True)
+print(DATABASE)
 
-# ------------------------------------ OR import database ---------------------------------------
+# save database
+if controller.dataset_name.get() :
+    dataset_name = f"{controller.dataset_name.get().strip()}.csv"
+    DATABASE.to_csv(DATABASE_DIR / dataset_name)
+    print(f"\nFiltered dataset saved as : {DATABASE_DIR / dataset_name}")
 
-DATABASE = pd.read_csv(GENERATED_DATA_DIR / "database/#517_CHR_beta_H001.csv")
+print(f"\nNumber of files in database : {len(DATABASE)}")
 
 RAT_NAME = DATABASE['rat_name'][0]
 
 OUTPUT_TRAJECTORY_PATH = GENERATED_DATA_DIR / "trajectory_figures" / RAT_NAME
 OUTPUT_TRAJECTORY_PATH.mkdir(parents=True, exist_ok=True)
 
-# ------------------------------------ plot trajectory ---------------------------------------
+# ------------------------------------ plot stacked trajectory ---------------------------------------
 
-COUNTER = 0
-COUNTER_LIMIT = 10
+output_fig_dir = OUTPUT_TRAJECTORY_PATH / Path(make_directory_name(Path(DATABASE["filename"][0]).stem))
+output_fig_dir.mkdir(parents=True, exist_ok=True)
 
-for csv_path in DATABASE["filename"] : 
+print(f"File will be stored in {output_fig_dir}")
+
+
+csv_list = [Path(path) for path in DATABASE["filename"]]
+csv_list = csv_list
+
+print(f"\nAnalysing trajectory of video with these setting: ")
+print([val for val in str(output_fig_dir.name).split("_")])
+
+output_stacked_traj = output_fig_dir / f"trajectory_stacked.png"
+output_mean_traj = output_fig_dir / f"trajectory_average.png"
+
+plot_stacked_trajectories(csv_list= csv_list, 
+                        output_fig_path= output_stacked_traj,
+                        bodyparts= BODYPART, 
+                        invert_y=True,
+                        show=True,
+                        threshold=THRESHOLD)
+
+# ------------------------------------ plot single trajectory + video annotation  ---------------------------------------
+
+if SINGLE_TRAJ : 
     
-    if COUNTER >= COUNTER_LIMIT : 
-        break
-
-    csv_path = Path(csv_path)
-    csv_dir = csv_path.parent
-
-    print(f"\nAnalysing trajectory of video : {csv_dir}\n ")
-    stacked_start = time.perf_counter()
-
-    output_fig_dir = OUTPUT_TRAJECTORY_PATH / csv_dir.stem 
-    output_fig_dir.mkdir(parents=True, exist_ok=True)
-
-    output_stacked_traj = output_fig_dir / f"trajectory_stacked.png"
-    output_mean_traj = output_fig_dir / f"trajectory_average.png"
-
-    plot_stacked_trajectories(csv_dir= csv_dir , 
-                            output_fig_path= output_stacked_traj,
-                            bodyparts= BODYPART, 
-                            invert_y=True,
-                            show=False,
-                            threshold=THRESHOLD)
-    stacked_end = time.perf_counter()
-
-
-    if SINGLE_TRAJ : 
+    for csv_path in csv_list : 
         
+        print(f"\nWorking on : {csv_path}")
+        print("Making single figures ...")
 
-        for csv_path in csv_dir.glob("*.csv") : 
+        output_traj_dir = output_fig_dir / "trajectory_per_clip" 
+        output_traj_path = output_fig_dir / "trajectory_per_clip" / f"trajectory_{csv_path.name}.png"
+        output_traj_dir.mkdir(parents=True, exist_ok=True)
 
-            # -------------------------------------------- figure trajectory ----------------------------------------------
-            
-            clip_name = csv_path.stem[-7:]  # clip_XX
-
-            print(f"\nMaking figures for : {clip_name}")
-            single_start = time.perf_counter()
-
-            output_traj_dir = output_fig_dir / "trajectory_per_clip" 
-            output_traj_path = output_fig_dir / "trajectory_per_clip" / f"trajectory_{clip_name}.png"
-            output_traj_dir.mkdir(parents=True, exist_ok=True)
-
-            bodyparts_point = pd.read_csv(csv_path)
-
-            ax = plot_bodyparts_trajectories(csv_path= csv_path, 
-                                            bodyparts= [BODYPART], 
-                                            invert_y=True,
-                                            threshold=THRESHOLD)
-            
-            ax.set_title(f"Trajectories of {csv_path.stem[-7:]}")
-            ax.legend()
-
-            fig = ax.figure
-            fig.savefig(output_traj_path)
-
-            plt.close(fig)
-            single_end = time.perf_counter()
-
-            # -------------------------------------------- single bodypart trajectory ----------------------------------------------
-
-            output_annotated_clip_dir = output_fig_dir / "annotated_clips"
-            output_annotated_clip_dir.mkdir(parents=True, exist_ok=True)
-
-            anot_start = time.perf_counter()
-            annotate_single_bodypart(video_path=CLIP_DIR / csv_dir.stem / f"{clip_name}.mp4",
-                                    csv_path=PREDICTION_DIR / csv_dir.stem / f"pred_results_{clip_name}.csv",
-                                    output_path=output_annotated_clip_dir / f"annotated_{clip_name}.mp4",
-                                    bodypart_name=BODYPART,
-                                    radius=5,
-                                    likelihood_threshold= THRESHOLD)
-            anot_end = time.perf_counter()
-
-
+        ax = plot_bodyparts_trajectories(csv_path= csv_path, 
+                                        bodyparts= BODYPART, 
+                                        invert_y=True,
+                                        threshold=THRESHOLD)
         
+        ax.set_title(f"Trajectories of \n{csv_path.name}")
+        ax.legend()
 
-    n_csv = len(list(csv_dir.glob("*.csv")))
-    print(f"\nPerfomance : ")
-    print(f"  Time for stacked trajectory : {(stacked_end - stacked_start):.02f} s")
-    print(f"  Time for every clip trajectory ({n_csv} files): {(single_end - single_start):.02f} s")
-    print(f"  Time for clip annotation ({n_csv} files): {(anot_end - anot_start):.02f} s\n")
+        fig = ax.figure
+        fig.savefig(output_traj_path)
 
-    # Perfomance : 
-    #   Time for stacked trajectory : 0.75 s
-    #   Time for every clip trajectory (44 files): 0.24 s
-    #   Time for clip annotation (44 files): 0.77 s
+        plt.close(fig)
 
-            
-    COUNTER += 1
+        # -------------------------------------------- single bodypart trajectory ----------------------------------------------
+
+        print(f"Making video annotation ...")
+        output_annotated_clip_dir = output_fig_dir / "annotated_clips"
+        output_annotated_clip_dir.mkdir(parents=True, exist_ok=True)
+
+        annotate_single_bodypart(video_path=CLIP_DIR / csv_path.parent.stem / f"{csv_path.name}.mp4",
+                                csv_path=csv_path,
+                                output_path=output_annotated_clip_dir / f"annotated_{csv_path.name}.mp4",
+                                bodypart_name=BODYPART[0],
+                                radius=5,
+                                likelihood_threshold= THRESHOLD)
+        
+        # -------------------------------------------- metric measurments ----------------------------------------------
+
+        print("Metrics measurement : ")
+        # distance
+        distance = compute_metric(csv_path=csv_path,
+                                bodyparts="left_hand",
+                                metric=get_distance)
+        
+        # velocity
+        velocity = compute_metric(csv_path=csv_path,
+                                bodyparts="left_hand",
+                                metric=get_velocity)
+
+        print(f"  distance = {distance:.02f}")
+        print(f"  velocity = {velocity:.02f}")
 
 
 
