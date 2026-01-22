@@ -1,6 +1,8 @@
 # cache
 *__pycache__*
 src/utils/__pycache__
+utils/__pycache__/file_management.cpython-310.pyc
+
 
 data/
 exploration/
