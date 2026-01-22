@@ -8,9 +8,6 @@ import xarray as xr
 import matplotlib.cm as cm
 import numba
 
-from utils.dlc_prediction import dlc_predict_Julien
-from deeplabcut.pose_estimation_pytorch import set_load_weights_only
-
 
 def annotate_video_from_xr(video_path: Path, output_path: Path, pose: xr.DataArray, radius=5, likelihood_threshold: int = 0.5):
     """
@@ -410,6 +407,9 @@ if __name__ == "__main__" :
    # -------------------------------------- prediction ------------------------------------
 
     print("\nVideo Annotation ...\n")
+
+    from utils.dlc_prediction import dlc_predict_Julien
+    from deeplabcut.pose_estimation_pytorch import set_load_weights_only
 
     dlc_points_xr = dlc_predict_Julien(MODEL_PATH, 
                                        INPUT_VIDEO_PATH)
