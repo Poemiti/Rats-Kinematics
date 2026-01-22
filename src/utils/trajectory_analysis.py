@@ -88,7 +88,8 @@ def plot_bodyparts_trajectories(
         xy = df[bp]
         mask = xy["likelihood"] >= threshold
         xy_filtered = xy[mask]
-        start, end = define_StartEnd_of_trajectory(xy_filtered)
+
+        start, end = define_StartEnd_of_trajectory(xy_filtered, lever_position=215)
         xy_filtered = xy_filtered.iloc[start : end]
 
         ax.plot(
@@ -112,7 +113,7 @@ def plot_bodyparts_trajectories(
     return ax
 
 
-def plot_stacked_trajectories(csv_dir: Path,
+def plot_stacked_trajectories(csv_list: list[Path],
                             output_fig_path: Path | None = None,
                             bodyparts: list[str] | None = None,
                             invert_y: bool = True,
@@ -127,8 +128,8 @@ def plot_stacked_trajectories(csv_dir: Path,
 
     Parameters
     ----------
-    csv_dir : pathlib.Path
-        Directory containing DeepLabCut CSV files.
+    csv_list : list[pathlib.Path]
+        List of csv path 
     output_fig_path : pathlib.Path, optional
         Path where the output figure will be saved.
     bodyparts : list of str, optional
@@ -147,7 +148,7 @@ def plot_stacked_trajectories(csv_dir: Path,
 
     fig, ax = plt.subplots()
 
-    for csv_path in csv_dir.glob("*.csv"):
+    for csv_path in csv_list:
         plot_bodyparts_trajectories(
             csv_path=csv_path,
             ax=ax,
@@ -156,7 +157,7 @@ def plot_stacked_trajectories(csv_dir: Path,
             threshold=threshold,
         )
 
-    ax.set_title(f"Trajectories across frames of all trials\n{csv_dir.stem}")
+    ax.set_title(f"Trajectories across trials with settings :\n{output_fig_path.parent.stem}")
 
     if output_fig_path:
         fig.savefig(output_fig_path)
@@ -227,7 +228,7 @@ def plot_average_trajectories(csv_dir: Path,
 
 
 
-def define_StartEnd_of_trajectory(coords : pd.DataFrame) : 
+def define_StartEnd_of_trajectory(coords : pd.DataFrame, lever_position : float = 210) : 
     """
     Determine the start and end indices of a movement trajectory.
 
@@ -247,23 +248,22 @@ def define_StartEnd_of_trajectory(coords : pd.DataFrame) :
     tuple of int
         Start and end indices of the trajectory.
     """
-    lever_position = 210
     crossed = False
     t_start = 0
-    print(t_start)
     t_end = len(coords)
 
     for t, row in coords.iterrows():
         if t == 0 : 
-            print(f"not crossed, y = {row['y']}, t = {t}")
+            pass
+            # print(f"not crossed, y = {row['y']}, t = {t}")
 
         if row["y"] < lever_position and not crossed:
-            print(f"crossed, y = {row['y']}, t = {t}")
+            # print(f"crossed, y = {row['y']}, t = {t}")
             crossed = True
             continue
 
         if row["y"] > lever_position and crossed:
-            print(f"crossed again, y = {row['y']}, t = {t}")
+            # print(f"crossed again, y = {row['y']}, t = {t}")
             t_end = t-1
             break
 
@@ -367,12 +367,12 @@ def compute_metric(csv_path: Path,
     df = open_clean_csv(csv_path)
     xy = df[bodyparts]
     xy = xy[xy["likelihood"] >= threshold]
-    print(f"filtered coord : \n {xy}")
+    # print(f"filtered coord : \n {xy}")
 
     # filter to get only the trajectory we want
     t_start, t_end = define_StartEnd_of_trajectory(xy)
     true_coords = xy.iloc[t_start : t_end].reset_index(drop=True)
-    print(f"coords after threshold : {len(xy)}, coords after finding traj : {len(true_coords)}")
+    # print(f"coords after threshold : {len(xy)}, coords after finding traj : {len(true_coords)}")
 
     if len(true_coords) <= 1 : 
         print("ERROR : no movement have been found in this clip")
