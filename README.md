@@ -18,16 +18,11 @@
 
 ### Label studio annotation signification
 
-| Rat name   | H001        | H002       |
-| --------   | -------     | -------    |
-| 516        | 1812        | 1811       |
-| 517        | 1812        | 1811       |
-| 519        | 1812        | 1811       |
-| 521        | 1812        | 1811       |
-| 525        | 1812        | 1811       |
-| 527        | 1812        | 1811       |
-| 529        | 1812        | 1811       |
-| 531        | 1812        | 1811       |
+| Rat name                                                                  | H001        | H002       |
+| --------                                                                  | -------     | -------    |
+| Rat_#517Ambidexter_20240523_ContiMT300_LeftHemi_L1L2_C001H001             | 1812        | 1811       |
+| Rat_#517Ambidexter_20240527_BetaMT300_RightHemiCHR_L1L25050_C001H001      | 1813        | ....       |
+| Rat_#517Ambidexter_20240624_BetaMT300_RightHemiCHR_L1L25050_C001H001      | 1814        | ....       |
 
 
 ## Perfomance prediction
