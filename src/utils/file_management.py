@@ -535,7 +535,9 @@ def make_directory_name(name : str) :
 
     
         
-
+def verify_exist(path) : 
+    if not path.exists() : 
+        raise FileExistsError(f'This file does not exist : {path}')
 
 
 
