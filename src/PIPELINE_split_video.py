@@ -28,24 +28,24 @@ DURATION = 12.5  # sec
 
 raw_database = make_database(INPUT_VIDEO_DIR, is_video)
 
-model = Model(raw_database) # or DATABASE_PRED
+model = Model(raw_database, DATABASE_DIR) # or DATABASE_PRED
 view = View()
 controller = Controller(model, view)
 view.mainloop()
 
 DATABASE = controller.filtered_dataset.reset_index(drop=True)
 
+# save database
+if controller.dataset_name.get() :
+    dataset_name = f"{controller.dataset_name.get().strip()}.csv"
+    DATABASE.to_csv(DATABASE_DIR / dataset_name)
+    print(f"\nFiltered dataset saved as : {DATABASE_DIR / dataset_name}")
+
+print(f"\nNumber of files in database : {len(DATABASE)}")
+
 RAT_NAME = DATABASE["rat_name"][0]
 OUTPUT_CLIP_DIR = GENERATED_DATA_DIR / "clips" / RAT_NAME
 OUTPUT_CLIP_DIR.mkdir(parents=True, exist_ok=True)
-
-print(DATABASE)
-# save database
-dataset_name = f"{controller.dataset_name.get().strip()}.csv"
-DATABASE.to_csv(DATABASE_DIR / dataset_name)
-print(f"\nFiltered dataset saved as : {DATABASE_DIR / dataset_name}")
-print(f"Number of files in {dataset_name} : {len(DATABASE)}")
-
 
 # ------------------------------------ do the spliting on the filtered database ---------------------------------------
 
