@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-from utils.file_management import make_database, is_csv, is_video, is_left_view
+from utils.file_management import make_database, is_csv, is_video, is_left_view, verify_exist
 from utils.database_filter import Model, Controller, View
 from utils.led_detection import get_luminosity, rename_file, define_cue_type, is_led_on
 
@@ -46,16 +46,13 @@ LUMINOSITY_DIR.mkdir(parents=True, exist_ok=True)
 
 # ------------------------------------ get luminosity + classify ---------------------------------------
 
-COUNTER = 0
-COUNTER_LIMIT = 10
-
 for video_path in DATABASE["filename"] : 
-    if COUNTER >= COUNTER_LIMIT : 
-        break
+    video_path = Path(video_path)
+
+    verify_exist(video_path)
 
     print(f"\nGetting luminosity of {video_path}")
-    video_path = Path(video_path)
-    
+
     output_dir = LUMINOSITY_DIR / video_path.parent.stem  # get the folder name
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -85,18 +82,20 @@ for video_path in DATABASE["filename"] :
 
     print(luminosities)
 
-    # rename both clip AND csv (for later filtering)
+    # get the trajectory prediction csv path for renaming
     clip_number = str(video_path.stem)[-8:]
     trajectory_csv_dir = TRAJECTORY_DIR / str(video_path.stem)[:-8]
     trajectory_csv_path = trajectory_csv_dir / f"{str(video_path.stem)[:-8]}_pred_results{clip_number}.csv"
     
-    if not trajectory_csv_path.exists() : 
-        raise FileExistsError(f'This trajectory csv file does not exist : {trajectory_csv_path}')
+    verify_exist(trajectory_csv_path)
 
     cue_type = define_cue_type(luminosities["LED_1"])
     led_on = is_led_on(luminosities["LED_4"])
 
-    rename_file(video_path, laser_on=led_on, new_cue=cue_type)
-    rename_file(trajectory_csv_path, laser_on=led_on, new_cue=cue_type)
+    # rename : original clip, trajectory csv, luminosity outputs (csv + html)
+    for path in [video_path, trajectory_csv_path, csv_output_path, html_output_path] : 
+        rename_file(path,
+                    laser_on=led_on,
+                    new_cue=cue_type)
 
-    COUNTER += 1
+print("Done !")
