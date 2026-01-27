@@ -142,7 +142,7 @@ def define_cue_type(luminosities) :
     return cue_type
 
 
-def is_led_on(luminosities) -> bool : 
+def is_led_on(luminosities) -> tuple[bool, float] : 
     """
     Determine if a LED is active during a clip.
 
@@ -163,17 +163,21 @@ def is_led_on(luminosities) -> bool :
 
     led_on = False
     time = 0
+    first_time_on = None
 
     for t, luminosity in enumerate(luminosities) :
-            luminosity = float(luminosity)  
+            luminosity = float(luminosity) 
 
             if luminosity > 50 : 
                 time += 1
+                if first_time_on is None : 
+                    first_time_on = t
+
 
     if time > 10 : 
         led_on = True
 
-    return led_on
+    return led_on, first_time_on
 
 
 
