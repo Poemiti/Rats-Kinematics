@@ -90,7 +90,7 @@ for video_path in DATABASE["filename"] :
     verify_exist(trajectory_csv_path)
 
     cue_type = define_cue_type(luminosities["LED_1"])
-    led_on = is_led_on(luminosities["LED_4"])
+    led_on, _ = is_led_on(luminosities["LED_4"])
 
     # rename : original clip, trajectory csv, luminosity outputs (csv + html)
     for path in [video_path, trajectory_csv_path, csv_output_path, html_output_path] : 
