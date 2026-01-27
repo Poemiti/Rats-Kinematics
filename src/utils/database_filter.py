@@ -14,7 +14,7 @@ class Controller:           # where we controle what does each button do
         self.dataset_name = view.dataset_name_input()
 
         # display existing database
-        for database_path in model.existing_database : 
+        for database_path in sorted(model.existing_database) : 
             view.database_buttons(database_path.stem,
                                   lambda p=database_path: self.on_database_selected(p))
 
