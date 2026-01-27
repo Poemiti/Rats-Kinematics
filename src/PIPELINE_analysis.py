@@ -8,12 +8,28 @@ import time
 
 from utils.database_filter import Model, View, Controller
 from utils.file_management import is_video, make_database, make_directory_name, is_csv, verify_exist
-from utils.trajectory_ploting import plot_bodyparts_trajectories, plot_stacked_trajectories, plot_average_trajectories, compute_metric, get_distance, get_velocity
+from utils.trajectory_ploting import plot_bodyparts_trajectories, plot_stacked_trajectories, plot_average_trajectories
 from utils.video_annotation import annotate_single_bodypart
+from utils.trajectory_metrics import Trajectory, create_trajectory_object, plot_metric_time
+from utils.led_detection import is_led_on
 
 THRESHOLD = 0.5
-BODYPART = ['left_hand']
+BODYPART = 'finger_l_1'  # or "finger_r_1"
+view = 'left' # or 'right'
+
+# choose which function to use
+STACKED_TRAJ = False
 SINGLE_TRAJ = False
+ANNOT_CLIP = False
+METRICS = True
+
+# define m per pixel
+if view == 'left' : 
+    frame_width_m = 0.87 # meters
+else : 
+    frame_width_m = 0.83 # meters
+frame_width_px = 512 # pixel
+M_PER_PIXEL = frame_width_m / frame_width_px
 
 # ------------------------------------ setup path ---------------------------------------
 
@@ -23,7 +39,6 @@ PREDICTION_DIR = GENERATED_DATA_DIR / "csv_results"
 DATABASE_DIR = GENERATED_DATA_DIR / "database" 
 
 # ------------------------------------ make database ---------------------------------------
-
 
 raw_database = make_database(PREDICTION_DIR, is_csv)
 
@@ -48,105 +63,182 @@ RAT_NAME = DATABASE['rat_name'][0]
 OUTPUT_TRAJECTORY_PATH = GENERATED_DATA_DIR / "analysis_results" / RAT_NAME
 OUTPUT_TRAJECTORY_PATH.mkdir(parents=True, exist_ok=True)
 
-# # ------------------------------------ plot stacked trajectory ---------------------------------------
+# ------------------------------------ output file directory preparation ---------------------------------------
 
-# output_fig_dir = OUTPUT_TRAJECTORY_PATH / Path(make_directory_name(Path(DATABASE["filename"][0]).stem))
-# output_fig_dir.mkdir(parents=True, exist_ok=True)
 
-# print(f"File will be stored in {output_fig_dir}")
+output_fig_dir = OUTPUT_TRAJECTORY_PATH / Path(make_directory_name(Path(DATABASE["filename"][0]).stem))
+output_fig_dir.mkdir(parents=True, exist_ok=True)
 
-# csv_list = [Path(path) for path in DATABASE["filename"]]
-# csv_list = csv_list
+print(f"File will be stored in {output_fig_dir}")
 
-# for path in csv_list : 
-#     verify_exist(path)
+csv_list = [Path(path) for path in DATABASE["filename"]]
+csv_list = csv_list
 
-# print(f"\nAnalysing trajectory of video with these setting: ")
-# print([val for val in str(output_fig_dir.name).split("_")])
+for path in csv_list : 
+    verify_exist(path)
 
-# output_stacked_traj = output_fig_dir / f"trajectory_stacked.png"
-# output_mean_traj = output_fig_dir / f"trajectory_average.png"
+print(f"\nAnalysing trajectory of video with these setting: ")
+print([val for val in str(output_fig_dir.name).split("_")])
 
-# plot_stacked_trajectories(csv_list= csv_list, 
-#                         output_fig_path= output_stacked_traj,
-#                         bodyparts= BODYPART, 
-#                         invert_y=True,
-#                         show=False,
-#                         threshold=THRESHOLD)
+#############################################################################################################
 
 
 
-# metrics : list[dict] = []
+if STACKED_TRAJ : 
+    # ------------------------------------ plot stacked trajectory ---------------------------------------
+
+    output_stacked_traj = output_fig_dir / f"trajectory_stacked.png"
+    output_mean_traj = output_fig_dir / f"trajectory_average.png"
+
+    plot_stacked_trajectories(csv_list= csv_list, 
+                            output_fig_path= output_stacked_traj,
+                            bodyparts= [BODYPART], 
+                            invert_y=True,
+                            show=False,
+                            threshold=THRESHOLD)
+
+
+
+#############################################################################################################
+
+
+
+metrics : list[dict] = []
+
+for i, csv_path in enumerate(csv_list) : 
     
-# for i, csv_path in enumerate(csv_list) : 
-    
-#     verify_exist(csv_path)
+    verify_exist(csv_path)
 
-#     print(f"[{i}/{len(csv_list)}]")
-#     print(f"\nWorking on : {csv_path}")
+    print(f"\n[{i+1}/{len(csv_list)}]")
+    print(f"Working on : {csv_path}")
     
 
-#     if SINGLE_TRAJ : 
-#         # ------------------------------------ plot single trajectory + video annotation  ---------------------------------------
+    if SINGLE_TRAJ : 
+        # ------------------------------------ plot single trajectory + video annotation  ---------------------------------------
         
-#         print("Making single figures ...")
+        print("Making single figures ...")
 
-#         output_traj_dir = output_fig_dir / "trajectory_per_clip" 
-#         output_traj_path = output_fig_dir / "trajectory_per_clip" / f"trajectory_{csv_path.name}.png"
-#         output_traj_dir.mkdir(parents=True, exist_ok=True)
+        output_traj_dir = output_fig_dir / "trajectory_per_clip" 
+        output_traj_dir.mkdir(parents=True, exist_ok=True)
+        output_traj_path = output_traj_dir / f"trajectory_{csv_path.stem.replace('_pred_results', '')}.png"
 
-#         ax = plot_bodyparts_trajectories(csv_path= csv_path, 
-#                                         bodyparts= BODYPART, 
-#                                         invert_y=True,
-#                                         threshold=THRESHOLD)
+        ax = plot_bodyparts_trajectories(csv_path= csv_path, 
+                                        bodyparts= [BODYPART], 
+                                        invert_y=True,
+                                        threshold=THRESHOLD)
         
-#         ax.set_title(f"Trajectories of \n{csv_path.name}")
-#         ax.legend()
+        ax.set_title(f"Trajectories of \n{csv_path.name}")
+        ax.legend()
 
-#         fig = ax.figure
-#         fig.savefig(output_traj_path)
+        fig = ax.figure
+        fig.savefig(output_traj_path)
 
-#         plt.close(fig)
+        plt.close(fig)
 
-#         # --------------------------------------- single bodypart trajectory annotation ----------------------------------------------
+    if ANNOT_CLIP :
+        # --------------------------------------- single bodypart trajectory annotation ----------------------------------------------
 
-#         print(f"Making video annotation ...")
-#         output_annotated_clip_dir = output_fig_dir / "annotated_clips"
-#         output_annotated_clip_dir.mkdir(parents=True, exist_ok=True)
+        print(f"Making video annotation ...")
+        output_annotated_clip_dir = output_fig_dir / "annotated_clips"
+        output_annotated_clip_dir.mkdir(parents=True, exist_ok=True)
 
-#         input_clip_path = CLIP_DIR / csv_path.parent.stem / f"{csv_path.stem.replace('_pred_results', '')}.mp4"
-#         verify_exist(input_clip_path)
+        input_clip_path = CLIP_DIR / csv_path.parent.stem / f"{csv_path.stem.replace('_pred_results', '')}.mp4"
+        verify_exist(input_clip_path)
         
-#         annotate_single_bodypart(video_path=input_clip_path,
-#                                 csv_path=csv_path,
-#                                 output_path=output_annotated_clip_dir / f"annotated_{csv_path.name}.mp4",
-#                                 bodypart_name=BODYPART[0],
-#                                 radius=5,
-#                                 likelihood_threshold= THRESHOLD)
+        annotate_single_bodypart(video_path=input_clip_path,
+                                csv_path=csv_path,
+                                output_path=output_annotated_clip_dir / f"annotated_{csv_path.stem.replace('_pred_results', '')}.mp4",
+                                bodypart_name=BODYPART,
+                                radius=5,
+                                likelihood_threshold= THRESHOLD)
+
+    if METRICS : 
+        # --------------------------------------- compute metrics ----------------------------------------------
+
+        print("Metrics measurement ...")
+
+        Traj: Trajectory = create_trajectory_object(coords_path=csv_path,
+                                                    bodypart=BODYPART,
+                                                    threshold=THRESHOLD,
+                                                    m_per_pixel=None)
+        
+        metrics.append({"file" : csv_path,
+                        "distance" : Traj.distance(),
+                        "velocity" : Traj.mean_velocity()
+                        })
+
+        output_velo_dir = output_fig_dir / "velocity_per_clip" 
+        output_acc_dir = output_fig_dir / "acceleration_per_clip" 
+        output_velo_dir.mkdir(parents=True, exist_ok=True)
+        output_acc_dir.mkdir(parents=True, exist_ok=True)
+
+        output_velo_path = output_velo_dir / f"velocity_{csv_path.stem.replace('_pred_results', '')}.csv"
+        output_acc_path = output_acc_dir / f"acceleration_{csv_path.stem.replace('_pred_results', '')}.csv"
+
+        # compute metrics
+        instant_velo = Traj.instant_velocity()
+        acceleration = Traj.acceleration()
+        y_position = Traj.coords_px[["y"]]
+
+        # save computed metrics
+        instant_velo.to_csv(output_velo_path, index=False)
+        acceleration.to_csv(output_acc_path, index=False)
+
+        # ---------------------------------------- plot metrics ---------------------------------------
+
+        print(f"Plotting velocity, acceleration and position over time...")
+
+        output_fig_metric_dir = output_fig_dir / "metric_over_time" 
+        output_fig_metric_dir.mkdir(parents=True, exist_ok=True)
+
+        output_fig_metric_path = output_fig_metric_dir / f"metricOverTime_{csv_path.stem.replace('_pred_results', '')}.png"
+
+
+        # get the time when the laser is on
+        luminosity_path = GENERATED_DATA_DIR / "luminosity" / RAT_NAME / csv_path.parent.stem / f"luminosity_{csv_path.stem.replace('_pred_results', '')}.csv"
+        verify_exist(luminosity_path)
+
+        luminosities = pd.read_csv(luminosity_path)
+        luminosities.columns = luminosities.iloc[0]      # use first row as column names
+        luminosities = luminosities.drop(0).reset_index(drop=True) # remove useless row
+        luminosities = luminosities[luminosities.iloc[:, 0] != 't']
+
+        _, frame_laser_on = is_led_on(luminosities["LED_4"])
+        if frame_laser_on is None : 
+            raise ValueError(f"ERROR : time where laser is on is None !")
+
+        time_laser_on = float(luminosities["led_name"].iloc[frame_laser_on])
+        print(f"Laser one at {time_laser_on} sec, {frame_laser_on} frame")
+        
+        # plotting
+        fig, axs = plt.subplots(3, 1, figsize=(5, 15))
+
+        plot_metric_time(instant_velo,
+                        ax = axs[0], 
+                        laser_on=frame_laser_on,
+                        title="Velocity over time of a trial",
+                        ylabel="Velocity (m.s$^{-1}$)",)
+        
+        plot_metric_time(acceleration, 
+                        ax = axs[1],
+                        laser_on=frame_laser_on,
+                        title="Acceleration over time of a trial",
+                        ylabel="Acceleration (m.s$^{-2}$)",)
         
 
+        plot_metric_time(y_position, 
+                        ax = axs[2],
+                        laser_on=frame_laser_on,
+                        title="Height position over time of a trial",
+                        ylabel="position (pixel)", 
+                        y_invert=True)
+        plt.savefig(output_fig_metric_path)
+        plt.close(fig)
 
-#     # -------------------------------------------- metric measurments ----------------------------------------------
 
-#     print("Metrics measurement ...")
-#     # distance
-#     distance = compute_metric(csv_path=csv_path,
-#                             bodyparts="left_hand",
-#                             metric=get_distance)
-    
-#     # velocity
-#     velocity = compute_metric(csv_path=csv_path,
-#                             bodyparts="left_hand",
-#                             metric=get_velocity)
-
-#     metrics.append({"file" : csv_path,
-#                     "distance" : distance,
-#                     "velocity" : velocity
-#     })
-
-# # save computed metrics
-# metrics_df = pd.DataFrame(metrics)
-# metrics_df.to_csv(output_fig_dir / "metrics_per_clips.csv", index=False)
+# save computed metrics
+metrics_df = pd.DataFrame(metrics)
+metrics_df.to_csv(output_fig_dir / "metrics_per_clips.csv", index=False)
 
 print("\nDone !")
 
