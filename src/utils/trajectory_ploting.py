@@ -35,6 +35,30 @@ def open_clean_csv(csv_path : Path) -> pd.DataFrame :
 
     return clea_df
 
+
+
+def define_StartEnd_of_trajectory(coords : pd.DataFrame, lever_position) -> float : 
+        crossed = False
+        t_start = 0
+        t_end = len(coords)
+
+        for t, row in coords.iterrows():
+            if t == 0 : 
+                pass
+                # print(f"not crossed, y = {row['y']}, t = {t}")
+
+            if row["y"] < lever_position and not crossed:
+                # print(f"crossed, y = {row['y']}, t = {t}")
+                crossed = True
+                continue
+
+            if row["y"] > lever_position and crossed:
+                # print(f"crossed again, y = {row['y']}, t = {t}")
+                t_end = t-2
+                break
+
+        return t_start, t_end
+
 # --------------------------------- plotting ----------------------------------
 
 
@@ -71,8 +95,7 @@ def plot_bodyparts_trajectories(
         Axis containing the plotted trajectories.
     """
 
-    standalone = ax is None
-    if standalone:
+    if ax is None:
         fig, ax = plt.subplots()
 
     df = open_clean_csv(csv_path)
@@ -89,7 +112,7 @@ def plot_bodyparts_trajectories(
         mask = xy["likelihood"] >= threshold
         xy_filtered = xy[mask]
 
-        start, end = define_StartEnd_of_trajectory(xy_filtered, lever_position=215)
+        start, end = define_StartEnd_of_trajectory(xy_filtered, lever_position=210)
         xy_filtered = xy_filtered.iloc[start : end]
 
         ax.plot(
