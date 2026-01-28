@@ -61,6 +61,17 @@ def define_StartEnd_of_trajectory(coords : pd.DataFrame, lever_position) -> floa
 
         return t_start, t_end
 
+# def define_StartEnd_of_trajectory(coords : pd.DataFrame, lever_position) -> float : 
+#         t_start = 0
+#         t_end = len(coords)
+
+#         for frame, y in enumerate(coords["y"]) : 
+#             if y < lever_position : 
+#                 t_end = frame + 45
+#                 break
+
+#         return t_start, t_end
+
 
 
 # --------------------------------- metrics calculation ----------------------------------
@@ -190,13 +201,11 @@ def plot_violin_distribution(NoStim, conti, beta : pd.DataFrame,
     return ax
 
 
-
-
 def plot_metric_time(metric: pd.Series, 
-                     laser_on : float,
-                     ax: str,
-                     title: str, 
-                     ylabel: str, 
+                     laser_on : float | None,
+                     ax: plt.axes,
+                     color: str,
+                     transparancy: float,
                      y_invert: bool=False) -> plt.axes : 
     """
     Plot the velocity or acceleration in time, for 1 condition (either NoStim, Beta or conti), for 1 clip
@@ -215,20 +224,18 @@ def plot_metric_time(metric: pd.Series,
         Axis containing the plotted velocities.
     """
     fps = 125
-    laser_off = laser_on +  37.5 # second
 
     if ax is None:
         fig, ax = plt.subplots()
 
-    time = metric.index #/ fps
+    time = metric.index / fps
 
-    ax.plot(time, metric)
-    ax.axvspan(laser_on, laser_off, color='red', alpha=0.3, label="laser on")
-    
-    ax.set_title(title)
-    ax.set_xlabel("Time (frame)")
-    ax.set_ylabel(ylabel)
-    ax.legend()
+    ax.plot(time, metric, color= color, alpha=transparancy)
+    if laser_on : 
+        laser_off = laser_on +  0.3 # sec or 37.5 frame
+        ax.axvspan(laser_on, laser_off, color='red', alpha=0.3, label="laser on")
+        ax.legend()
+    # ax.axhline(220, color='k', lw=0.8, ls='--')
 
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -247,18 +254,20 @@ def create_trajectory_object(coords_path, bodypart, threshold, m_per_pixel) -> T
     data = open_clean_csv(coords_path)
     data = data[bodypart]
     data = data[data["likelihood"] >= threshold].reset_index(drop=True)
-
+    
     # filter to get only the trajectory we want
-    t_start, t_end = define_StartEnd_of_trajectory(data, 210)
+    t_start, t_end = define_StartEnd_of_trajectory(data, 220)
+    # print(f"t_end = {t_end}, len_data = {len(data)}")
     xy = data.iloc[t_start : t_end].reset_index(drop=True)
 
     if len(xy) <= 1 : 
         print("ERROR : no movement have been found in this clip")
         return 0
 
+    data = data[["x", "y"]]
     xy = xy[["x", "y"]][:-1]
-    return Trajectory(data,
-                      data, 
+    return Trajectory(coords=data,
+                      reaching_coords=xy, 
                       fps=125, 
                       m_per_pixel=m_per_pixel)
 
