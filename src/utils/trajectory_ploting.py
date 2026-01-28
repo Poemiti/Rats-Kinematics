@@ -62,11 +62,77 @@ def define_StartEnd_of_trajectory(coords : pd.DataFrame, lever_position) -> floa
 # --------------------------------- plotting ----------------------------------
 
 
+def plot_single_bodypart_trajectories(
+    coords: pd.DataFrame,
+    ax: plt.axes = None,
+    invert_y: bool = True,
+    color: str = "red",
+    transparancy: float = 0.7, 
+) -> plt.axes :
+    """
+    Plot body part trajectories from a DeepLabCut CSV file.
+
+    Body part coordinates are filtered using a likelihood threshold
+    and truncated to the active movement segment based on
+    `define_StartEnd_of_trajectory`.
+
+    Parameters
+    ----------
+    csv_path : pathlib.Path
+        Path to the DeepLabCut CSV file.
+    ax : matplotlib.axes.Axes, optional
+        Axis on which to plot. If None, a new figure is created.
+    invert_y : bool, optional
+        Whether to invert the y-axis (image coordinate convention).
+
+    Returns
+    -------
+    matplotlib.axes.Axes
+        Axis containing the plotted trajectories.
+    """
+
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    ax.plot(
+        coords["x"],
+        coords["y"],
+        # marker="o",
+        color=color,
+        linestyle="-",
+        alpha=transparancy,
+    )
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    ax.tick_params(direction="out")
+
+    ax.set_xlabel("x (pixel)")
+    ax.set_ylabel("y (pixel)")
+
+    ax.set_xlim(0, 512) # video dimension
+    ax.set_ylim(0, 512)
+
+    if invert_y:
+        ax.invert_yaxis()
+
+    return ax
+
+
+
+
+
+
+
+
+
 def plot_bodyparts_trajectories(
-    csv_path: Path,
+    coords: pd.DataFrame,
     ax: plt.axes = None,
     bodyparts: list[str] | None = None,
     invert_y: bool = True,
+    transparancy: float = 0.7, 
     threshold: float = 0.5,
 ) -> plt.axes :
     """
@@ -98,9 +164,7 @@ def plot_bodyparts_trajectories(
     if ax is None:
         fig, ax = plt.subplots()
 
-    df = open_clean_csv(csv_path)
-
-    all_bodyparts = df.columns.get_level_values(0).unique()
+    all_bodyparts = coords.columns.get_level_values(0).unique()
     if bodyparts is None:
         bodyparts = list(all_bodyparts)
 
@@ -108,7 +172,7 @@ def plot_bodyparts_trajectories(
         if bp not in all_bodyparts:
             continue
 
-        xy = df[bp]
+        xy = coords[bp]
         mask = xy["likelihood"] >= threshold
         xy_filtered = xy[mask]
 
@@ -121,8 +185,13 @@ def plot_bodyparts_trajectories(
             marker="o",
             linestyle="-",
             label=bp,
-            alpha=0.7,
+            alpha=transparancy,
         )
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    ax.tick_params(direction="out")
 
     ax.set_xlabel("x")
     ax.set_ylabel("y")
@@ -135,122 +204,6 @@ def plot_bodyparts_trajectories(
 
     return ax
 
-
-def plot_stacked_trajectories(csv_list: list[Path],
-                            output_fig_path: Path | None = None,
-                            bodyparts: list[str] | None = None,
-                            invert_y: bool = True,
-                            threshold: float = 0.5,
-                            show: bool = False,
-                        ) -> None:
-    """
-    Plot trajectories from multiple trials on a single figure.
-
-    Each CSV file in the directory is treated as one trial, and all
-    trajectories are overlaid on the same axes.
-
-    Parameters
-    ----------
-    csv_list : list[pathlib.Path]
-        List of csv path 
-    output_fig_path : pathlib.Path, optional
-        Path where the output figure will be saved.
-    bodyparts : list of str, optional
-        Body parts to plot. If None, all body parts are used.
-    invert_y : bool, optional
-        Whether to invert the y-axis.
-    threshold : float, optional
-        Minimum likelihood required to include a coordinate.
-    show : bool, optional
-        Whether to display the figure interactively.
-
-    Returns
-    -------
-    None
-    """
-
-    fig, ax = plt.subplots(figsize=(9, 7))
-
-    for csv_path in csv_list:
-        plot_bodyparts_trajectories(
-            csv_path=csv_path,
-            ax=ax,
-            bodyparts=bodyparts,
-            invert_y=invert_y,
-            threshold=threshold,
-        )
-
-    title = (
-        "Trajectories across trials with settings:\n"
-        f"{output_fig_path.parent.stem}\n"
-        f"Number of trials: {len(csv_list)}"
-    )
-
-    ax.set_title(title, fontsize=12)
-
-    if output_fig_path:
-        fig.savefig(output_fig_path)
-
-    if show:
-        plt.show()
-
-    plt.close(fig)
-
-
-def plot_average_trajectories(csv_dir: Path,
-                              output_fig_path: Path = None,
-                              bodyparts : list[str] = None, 
-                              invert_y: bool=True, show: bool = False, threshold: int = 0.5) -> None:
-    """
-    Compute and plot average trajectories across multiple trials.
-
-    This function is intended to aggregate body part trajectories
-    across trials and display their average path.
-
-    Parameters
-    ----------
-    csv_dir : pathlib.Path
-        Directory containing DeepLabCut CSV files.
-    output_fig_path : pathlib.Path, optional
-        Path where the output figure will be saved.
-    bodyparts : list of str, optional
-        Body parts to include in the averaging.
-    invert_y : bool, optional
-        Whether to invert the y-axis.
-    show : bool, optional
-        Whether to display the figure interactively.
-    threshold : float, optional
-        Minimum likelihood required to include a coordinate.
-
-    Returns
-    -------
-    None
-    """
-
-    # --------------------------- 1. compute the average xy coord -----------------------------    
-    all_coords = []
-
-    for csv_path in csv_dir.glob("*.csv") : 
-        df = open_clean_csv(csv_path)
-
-        all_bodyparts = df.columns.get_level_values(0).unique()
-        if bodyparts is None:
-            bodyparts = list(all_bodyparts)
-
-        for bp in bodyparts : 
-            if bp not in all_bodyparts:
-                continue
-
-            xy = df[bp]
-            mask = xy["likelihood"] >= threshold
-            xy_filtered = xy[mask]
-
-        print(xy_filtered)
-
-    # --------------------------- 2. plot the average trajectory -----------------------------    
-
-    # TODO
-    pass
 
 
 
