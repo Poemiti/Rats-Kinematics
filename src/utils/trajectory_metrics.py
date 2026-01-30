@@ -144,8 +144,9 @@ class Trajectory:
                 self,
                 coords: pd.DataFrame,
                 reaching_coords: pd.DataFrame,
+                laserOn_coords : pd.DataFrame,
                 fps: int = 125,
-                m_per_pixel: float | None = None,
+                cm_per_pixel: float | None = None,
     ):
         """
         Parameters
@@ -156,27 +157,28 @@ class Trajectory:
             x, y coordinates of the reaching movement in pixels
         fps : int
             Frames per second
-        cm_per_pixel : float, optional
+        ccm_per_pixel : float, optional
             Spatial scale (cm / pixel). If None, values stay in pixels.
         """
         self.coords_px = coords  # pixel
-        self.reaching_coords = reaching_coords  # pixel, actual trajectory where we compute metrics
+        self.reaching_coords = reaching_coords  # pixel, traj [ pad of -> laser off ]
+        self.laserOn_coords = laserOn_coords    # pixel, traj [ laser on -> laser off ]
         self.fps = fps
         self.dt = 1 / fps
-        self.m_per_pixel = m_per_pixel # m
+        self.cm_per_pixel = cm_per_pixel # cm
 
     def _scale(self, values: pd.Series | pd.DataFrame):
-        if self.m_per_pixel is None:
+        if self.cm_per_pixel is None:
             return values
-        return values * self.m_per_pixel
+        return values * self.cm_per_pixel
     
     def _displacements(self) -> pd.DataFrame:
-        diffs = self.reaching_coords[["x", "y"]].diff()
-        disp_px = (diffs.pow(2).sum(axis=1) ** 0.5)
+        diffs = self.laserOn_coords[["x", "y"]].diff()
+        disp_px = (diffs.pow(2).sum(axis=1).pow(0.5))
         disp = self._scale(disp_px)
 
         return pd.DataFrame({
-                    "t": self.reaching_coords["t"],
+                    "t": self.laserOn_coords["t"],
                     "displacement": disp
                 })
 
@@ -216,8 +218,21 @@ class Trajectory:
         return self._displacements()["displacement"].sum()
 
     def mean_velocity(self) -> float:
-        duration = self.reaching_coords["t"].iloc[-1] - self.reaching_coords["t"].iloc[0]
+        duration = self.laserOn_coords["t"].iloc[-1] - self.laserOn_coords["t"].iloc[0]
         return self.distance() / duration
+    
+    def peak(self) -> float : 
+        v: pd.Series = self.instant_velocity()["velocity"]
+        peaks, _ = find_peaks(v)
+        return v.iloc[peaks].max()
+    
+    def tortuosity(self) -> float : 
+        actual_path_length = self.distance()
+        start = self.laserOn_coords[["x", "y"]].iloc[0]
+        end = self.laserOn_coords[["x", "y"]].iloc[-1]
+        direct_path_length = np.linalg.norm(end - start)  # calculate the norm √((x-x)² + (y-y²)
+        return actual_path_length / direct_path_length
+
 
     
 
@@ -257,9 +272,9 @@ def plot_metric_time(metric: pd.Series,
         laser_off = laser_on +  0.3 # sec or 37.5 frame
         ax.axvspan(laser_on, laser_off, color='red', alpha=0.3, label="laser on")
 
-    # add line for pad off 
-    # ax.axvline(time.iloc[0], color='k', lw=0.8, ls='--', label="pad off")
-    # ax.legend()
+        # add line for pad off 
+        ax.axvline(laser_on - 0.025, color='k', lw=0.8, ls='--', label="pad off")
+        ax.legend()
 
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -273,7 +288,53 @@ def plot_metric_time(metric: pd.Series,
 
 
 
-def create_trajectory_object(coords_path, bodypart, threshold, m_per_pixel) -> Trajectory : 
+def plot_stacked_metric(data: pd.Series, 
+                     time: pd.Series,
+                     ax: plt.axes,
+                     color: str,
+                     laser_on: float,
+                     show_pad_off: bool = False,
+                     transparancy: float=0.7,
+                     y_invert: bool=False) -> plt.axes : 
+    fps = 125
+
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    # relative time
+    relative_time = time - time[0]
+
+    ax.plot(relative_time, data, color= color, alpha=transparancy)
+    if show_pad_off :
+        # add line for pad off 
+        ax.axvline(relative_time[0], color='k', lw=0.8, ls='--', label="pad off")
+        ax.legend()
+
+        # show laser on
+        laser_on = relative_time[0] + 0.025
+        laser_off = laser_on +  0.3 # sec or 37.5 frame
+        ax.axvspan(laser_on, laser_off, color='red', alpha=0.3, label="laser on")
+        ax.legend()
+        
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    ax.tick_params(direction="out")
+
+    # set scale (eye balled)
+    ax.set_xlim(-0.02, 0.35) 
+    ax.set_ylim(-10, 350)
+
+    if y_invert: 
+        ax.invert_yaxis()
+
+    return ax
+
+
+
+
+def create_trajectory_object(coords_path, bodypart, threshold, cm_per_pixel) -> Trajectory : 
     # get data from the bodypart
     data = open_clean_csv(coords_path)
     data = data[bodypart]
@@ -293,7 +354,7 @@ def create_trajectory_object(coords_path, bodypart, threshold, m_per_pixel) -> T
     return Trajectory(coords=data,
                       reaching_coords=xy, 
                       fps=125, 
-                      m_per_pixel=m_per_pixel)
+                      cm_per_pixel=cm_per_pixel)
 
 
 
