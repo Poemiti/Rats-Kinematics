@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+from scipy.signal import find_peaks
 
 
 # --------------------------------- csv utils ----------------------------------
@@ -38,7 +39,7 @@ def open_clean_csv(csv_path : Path) -> pd.DataFrame :
     return clea_df
 
 
-
+# V1
 def define_StartEnd_of_trajectory(coords : pd.DataFrame, lever_position) -> float : 
         crossed = False
         t_start = 0
@@ -61,6 +62,7 @@ def define_StartEnd_of_trajectory(coords : pd.DataFrame, lever_position) -> floa
 
         return t_start, t_end
 
+# V2
 # def define_StartEnd_of_trajectory(coords : pd.DataFrame, lever_position) -> float : 
 #         t_start = 0
 #         t_end = len(coords)
@@ -73,16 +75,77 @@ def define_StartEnd_of_trajectory(coords : pd.DataFrame, lever_position) -> floa
 #         return t_start, t_end
 
 
+# V3
+# def define_End_of_trajectory(coords : pd.DataFrame, lever_position) -> float : 
+#         crossed = False
+#         t_end = len(coords)
+
+#         for t, row in coords.iterrows():
+#             if t == 0 : 
+#                 pass
+#                 # print(f"not crossed, y = {row['y']}, t = {t}")
+
+#             if row["y"] < lever_position and not crossed:
+#                 # print(f"crossed, y = {row['y']}, t = {t}")
+#                 crossed = True
+#                 continue
+
+#             if row["y"] > lever_position and crossed:
+#                 # print(f"crossed again, y = {row['y']}, t = {t}")
+#                 t_end = t-2
+#                 break
+
+#         return t_end
+
+# V4
+def define_End_of_trajectory(coords : pd.DataFrame, lever_position) -> float : 
+    t_end = len(coords)
+
+    peaks, properties = find_peaks(-coords["y"], height=-lever_position)
+    # peaks_below = peaks[coords["y"].iloc[peaks] < lever_position]
+    print(f"peeaks : {peaks}")
+
+    if len(peaks) == 0 : 
+        return 0
+    
+    fig, ax = plt.subplots()
+
+    ax.plot(coords["x"], coords["y"], label="trajectory")
+    ax.plot(coords["x"].iloc[peaks[0]],
+            coords["y"].iloc[peaks[0]],
+            "o", label="peaks below lever")
+
+
+    ax.axhline(lever_position, color="k", lw=0.8, ls="--", label="lever position")
+
+    ax.tick_params(direction="out")
+
+    ax.set_xlabel("x (pixel)")
+    ax.set_ylabel("y (pixel)")
+
+    ax.set_xlim(0, 512)  # video dimension
+    ax.set_ylim(0, 512)
+
+    ax.invert_yaxis()
+    ax.legend()
+
+    plt.show()
+
+    return t_end
+
+
+
+
 
 # --------------------------------- metrics calculation ----------------------------------
 
 class Trajectory:
     def __init__(
-        self,
-        coords: pd.DataFrame,
-        reaching_coords: pd.DataFrame,
-        fps: int = 125,
-        m_per_pixel: float | None = None,
+                self,
+                coords: pd.DataFrame,
+                reaching_coords: pd.DataFrame,
+                fps: int = 125,
+                m_per_pixel: float | None = None,
     ):
         """
         Parameters
@@ -107,105 +170,66 @@ class Trajectory:
             return values
         return values * self.m_per_pixel
     
-    def _displacements(self) -> pd.Series:
-        diffs = self.reaching_coords.diff()
-        disp_px = (diffs.pow(2).sum(axis=1).pow(0.5))
-        return self._scale(disp_px)
+    def _displacements(self) -> pd.DataFrame:
+        diffs = self.reaching_coords[["x", "y"]].diff()
+        disp_px = (diffs.pow(2).sum(axis=1) ** 0.5)
+        disp = self._scale(disp_px)
+
+        return pd.DataFrame({
+                    "t": self.reaching_coords["t"],
+                    "displacement": disp
+                })
 
     # ------------------- calculation ------------------
 
     def velocity_vector(self) -> pd.DataFrame:
-        v_px = self.reaching_coords.diff() / self.dt
-        return self._scale(v_px)  
+        v_px = self.reaching_coords[["x", "y"]].diff() / self.dt
+        v = self._scale(v_px)
 
-    def instant_velocity(self) -> pd.Series:
+        return pd.DataFrame({
+            "t": self.reaching_coords["t"],
+            "vx": v["x"],
+            "vy": v["y"]
+        })
+
+    def instant_velocity(self) -> pd.DataFrame:
         v = self.velocity_vector()
-        return (v.pow(2).sum(axis=1) ** 0.5)
+        speed = (v[["vx", "vy"]].pow(2).sum(axis=1) ** 0.5)
 
-    def distance(self) -> float:
-        return self._displacements().sum()
-
-    def mean_velocity(self) -> float:
-        duration = len(self.reaching_coords) / self.fps
-        return self.distance() / duration
+        return pd.DataFrame({
+            "t": v["t"],
+            "velocity": speed
+        })
 
     def acceleration(self) -> pd.Series:
-        a = self.velocity_vector().diff() / self.dt
-        return (a.pow(2).sum(axis=1) ** 0.5)
+        v = self.velocity_vector()[["vx", "vy"]]
+        a = v.diff() / self.dt
+        acc = (a.pow(2).sum(axis=1) ** 0.5)
 
+        return pd.DataFrame({
+            "t": self.reaching_coords["t"],
+            "acceleration": acc
+        })
+
+
+    def distance(self) -> float:
+        return self._displacements()["displacement"].sum()
+
+    def mean_velocity(self) -> float:
+        duration = self.reaching_coords["t"].iloc[-1] - self.reaching_coords["t"].iloc[0]
+        return self.distance() / duration
+
+    
 
 # ------------------------ metrics plotting -----------------------------------
 
-def plot_violin_distribution(NoStim, conti, beta : pd.DataFrame,
-                             ax: plt.Axes | None = None,
-                             ylabel: str = "",
-                             title: str = "",
-                             ) -> plt.axes : 
-    """
-    Does a Violin Plot of the distribution of velocity or acceleration for the 3 conditions, for 1 clip.
-    The velocity given must be from 0.25 sec to 0.325 sec, which correspond to
-    the time range of a laser stimulus (even when there is NoStim for comparaison purpose)
-
-    Parameters
-    ----------
-    NoStim : pd.Dataframe
-        instantaneous velocity for 1 clip  
-    conti : pd.Dataframe
-        instantaneous velocity for 1 clip  
-    beta : pd.Dataframe
-        instantaneous velocity for 1 clip  
-
-    Returns
-    -------
-    matplotlib.axes.Axes
-        Axis containing the plotted velocities.
-    """
-
-    if ax is None:
-        fig, ax = plt.subplots()
-
-    # Combine into a long-form DataFrame for Seaborn
-    df_plot = pd.DataFrame({
-        "NoStim": NoStim,
-        "Conti": conti,
-        "Beta": beta})
-
-    df_long = df_plot.melt(var_name="Condition", value_name="Value")
-
-    # plot points
-    sns.stripplot(
-                x="Condition",
-                y="Value",
-                data=df_long,
-                ax=ax,
-                color="black",
-                # jitter=True,
-                size=3,
-                alpha=0.6,
-            )
-
-
-
-    # Plot violin
-    sns.violinplot(x="Condition", 
-                   y="Value", 
-                   data=df_long, 
-                   ax=ax, 
-                   inner="quart", 
-                   palette="pastel")
-    
-    ax.set_ylabel(ylabel)
-    ax.set_title(title)
-    ax.grid(axis="y", alpha=0.3)
-
-    return ax
-
 
 def plot_metric_time(metric: pd.Series, 
+                     time : pd.Series,
                      laser_on : float | None,
                      ax: plt.axes,
                      color: str,
-                     transparancy: float,
+                     transparancy: float=0.7,
                      y_invert: bool=False) -> plt.axes : 
     """
     Plot the velocity or acceleration in time, for 1 condition (either NoStim, Beta or conti), for 1 clip
@@ -228,14 +252,14 @@ def plot_metric_time(metric: pd.Series,
     if ax is None:
         fig, ax = plt.subplots()
 
-    time = metric.index / fps
-
-    ax.plot(time, metric, color= color, alpha=transparancy)
+    ax.plot(time, metric, color= color, alpha=transparancy, marker='.')
     if laser_on : 
         laser_off = laser_on +  0.3 # sec or 37.5 frame
         ax.axvspan(laser_on, laser_off, color='red', alpha=0.3, label="laser on")
-        ax.legend()
-    # ax.axhline(220, color='k', lw=0.8, ls='--')
+
+    # add line for pad off 
+    # ax.axvline(time.iloc[0], color='k', lw=0.8, ls='--', label="pad off")
+    # ax.legend()
 
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -270,11 +294,6 @@ def create_trajectory_object(coords_path, bodypart, threshold, m_per_pixel) -> T
                       reaching_coords=xy, 
                       fps=125, 
                       m_per_pixel=m_per_pixel)
-
-
-
-
-
 
 
 
