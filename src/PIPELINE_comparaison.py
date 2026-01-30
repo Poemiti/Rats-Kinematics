@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import os
 import seaborn as sns
 
-from utils.trajectory_metrics import Trajectory, create_trajectory_object, plot_violin_distribution
+from utils.trajectory_metrics import Trajectory
 
 
 THRESHOLD = 0.5
@@ -84,7 +84,7 @@ fig, ax = plt.subplots()
 title = "Velocity distribution, for CHR rat population\n" \
         "bodypart observed : left hand, L1 task"
 
-ylabel = "velocity (m.$s^{-1}$)"
+ylabel = "average velocity (m.$s^{-1}$)"
 
 sns.violinplot(
     x="Condition",
@@ -138,7 +138,7 @@ ax.set_ylabel(ylabel)
 ax.set_title(title)
 ax.grid(axis="y", alpha=0.3)
 
-plt.savefig(OUTPUT_DIR / "Violin_CHR_L1.png")
+plt.savefig(OUTPUT_DIR / "Violin_mean_velocity_CHR_L1.png")
 
 if SHOW : 
     plt.show()
