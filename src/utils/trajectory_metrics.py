@@ -389,30 +389,3 @@ if __name__ == "__main__":
         plt.show()
     plt.close(fig)
 
-    # ---------------------------------------- plot violin metric ---------------------------------------
-
-    noStim_csv = "../data/csv_results/Rat_#517Ambidexter_20240624_BetaMT300_RightHemiCHR_L1L25050_C001H001S0002/Rat_#517Ambidexter_20240624_BetaMT300_RightHemiCHR_CueL2_C001H001S0002_pred_results_clip_29_LaserOff.csv"
-    beta_csv = "../data/csv_results/Rat_#517Ambidexter_20240624_BetaMT300_RightHemiCHR_L1L25050_C001H001S0002/Rat_#517Ambidexter_20240624_BetaMT300_RightHemiCHR_CueL2_C001H001S0002_pred_results_clip_41_LaserOn.csv"    
-    conti_csv = "../data/csv_results/Rat_#517Ambidexter_20240721_ContiMT300_2,5mW_LeftHemiCTRL_L1L25050_C001H001S0001/Rat_#517Ambidexter_20240721_ContiMT300_2,5mW_LeftHemiCTRL_CueL2_C001H001S0001_pred_results_clip_31_LaserOn.csv"
-
-    Trajs: list[Trajectory] = []
-
-    for path in [noStim_csv, beta_csv, conti_csv] : 
-        create_trajectory_object(path, BODYPART, THRESHOLD, M_PER_PIXEL)
-        
-    noStim_velo = Trajs[0].instant_velocity()
-    beta_velo = Trajs[1].instant_velocity()
-    conti_velo = Trajs[2].instant_velocity()
-
-    new_fig, new_ax = plt.subplots()
-
-    plot_violin_distribution(NoStim= noStim_velo,
-                             beta= beta_velo,
-                             conti= conti_velo,
-                             ax=new_ax,
-                             ylabel="Velocity",
-                             title="Velocity")
-    
-    if SHOW : 
-        plt.show()
-    plt.close(new_fig)
