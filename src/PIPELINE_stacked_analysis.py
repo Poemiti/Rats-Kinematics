@@ -8,8 +8,8 @@ import numpy as np
 
 from utils.database_filter import Model, View, Controller
 from utils.file_management import is_video, make_database, make_directory_name, is_csv, verify_exist
-from utils.trajectory_ploting import plot_single_bodypart_trajectories, open_clean_csv
-from utils.trajectory_metrics import Trajectory, create_trajectory_object, plot_metric_time, define_End_of_trajectory
+from utils.trajectory_ploting import open_clean_csv
+from utils.trajectory_metrics import Trajectory, plot_metric_time, plot_stacked_metric
 from utils.led_detection import get_time_led_on, get_time_led_off
 
 # set parameters
@@ -26,11 +26,11 @@ STACKED_METRICS = True
 
 # define m per pixel
 if view == 'left' : 
-    frame_width_m = 0.87 # meters
+    frame_width_m = 8.7 # cm
 else : 
-    frame_width_m = 0.83 # meters
+    frame_width_m = 8.3 # cm
 frame_width_px = 512 # pixel
-M_PER_PIXEL = frame_width_m / frame_width_px
+CM_PER_PIXEL = frame_width_m / frame_width_px
 
 # ------------------------------------ setup path ---------------------------------------
 
@@ -81,185 +81,178 @@ for path in csv_list :
 print(f"\nAnalysing trajectory of video with these setting: ")
 print([val for val in str(output_fig_dir.name).split("_")])
 
-#############################################################################################################
-
-
-if STACKED_TRAJ : 
-    # ------------------------------------ plot stacked trajectory ---------------------------------------
-    print("\n TRAJECTORY PLOTTING \n")
-
-    output_stacked_traj = output_fig_dir / f"trajectory_stacked.png"
-    output_mean_traj = output_fig_dir / f"trajectory_average.png"
-    
-    fig, ax = plt.subplots(figsize=(9, 7))
-    all_coords = []
-    failed_trial = []
-
-    for csv_path in csv_list:
-
-        # get time when the PAD OFF led is ON
-        luminosity_path = GENERATED_DATA_DIR / "luminosity" / RAT_NAME / csv_path.parent.stem / f"luminosity_{csv_path.stem.replace('_pred_results', '')}.csv"
-        verify_exist(luminosity_path)
-
-        time_pad_off = get_time_led_off(luminosity_path, "LED_3", in_sec=True)
-
-        if time_pad_off is None or time_pad_off+LASER_ON_TIME > 2 : # in sec
-            print(f"  ! Failed trial on, Pad off at {time_pad_off}")
-            failed_trial.append(csv_path)
-            continue
-
-        coords = open_clean_csv(csv_path)
-        xy = coords[BODYPART]
-        mask = xy["likelihood"] >= THRESHOLD
-        xy_filtered = xy[mask]
-
-        xy_filtered = xy_filtered.iloc[int(time_pad_off*125)-1 : int((time_pad_off + LASER_ON_TIME)*125)]  # in frame
-
-        if len(xy_filtered) == 0 : 
-            print(f"  ! Empty reaching coords, Pad off at {time_pad_off}")
-            failed_trial.append(csv_path)
-            continue
-
-        all_coords.append(xy_filtered)
-
-        plot_single_bodypart_trajectories(
-            coords=xy_filtered,
-            ax=ax,
-            invert_y=True,
-            color="red",
-            transparancy=0.2
-        )
-
-    avg_coords = (pd.concat(all_coords, axis=1)
-                    .T
-                    .groupby(level=0)
-                    .mean()
-                    .T)
-
-    plot_single_bodypart_trajectories(
-            coords=avg_coords,
-            ax=ax,
-            invert_y=True,
-            color="blue",
-            transparancy=1
-        )
-
-    title = (
-        "Trajectories across trials with settings:\n"
-        f"{output_fig_dir.stem}\n"
-        f"Number of trials: {len(csv_list)}"
-    )
-
-    print("\nFailed trial : ")
-    print(str(path) for path in failed_trial)
-    print(f"Number of failed trial : {len(failed_trial)}")
-
-    ax.set_title(title, fontsize=12)
-    fig.savefig(output_stacked_traj)
-
-    if SHOW:
-        plt.show()
-    plt.close(fig)
-
+        
 #############################################################################################
 
+output_stacked_traj = output_fig_dir / f"trajectory_stacked.png"
+output_stacked_velo = output_fig_dir / f"velocity_stacked.png"
+fig, axs = plt.subplots(figsize=(9, 7))
 
-if STACKED_METRICS : 
-    # ------------------------------- plot stacked VELOCITY + average in bold -------------------------
+failed_trials : list[dict] = []
 
-    print("\n METRIC PLOTTING \n")
+for i, csv_path in enumerate(csv_list) :
 
-    output_stacked_velo = output_fig_dir / f"velocity_stacked.png"
-    fig, axs = plt.subplots(figsize=(9, 7))
-    failed_trial = []
-
-    for csv_path in csv_list : 
-
-        all_velocity = []
-        all_laser_on = []
-
-        # get time when the PAD OFF led is ON
-        luminosity_path = GENERATED_DATA_DIR / "luminosity" / RAT_NAME / csv_path.parent.stem / f"luminosity_{csv_path.stem.replace('_pred_results', '')}.csv"
-        verify_exist(luminosity_path)
-
-        time_pad_off = get_time_led_off(luminosity_path, "LED_3", in_sec=True)
-
-        if time_pad_off is None or time_pad_off+LASER_ON_TIME > 2 : # in sec
-            print(f"  ! Failed trial on, Pad off at {time_pad_off}")
-            failed_trial.append(csv_path)
-            continue
-
-        coords = open_clean_csv(csv_path)
-        xy = coords[BODYPART]
-        mask = xy["likelihood"] >= THRESHOLD
-        xy_filtered = xy[mask]
-        xy_filtered = xy_filtered[["x", "y"]]
-
-        # add a time columns in seconds
-        xy_filtered["t"] = (np.arange(len(xy_filtered)) / 125)
-        xy_filtered = xy_filtered.iloc[int(time_pad_off*125)-1 : int((time_pad_off + LASER_ON_TIME)*125)]  # in frame
-
-        if len(xy_filtered) == 0 : 
-            print(f"  ! Empty reaching coords, Pad off at {time_pad_off}")
-            failed_trial.append(csv_path)
-            continue
-
-        # creat trajectory object for metric calculation
-        Traj = Trajectory(coords=xy,
-                        reaching_coords=xy_filtered, 
-                        fps=125, 
-                        m_per_pixel=M_PER_PIXEL)
-
-        instant_velo : pd.DataFrame = Traj.instant_velocity()
-
-        # get the time when the laser is on
-        luminosity_path = GENERATED_DATA_DIR / "luminosity" / RAT_NAME / csv_path.parent.stem / f"luminosity_{csv_path.stem.replace('_pred_results', '')}.csv"
-        verify_exist(luminosity_path)
-
-        time_laser_on = get_time_led_on(luminosity_path, "LED_4", in_sec=True)
-        all_laser_on.append(time_laser_on)
-
-        ## ploting single velocities over time
-        plot_metric_time(instant_velo['velocity'],
-                         time=instant_velo['t'],
-                        ax = axs, 
-                        laser_on=None,
-                        color="green",
-                        transparancy=0.2)
-        
-        all_velocity.append(instant_velo.set_index("t")["velocity"])
-
-    # plotting average velocity over time
-    avg_velocity = pd.concat(all_velocity, axis=1).mean(axis=1)
-
-    if all_laser_on[0] is not None : 
-        avg_laser_on = np.array(all_laser_on).mean()
-    else : 
-        avg_laser_on = None
-
-    plot_metric_time(avg_velocity,
-                     time = avg_velocity.index,
-                    ax = axs, 
-                    laser_on=avg_laser_on,
-                    color="blue",
-                    transparancy=1)
+    all_velocity = []
+    all_laser_on = [] 
+    all_pad_off = []
     
-    title = (
-        "Velocities across trials with settings:\n"
-        f"{output_fig_dir.name}\n"
-        f"Number of trials: {len(csv_list)}"
-        )
+    verify_exist(csv_path)
 
-    axs.set_title(title, color="blue")
-    axs.set_xlabel("Time (seconds)")
-    axs.set_ylabel("Velocity (m.s$^{-1}$)")
+    print(f"\n[{i+1}/{len(csv_list)}]")
+    print(f"Working on : {csv_path}")
 
-    print("\nFailed trial : ")
-    print(str(path) for path in failed_trial)
-    print(f"Number of failed trial : {len(failed_trial)}")
+# ------------------------------------ OPENING AND GET SOME VARIABLE  ---------------------------------------
 
-    fig.savefig(output_stacked_velo)
+    # get time when pad is ON or OFF
+    luminosity_path = GENERATED_DATA_DIR / "luminosity" / RAT_NAME / csv_path.parent.stem / f"luminosity_{csv_path.stem.replace('_pred_results', '')}.csv"
+    verify_exist(luminosity_path)
 
-    if SHOW:
-        plt.show()
-    plt.close(fig)
+    time_pad_off = get_time_led_off(luminosity_path, "LED_3", in_sec=True) # in sec
+    time_laser_on = get_time_led_on(luminosity_path, "LED_4", in_sec=True) # in sec
+    all_laser_on.append(time_laser_on)
+    all_pad_off.append(time_pad_off)
+
+    # get coords + filtration
+    coords = open_clean_csv(csv_path)
+    xy = coords[BODYPART].copy()
+    xy = xy.assign(t=np.arange(len(xy)) / 125)
+    xy_filtered = xy.loc[xy["likelihood"] >= THRESHOLD, ["x", "y", "t"]]
+
+    # verification
+    if time_pad_off is None or time_pad_off+LASER_ON_TIME > len(xy_filtered)-1 : # in sec
+        print(f"  ! Failed trial on, Pad off at {time_pad_off}")
+        failed_trials.append({
+            "path": csv_path.as_posix(),
+            "reason": f"Failed trial",
+            "pad_off": time_pad_off,
+        })
+        continue
+    
+    #  pad off -> laser off coords 
+    xy_filtered = xy.loc[
+        (xy["t"] >= time_pad_off) &
+        (xy["t"] <= time_pad_off + LASER_ON_TIME)
+    ].reset_index(drop=True)
+
+    print(f"pad off={time_pad_off}, laser on={time_laser_on}")
+
+    # laser on -> laser off coords
+    if time_laser_on: 
+        xy_laserOn = xy.loc[
+            (xy["t"] >= time_laser_on) &
+            (xy["t"] <= time_laser_on + 0.3)
+        ].reset_index(drop=True)
+    else : 
+        xy_laserOn = xy_filtered
+
+    # verification
+    if len(xy_filtered) == 0 : 
+        print(f"  ! Empty reaching coords, Pad off at {time_pad_off}")
+        failed_trials.append({
+            "path": csv_path.as_posix(),
+            "reason": f"Empty reaching coords",
+            "pad_off": time_pad_off,
+        })
+        continue
+
+#     # ------------------------------------ plotting trajectories ---------------------------------------
+
+
+#     plot_single_bodypart_trajectories(
+#         coords=xy_filtered,
+#         ax=axs,
+#         invert_y=True,
+#         color="red",
+#         transparancy=0.2
+#     )
+
+# avg_coords = (pd.concat(all_coords, axis=1)
+#                 .T
+#                 .groupby(level=0)
+#                 .mean()
+#                 .T)
+
+# plot_single_bodypart_trajectories(
+#         coords=avg_coords,
+#         ax=axs,
+#         invert_y=True,
+#         color="blue",
+#         transparancy=1
+#     )
+
+# title = (
+#     "Trajectories across trials with settings:\n"
+#     f"{output_fig_dir.stem}\n"
+#     f"Number of trials: {len(csv_list)}"
+# )
+
+# print("\nFailed trial : ")
+# print(str(path) for path in failed_trial)
+# print(f"Number of failed trial : {len(failed_trial)}")
+
+# axs.set_title(title, fontsize=12)
+# fig.savefig(output_stacked_traj)
+
+# if SHOW:
+#     plt.show()
+# plt.close(fig)
+
+
+
+    # ------------------------------------ plotting metrics ---------------------------------------
+
+    # creat trajectory object for metric calculation
+    Traj = Trajectory(coords=xy,
+                    reaching_coords=xy_filtered, 
+                    laserOn_coords=xy_laserOn,
+                    fps=125, 
+                    cm_per_pixel=CM_PER_PIXEL)
+
+    instant_velo : pd.DataFrame = Traj.instant_velocity()
+    all_velocity.append(instant_velo.set_index("t")["velocity"])
+
+    # plotting
+    plot_stacked_metric(data=instant_velo["velocity"],
+                    time=instant_velo["t"],
+                    laser_on=time_laser_on,
+                    ax = axs, 
+                    color="green",
+                    transparancy=0.3)
+
+
+# plotting average velocity over time
+avg_velocity = pd.concat(all_velocity, axis=1).mean(axis=1)
+avg_pad_off = np.array(all_pad_off).mean()
+
+if all_laser_on[0] is not None : 
+    avg_laser_on = np.array(all_laser_on).mean()
+else : 
+    avg_laser_on = None
+
+plot_stacked_metric(data=avg_velocity,
+                time = avg_velocity.index,
+                laser_on=avg_laser_on,
+                ax = axs, 
+                show_pad_off=True,
+                color="blue",
+                transparancy=1)
+
+title = (
+    "Velocities across trials with settings:\n"
+    f"{output_fig_dir.name}\n"
+    f"Number of trials: {len(csv_list)}"
+    )
+
+axs.set_title(title, color="blue")
+axs.set_xlabel("Time (seconds)")
+axs.set_ylabel("Velocity (cm.s$^{-1}$)")
+
+print(f"\nNumber of failed trial : {len(failed_trials)}")
+
+# save failed trial
+pd.DataFrame(failed_trials).to_csv(output_fig_dir / "failed_trial.csv", index=False)
+fig.savefig(output_stacked_velo)
+
+if SHOW:
+    plt.show()
+plt.close(fig)
