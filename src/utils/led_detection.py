@@ -144,11 +144,7 @@ def define_cue_type(luminosities) :
 
 def is_led_on(luminosities) -> tuple[bool, float] : 
     """
-    Determine if a LED is active during a clip.
-
-    The function counts the total number of frames for which the LED
-    luminosity exceeds a fixed threshold (50). If this count exceeds a
-    minimum duration (5 frames), the LED is considered ON.
+    Determine if a LED is off during a clip.
 
     Parameters
     ----------
@@ -159,6 +155,8 @@ def is_led_on(luminosities) -> tuple[bool, float] :
     -------
     bool
         True if the LED is considered ON, False otherwise.
+    float
+        First time where the led goes off
     """
 
     led_on = False
@@ -178,6 +176,26 @@ def is_led_on(luminosities) -> tuple[bool, float] :
         led_on = True
 
     return led_on, first_time_on
+
+
+def is_led_off(luminosities : pd.DataFrame) -> bool : 
+    led_off = False
+    time = 0
+    first_time_off = None
+
+    for t, luminosity in enumerate(luminosities) :
+            luminosity = float(luminosity) 
+
+            if luminosity < 50 : 
+                time += 1
+                if first_time_off is None : 
+                    first_time_off = t
+
+
+    if time > 10 : 
+        led_off = True
+
+    return led_off, first_time_off
 
 
 
@@ -235,6 +253,47 @@ def rename_file(file_path: Path, laser_on: bool, new_cue: str):
     print(f"\nRenamed {file_path.name} into : \n\t{new_path.name}")
 
 
+
+def get_time_led_on(luminosity_path: Path, 
+                    LED: str = "LED_4", 
+                    in_sec: bool = False, 
+                    fps: int =125) : 
+    luminosities = pd.read_csv(luminosity_path)
+
+    # clean dataframe
+    luminosities.columns = luminosities.iloc[0]      # use first row as column names
+    luminosities = luminosities.drop(0).reset_index(drop=True) # remove useless row
+    luminosities = luminosities[luminosities.iloc[:, 0] != 't']
+
+    _, frame_laser_on = is_led_on(luminosities[LED])
+    if frame_laser_on and in_sec : 
+        time_laser_on = frame_laser_on / 125  # 125=fps
+        # print(f"Laser one at {time_laser_on} sec, {frame_laser_on} frame")
+    else : 
+        time_laser_on = frame_laser_on
+
+    return time_laser_on
+
+
+def get_time_led_off(luminosity_path: Path, 
+                    LED: str = "LED_3", 
+                    in_sec: bool = False, 
+                    fps: int =125) : 
+    luminosities = pd.read_csv(luminosity_path)
+
+    # clean dataframe
+    luminosities.columns = luminosities.iloc[0]      # use first row as column names
+    luminosities = luminosities.drop(0).reset_index(drop=True) # remove useless row
+    luminosities = luminosities[luminosities.iloc[:, 0] != 't']
+
+    _, frame_laser_off = is_led_off(luminosities[LED])
+    if frame_laser_off and in_sec : 
+        time_laser_off = frame_laser_off / 125  # 125=fps
+        # print(f"Laser one at {time_laser_off} sec, {frame_laser_off} frame")
+    else : 
+        time_laser_off = frame_laser_off
+
+    return time_laser_off
 
 
 
