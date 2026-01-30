@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from utils.database_filter import Model, View, Controller
-from utils.file_management import is_video, make_database, make_directory_name, is_csv, verify_exist
+from utils.file_management import make_database, make_directory_name, is_csv, verify_exist
 from utils.trajectory_ploting import plot_single_bodypart_trajectories, open_clean_csv, plot_3D_traj
 from utils.video_annotation import annotate_single_bodypart
-from utils.trajectory_metrics import Trajectory, create_trajectory_object, plot_metric_time, define_End_of_trajectory
+from utils.trajectory_metrics import Trajectory, plot_metric_time, define_End_of_trajectory
 from utils.led_detection import get_time_led_on, get_time_led_off
 
 # set parameters
@@ -21,17 +21,18 @@ LASER_ON_TIME = 0.325   # sec
 
 # choose which function to use
 SINGLE_TRAJ = False
-ANNOT_CLIP = True
+ANNOT_CLIP = False
 METRICS = True
+METRICS_PLOT = False
 PLOT3D = False
 
 # define m per pixel
 if view == 'left' : 
-    frame_width_m = 0.87 # meters
+    frame_width_m = 8.7 # cm
 else : 
-    frame_width_m = 0.83 # meters
+    frame_width_m = 8.3 # cm
 frame_width_px = 512 # pixel
-M_PER_PIXEL = frame_width_m / frame_width_px
+CM_PER_PIXEL = frame_width_m / frame_width_px
 
 # ------------------------------------ setup path ---------------------------------------
 
@@ -86,7 +87,7 @@ print([val for val in str(output_fig_dir.name).split("_")])
 
 
 metrics : list[dict] = []
-failed_trial = []
+failed_trials : list[dict] = []
 
 for i, csv_path in enumerate(csv_list) : 
     
@@ -94,8 +95,60 @@ for i, csv_path in enumerate(csv_list) :
 
     print(f"\n[{i+1}/{len(csv_list)}]")
     print(f"Working on : {csv_path}")
-    
 
+# ------------------------------------ OPENING AND GET SOME VARIABLE  ---------------------------------------
+
+    # get time when pad is ON or OFF
+    luminosity_path = GENERATED_DATA_DIR / "luminosity" / RAT_NAME / csv_path.parent.stem / f"luminosity_{csv_path.stem.replace('_pred_results', '')}.csv"
+    verify_exist(luminosity_path)
+
+    time_pad_off = get_time_led_off(luminosity_path, "LED_3", in_sec=True) # in sec
+    time_laser_on = get_time_led_on(luminosity_path, "LED_4", in_sec=True) # in sec
+
+    # get coords + filtration
+    coords = open_clean_csv(csv_path)
+    xy = coords[BODYPART].copy()
+    xy = xy.assign(t=np.arange(len(xy)) / 125)
+    xy_filtered = xy.loc[xy["likelihood"] >= THRESHOLD, ["x", "y", "t"]]
+
+    # verification
+    if time_pad_off is None or time_pad_off+LASER_ON_TIME > len(xy_filtered)-1 : # in sec
+        print(f"  ! Failed trial on, Pad off at {time_pad_off}")
+        failed_trials.append({
+            "path": csv_path.as_posix(),
+            "reason": f"Failed trial",
+            "pad_off": time_pad_off,
+        })
+        continue
+    
+    #  pad off -> laser off coords 
+    xy_filtered = xy.loc[
+        (xy["t"] >= time_pad_off) &
+        (xy["t"] <= time_pad_off + LASER_ON_TIME)
+    ].reset_index(drop=True)
+
+    print(f"pad off={time_pad_off}, laser on={time_laser_on}")
+
+    # laser on -> laser off coords
+    if time_laser_on: 
+        xy_laserOn = xy.loc[
+            (xy["t"] >= time_laser_on) &
+            (xy["t"] <= time_laser_on + 0.3)
+        ].reset_index(drop=True)
+    else : 
+        xy_laserOn = xy_filtered
+
+    # verification
+    if len(xy_filtered) == 0 : 
+        print(f"  ! Empty reaching coords, Pad off at {time_pad_off}")
+        failed_trials.append({
+            "path": csv_path.as_posix(),
+            "reason": f"Empty reaching coords",
+            "pad_off": time_pad_off,
+        })
+        continue
+
+    
     if SINGLE_TRAJ : 
         # ------------------------------------ plot single trajectory + video annotation  ---------------------------------------
         
@@ -105,21 +158,7 @@ for i, csv_path in enumerate(csv_list) :
         output_traj_dir.mkdir(parents=True, exist_ok=True)
         output_traj_path = output_traj_dir / f"trajectory_{csv_path.stem.replace('_pred_results', '')}.png"
 
-        # get time when the PAD OFF led is ON
-        luminosity_path = GENERATED_DATA_DIR / "luminosity" / RAT_NAME / csv_path.parent.stem / f"luminosity_{csv_path.stem.replace('_pred_results', '')}.csv"
-        verify_exist(luminosity_path)
-
-        time_pad_off = get_time_led_off(luminosity_path, "LED_3", in_sec=True)
-
-        coords = open_clean_csv(csv_path)
-        xy = coords[BODYPART]
-        mask = xy["likelihood"] >= THRESHOLD
-        xy_filtered = xy[mask]
-
-        end = define_End_of_trajectory(xy_filtered, lever_position=210)
-        xy_filtered = xy_filtered.iloc[time_pad_off : end]
-
-        print(len(xy_filtered))
+        
 
         ax = plot_single_bodypart_trajectories(
                     coords=xy_filtered,
@@ -160,45 +199,20 @@ for i, csv_path in enumerate(csv_list) :
 
         print("Metrics measurement ...")
 
-        # get time when the PAD OFF led is ON
-        luminosity_path = GENERATED_DATA_DIR / "luminosity" / RAT_NAME / csv_path.parent.stem / f"luminosity_{csv_path.stem.replace('_pred_results', '')}.csv"
-        verify_exist(luminosity_path)
-
-        time_pad_off = get_time_led_off(luminosity_path, "LED_3", in_sec=True) # in sec
-        if time_pad_off is None or time_pad_off+LASER_ON_TIME > 2 : # in sec
-            print(f"  ! Failed trial on, Pad off at {time_pad_off}")
-            failed_trial.append(csv_path)
-            continue
-
-        coords = open_clean_csv(csv_path)
-
-        xy = coords[BODYPART]
-        # add a time columns in seconds
-        xy.loc[:, "t"] = np.arange(len(xy)) / 125
-
-        mask = xy["likelihood"] >= THRESHOLD
-        xy_filtered = xy[mask]
-        xy_filtered = xy_filtered[["x", "y", "t"]]
-
-        
-        xy_filtered = xy_filtered.iloc[int(time_pad_off*125)-1 : int((time_pad_off + LASER_ON_TIME)*125)]  # in frame
-
-        if len(xy_filtered) == 0 : 
-            print(f"  ! Empty reaching coords, Pad off at {time_pad_off}")
-            failed_trial.append(csv_path)
-            continue
-
         # creat trajectory object for metric calculation
         Traj = Trajectory(coords=xy,
                         reaching_coords=xy_filtered, 
+                        laserOn_coords=xy_laserOn,
                         fps=125, 
-                        m_per_pixel=M_PER_PIXEL)
+                        cm_per_pixel=CM_PER_PIXEL)
 
         instant_velo : pd.DataFrame = Traj.instant_velocity()
         
         metrics.append({"file" : csv_path,
                         "distance" : Traj.distance(),
-                        "velocity" : Traj.mean_velocity()
+                        "velocity_avg" : Traj.mean_velocity(),
+                        "velocity_peak" : Traj.peak(),
+                        "toruosity" : Traj.tortuosity()
                         })
 
         output_velo_dir = output_fig_dir / "velocity_per_clip" 
@@ -217,16 +231,15 @@ for i, csv_path in enumerate(csv_list) :
         instant_velo.to_csv(output_velo_path, index=False)
         acceleration.to_csv(output_acc_path, index=False)
 
+
+    if METRICS_PLOT:
         # ---------------------------------------- plot metrics ---------------------------------------
 
         print(f"Plotting velocity, acceleration and position over time...")
 
         output_fig_metric_dir = output_fig_dir / "metric_over_time" 
         output_fig_metric_dir.mkdir(parents=True, exist_ok=True)
-
         output_fig_metric_path = output_fig_metric_dir / f"metricOverTime_{csv_path.stem.replace('_pred_results', '')}.png"
-
-        time_laser_on = get_time_led_on(luminosity_path, "LED_4", in_sec=True)
         
         # plotting
         fig, axs = plt.subplots(1, 3, figsize=(15, 5))
@@ -237,7 +250,7 @@ for i, csv_path in enumerate(csv_list) :
                         color="red")
         axs[0].set_title("Velocity over time of a trial", color="red")
         axs[0].set_xlabel("Time (s)")
-        axs[0].set_ylabel("Velocity (m.s$^{-1}$)")
+        axs[0].set_ylabel("Velocity (cm.s$^{-1}$)")
         
         plot_metric_time(metric=acceleration['acceleration'], 
                          time=acceleration['t'],
@@ -246,10 +259,10 @@ for i, csv_path in enumerate(csv_list) :
                         color="green")
         axs[1].set_title("Acceleration over time of a trial", color="green")
         axs[1].set_xlabel("Time (s)")
-        axs[1].set_ylabel("Acceleration (m.s$^{-2}$)")
+        axs[1].set_ylabel("Acceleration (cm.s$^{-2}$)")
 
-        plot_metric_time(metric=xy_filtered["y"], 
-                         time=xy_filtered['t'],
+        plot_metric_time(metric=xy_filtered["y"].to_numpy(), 
+                         time=xy_filtered['t'].to_numpy(),
                         ax = axs[2],
                         laser_on=time_laser_on,
                         color="blue", 
@@ -269,27 +282,7 @@ for i, csv_path in enumerate(csv_list) :
 
         output_fig_plo3D_dir = output_fig_dir / "plot_3D" 
         output_fig_plo3D_dir.mkdir(parents=True, exist_ok=True)
-
         output_fig_plo3D_path = output_fig_plo3D_dir / f"plot3D_{csv_path.stem.replace('_pred_results', '')}.png"
-
-        # get time when the PAD OFF led is ON
-        luminosity_path = GENERATED_DATA_DIR / "luminosity" / RAT_NAME / csv_path.parent.stem / f"luminosity_{csv_path.stem.replace('_pred_results', '')}.csv"
-        verify_exist(luminosity_path)
-
-        time_pad_off = get_time_led_off(luminosity_path, "LED_3", in_sec=True)
-
-        coords = open_clean_csv(csv_path)
-
-        xy = coords[BODYPART]
-         # add a columns for the time
-        xy["t"] = (np.arange(len(xy)) / 125)
-
-        mask = xy["likelihood"] >= THRESHOLD
-        xy_filtered = xy[mask]
-        xy_filtered = xy_filtered[["x", "y", "t"]]
-
-        
-        xy_filtered = xy_filtered.iloc[int(time_pad_off*125) : int((time_pad_off + LASER_ON_TIME)*125)]  # in frame
 
         ax = plot_3D_traj(coords=xy_filtered,
                           time=xy_filtered["t"],
@@ -311,13 +304,10 @@ for i, csv_path in enumerate(csv_list) :
 metrics_df = pd.DataFrame(metrics)
 metrics_df.to_csv(output_fig_dir / "metrics_per_clips.csv", index=False)
 
-print("\nFailed trial : ")
-print(str(path) for path in failed_trial)
-print(f"Number of failed trial : {len(failed_trial)}")
+print(f"\nNumber of failed trial : {len(failed_trials)}")
 
 # save failed trial
-failed_trial_df = pd.DataFrame(failed_trial)
-failed_trial_df.to_csv(output_fig_dir / "failed_trial.csv")
+pd.DataFrame(failed_trials).to_csv(output_fig_dir / "failed_trial.csv", index=False)
 
 print("\nDone !")
 
