@@ -1,7 +1,10 @@
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from matplotlib.patches import Patch
 
+from utils.trajectory_metrics import define_StartEnd_of_trajectory
 
 # --------------------------------- csv utils ----------------------------------
 
@@ -35,30 +38,6 @@ def open_clean_csv(csv_path : Path) -> pd.DataFrame :
 
     return clea_df
 
-
-
-def define_StartEnd_of_trajectory(coords : pd.DataFrame, lever_position) -> float : 
-        crossed = False
-        t_start = 0
-        t_end = len(coords)
-
-        for t, row in coords.iterrows():
-            if t == 0 : 
-                pass
-                # print(f"not crossed, y = {row['y']}, t = {t}")
-
-            if row["y"] < lever_position and not crossed:
-                # print(f"crossed, y = {row['y']}, t = {t}")
-                crossed = True
-                continue
-
-            if row["y"] > lever_position and crossed:
-                # print(f"crossed again, y = {row['y']}, t = {t}")
-                t_end = t-2
-                break
-
-        return t_start, t_end
-
 # --------------------------------- plotting ----------------------------------
 
 
@@ -67,14 +46,11 @@ def plot_single_bodypart_trajectories(
     ax: plt.axes = None,
     invert_y: bool = True,
     color: str = "red",
-    transparancy: float = 0.7, 
+    transparancy: float = 0.7,
+    marker: str = None, 
 ) -> plt.axes :
     """
     Plot body part trajectories from a DeepLabCut CSV file.
-
-    Body part coordinates are filtered using a likelihood threshold
-    and truncated to the active movement segment based on
-    `define_StartEnd_of_trajectory`.
 
     Parameters
     ----------
@@ -97,7 +73,7 @@ def plot_single_bodypart_trajectories(
     ax.plot(
         coords["x"],
         coords["y"],
-        # marker="o",
+        marker=marker,
         color=color,
         linestyle="-",
         alpha=transparancy,
@@ -209,6 +185,72 @@ def plot_bodyparts_trajectories(
 
 
 
+def plot_3D_traj(coords: pd.DataFrame, 
+                time : pd.Series,
+                laser_on : float | None,
+                ax: plt.axes,
+                color: str,
+                transparancy: float,
+                y_invert: bool=False) -> plt.axes :
+    
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(projection="3d")
+
+    # --- trajectory ---
+    ax.plot3D(
+        coords["x"],
+        coords["y"],
+        time,
+        color=color,
+        marker=".",
+        linestyle="-",
+        alpha=transparancy,
+    )
+
+    # --- laser ON region (3D replacement for axvspan) ---
+    if laser_on is not None:
+        laser_off = laser_on + 0.3
+
+        x_min, x_max = 0, 512
+        y_min, y_max = 0, 512
+
+        verts = [[
+            (x_min, y_min, laser_on),
+            (x_max, y_min, laser_on),
+            (x_max, y_min, laser_off),
+            (x_min, y_min, laser_off),
+        ]]
+
+        laser_plane = Poly3DCollection(
+            verts,
+            facecolor="red",
+            alpha=0.3
+        )
+        ax.add_collection3d(laser_plane)
+
+        # manual legend entry
+        ax.legend(handles=[Patch(color="red", label="laser on")])
+
+    # --- labels ---
+    ax.set_xlabel("x (pixel)")
+    ax.set_ylabel("y (pixel)")
+    ax.set_zlabel("time (sec)")
+
+    # --- limits ---
+    ax.set_xlim(0, 512)
+    ax.set_ylim(0, 512)
+
+    if y_invert:
+        ax.invert_yaxis()
+
+    return ax
+
+
+
+
+
+
 if __name__ == "__main__":
     
     # ---------------------------------------------- setup path -------------------------------------------------
@@ -242,35 +284,26 @@ if __name__ == "__main__":
         output_fig_dir.mkdir(parents=True, exist_ok=True)
         output_fig_path = output_fig_dir / csv_path.stem
 
-        plot_bodyparts_trajectories(
-            csv_path=Path(csv_path),
-            ax=ax,
-            bodyparts=BODYPART,
-            invert_y=True,
-            threshold=THRESHOLD,
-        )
+        coords = open_clean_csv(csv_path)
+        xy = coords[BODYPART]
+        mask = xy["likelihood"] >= THRESHOLD
+        xy_filtered = xy[mask]
+
+        start, end = define_StartEnd_of_trajectory(xy_filtered, lever_position=210)
+        xy_filtered = xy_filtered.iloc[start : end]
+
+        print(len(xy_filtered))
+
+        ax = plot_single_bodypart_trajectories(
+                    coords=xy_filtered,
+                    ax=None,
+                    invert_y=True,
+                    color="red",
+                    transparancy=0.7
+                )
 
         ax.set_title(f"Trajectory of {csv_path.stem}, threshold 0.5,\nL1, NoStim, Successful")
         # plt.show()
         fig.savefig(output_fig_path)   
 
         plt.close(fig) 
-
-
-    # ---------------------------------------------- plot stacked + average trajectory of bodypart -------------------------------------------------
-
-
-    plot_stacked_trajectories(csv_dir= INPUT_CSV_PATH , 
-                                output_fig_path= OUTPUT_TRAJECTORY_PATH / f"trajectory_stacked.png",
-                                bodyparts= ["left_hand"], 
-                                invert_y=True,
-                                show=False,
-                                threshold=0.5)
-
-
-    plot_average_trajectories(csv_dir= INPUT_CSV_PATH, 
-                                output_fig_path= OUTPUT_TRAJECTORY_PATH / f"trajectory_average.png",
-                                bodyparts= ["left_hand"], 
-                                invert_y=True,
-                                show=False,
-                                threshold=0.5)
