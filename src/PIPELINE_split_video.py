@@ -8,7 +8,6 @@ from utils.split_video import split_video
 from utils.database_filter import Model, View, Controller
 
 
-
 # ------------------------------------ setup path ---------------------------------------
 
 INPUT_VIDEO_DIR = Path("/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024")
