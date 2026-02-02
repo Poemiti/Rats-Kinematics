@@ -3,18 +3,17 @@
 from pathlib import Path
 import pandas as pd
 import os
-from colorama import Back, Style, init
 from deeplabcut.pose_estimation_pytorch import set_load_weights_only
 
 
-from utils.file_management import is_video, classify_video
+from utils.file_management import make_database, is_video
 from utils.split_video import split_video
-from utils.dlc_prediction import dlc_predict_Julien, annotate_video_from_csv
+from utils.dlc_prediction import dlc_predict_Julien
+from utils.database_filter import Model, View, Controller
 
 # Disable "weights only" before analyzing
 set_load_weights_only(False)
 
-init()
 
 # ------------------------------------ setup path ---------------------------------------
 
@@ -35,29 +34,29 @@ TEMPORARY_PATH.mkdir(parents=True, exist_ok=True)
 # ------------------------------------ setup parameters ---------------------------------------
 
 DURATION = 12.5  # sec
-RATS_NAME = "#517"
 PRED_LIKELIHOOD = 0.5
 
-# ------------------------------------ classify videos ---------------------------------------
+# ------------------------------------ make database ---------------------------------------
 
-print(Back.BLUE + "Creating (or updating) database ..." + Style.RESET_ALL)
+raw_database = make_database(INPUT_VIDEO_DIR, is_video)
 
-sorted_videos = []
-ct_video = 0
-for root, dirs, files in os.walk(INPUT_VIDEO_DIR): 
-    for name in files: 
-        if is_video(name): 
-            classify_video(os.path.join(root, name), sorted_videos) 
-            ct_video += 1
+model = Model(raw_database, DATABASE_DIR)
+view = View()
+controller = Controller(model, view)
+view.mainloop()
 
-DATABASE = pd.DataFrame(sorted_videos)
-DATABASE = DATABASE[DATABASE["rat_type"] != "Unknown"]
-DATABASE.to_csv(DATABASE_DIR / "database.csv")
+DATABASE = controller.filtered_dataset.reset_index(drop=True)
+print(DATABASE)
 
-DATABASE = DATABASE[DATABASE["rat_name"] == RATS_NAME]
+# save database
+if controller.dataset_name.get() :
+    dataset_name = f"{controller.dataset_name.get().strip()}.csv"
+    DATABASE.to_csv(DATABASE_DIR / dataset_name)
+    print(f"\nFiltered dataset saved as : {DATABASE_DIR / dataset_name}")
 
-print(Back.BLUE + f"Nombre total de vidéo : {ct_video}" + Style.RESET_ALL)
-print(Back.BLUE + f"Nombre de video collecté : {len(DATABASE)}" + Style.RESET_ALL)
+print(f"\nNumber of files in database : {len(DATABASE)}")
+
+RAT_NAME = DATABASE['rat_name'][0]
 
 # ------------------------------------ loop ---------------------------------------
 
@@ -72,7 +71,9 @@ for video_path in DATABASE["filename"]:
     video_path = Path(video_path) 
     output_clips_dir = GENERATED_VIDEOS_DIR / video_path.stem 
     
-    print(Back.BLUE + f"\nSplitting video : {video_path.stem}\n" + Style.RESET_ALL)
+    # ----------------------------------------------- video splitting --------------------------------------------------
+
+    print(f"\nSplitting video : {video_path.stem}\n")
 
     split_video(input_path= video_path, 
                 output_path= output_clips_dir, 
@@ -81,28 +82,23 @@ for video_path in DATABASE["filename"]:
     
     OUTPUT_H5_PATH = GENERATED_DATA_DIR / "dlc_results" / video_path.stem
     OUTPUT_CSV_PATH = GENERATED_DATA_DIR / "csv_results" / video_path.stem
-    OUTPUT_ANNOTATED_CLIP_PATH = GENERATED_DATA_DIR / "video_annotation" / video_path.stem
 
     OUTPUT_H5_PATH.mkdir(parents=True, exist_ok=True)
     OUTPUT_CSV_PATH.mkdir(parents=True, exist_ok=True)
-    OUTPUT_ANNOTATED_CLIP_PATH.mkdir(parents=True, exist_ok=True)
 
+    # ----------------------------------------------- prediction --------------------------------------------------
 
     for clip_path in output_clips_dir.iterdir() :
 
         csv_path = OUTPUT_CSV_PATH / f"pred_results_{clip_path.stem}.csv"
-        annotated_clip_path = OUTPUT_ANNOTATED_CLIP_PATH / f"annotated_csv_{clip_path.stem}.mp4"
 
-        print(Back.BLUE + f"\nPrediction of clip : {clip_path}\n" + Style.RESET_ALL)
+        print(f"\nPrediction of clip : {clip_path}\n")
 
         dlc_predict_Julien(
             model_path=MODEL_PATH,
             video_path=clip_path,
             output_csv_path=csv_path,
         )
-
-        print(Back.BLUE + f"\Annotation of clip : {clip_path}\n" + Style.RESET_ALL)
-
 
     COUNTER += 1
 
