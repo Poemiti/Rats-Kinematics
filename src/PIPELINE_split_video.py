@@ -42,28 +42,28 @@ if controller.dataset_name.get() :
 
 print(f"\nNumber of files in database : {len(DATABASE)}")
 
-RAT_NAME = DATABASE["rat_name"][0]
-OUTPUT_CLIP_DIR = GENERATED_DATA_DIR / "clips" / RAT_NAME
-OUTPUT_CLIP_DIR.mkdir(parents=True, exist_ok=True)
+# RAT_NAME = DATABASE["rat_name"][0]
+# OUTPUT_CLIP_DIR = GENERATED_DATA_DIR / "clips" / RAT_NAME
+# OUTPUT_CLIP_DIR.mkdir(parents=True, exist_ok=True)
 
 # ------------------------------------ do the spliting on the filtered database ---------------------------------------
 
 
-COUNTER = 0
-COUNTER_LIMIT = 1
+# COUNTER = 0
+# COUNTER_LIMIT = 1
 
-for video_path in DATABASE["filename"] : 
-    if COUNTER >= COUNTER_LIMIT : 
-        break
+# for video_path in DATABASE["filename"] : 
+#     if COUNTER >= COUNTER_LIMIT : 
+#         break
 
-    video_path = Path(video_path)
-    output_clip_dir = OUTPUT_CLIP_DIR / video_path.stem
-    output_clip_dir.mkdir(parents=True, exist_ok=True)
+#     video_path = Path(video_path)
+#     output_clip_dir = OUTPUT_CLIP_DIR / video_path.stem
+#     output_clip_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"\nSplitting video {video_path.stem}\n")
+#     print(f"\nSplitting video {video_path.stem}\n")
 
-    split_video(input_path = video_path,
-                output_path = output_clip_dir,
-                CLIP_DURATION = DURATION)
+#     split_video(input_path = video_path,
+#                 output_path = output_clip_dir,
+#                 CLIP_DURATION = DURATION)
 
-    COUNTER += 1
+#     COUNTER += 1

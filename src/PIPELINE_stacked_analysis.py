@@ -8,7 +8,7 @@ import numpy as np
 
 from utils.database_filter import Model, View, Controller
 from utils.file_management import is_video, make_database, make_directory_name, is_csv, verify_exist
-from utils.trajectory_ploting import open_clean_csv
+from utils.trajectory_ploting import open_clean_csv, plot_single_bodypart_trajectories
 from utils.trajectory_metrics import Trajectory, plot_metric_time, plot_stacked_metric
 from utils.led_detection import get_time_led_on, get_time_led_off
 
@@ -86,16 +86,18 @@ print([val for val in str(output_fig_dir.name).split("_")])
 
 output_stacked_traj = output_fig_dir / f"trajectory_stacked.png"
 output_stacked_velo = output_fig_dir / f"velocity_stacked.png"
+output_y_position = output_fig_dir / f"y_position_stacked.png"
 fig, axs = plt.subplots(figsize=(9, 7))
 
 failed_trials : list[dict] = []
+all_coords = []
+all_velocity = []
+all_laser_on = [] 
+all_pad_off = []
+all_lost_coords = []
 
 for i, csv_path in enumerate(csv_list) :
 
-    all_velocity = []
-    all_laser_on = [] 
-    all_pad_off = []
-    
     verify_exist(csv_path)
 
     print(f"\n[{i+1}/{len(csv_list)}]")
@@ -104,7 +106,7 @@ for i, csv_path in enumerate(csv_list) :
 # ------------------------------------ OPENING AND GET SOME VARIABLE  ---------------------------------------
 
     # get time when pad is ON or OFF
-    luminosity_path = GENERATED_DATA_DIR / "luminosity" / RAT_NAME / csv_path.parent.stem / f"luminosity_{csv_path.stem.replace('_pred_results', '')}.csv"
+    luminosity_path = GENERATED_DATA_DIR / "luminosity" / RAT_NAME / csv_path.parent.stem / f"luminosity_{csv_path.stem.replace('pred_results_', '')}.csv"
     verify_exist(luminosity_path)
 
     time_pad_off = get_time_led_off(luminosity_path, "LED_3", in_sec=True) # in sec
@@ -116,15 +118,34 @@ for i, csv_path in enumerate(csv_list) :
     coords = open_clean_csv(csv_path)
     xy = coords[BODYPART].copy()
     xy = xy.assign(t=np.arange(len(xy)) / 125)
-    xy_filtered = xy.loc[xy["likelihood"] >= THRESHOLD, ["x", "y", "t"]]
+    xy = xy.loc[xy["likelihood"] >= THRESHOLD, ["x", "y", "t"]]
+
+    # count the number of lost coord after threshold
+    n_lost_coords = len(coords) - len(xy)
+    print("nb lost coords = ", n_lost_coords)
+    all_lost_coords.append({
+        "file" : csv_path.as_posix(),
+        "nb_lost_coords" : n_lost_coords})
+    
+    # verification
+    if n_lost_coords > 10 : # in sec
+        print(f"  ! Too much lost coords : {n_lost_coords}")
+        failed_trials.append({
+            "path": csv_path.as_posix(),
+            "reason": f"Too much lost coords ",
+            "pad_off": time_pad_off,
+            "nb_lost_coords" : n_lost_coords
+        })
+        continue
 
     # verification
-    if time_pad_off is None or time_pad_off+LASER_ON_TIME > len(xy_filtered)-1 : # in sec
+    if time_pad_off is None or time_pad_off+LASER_ON_TIME > len(xy)-1 : # in sec
         print(f"  ! Failed trial on, Pad off at {time_pad_off}")
         failed_trials.append({
             "path": csv_path.as_posix(),
             "reason": f"Failed trial",
             "pad_off": time_pad_off,
+            "nb_lost_coords" : n_lost_coords
         })
         continue
     
@@ -152,46 +173,136 @@ for i, csv_path in enumerate(csv_list) :
             "path": csv_path.as_posix(),
             "reason": f"Empty reaching coords",
             "pad_off": time_pad_off,
+            "nb_lost_coords" : n_lost_coords
         })
         continue
 
 #     # ------------------------------------ plotting trajectories ---------------------------------------
 
+    coord = xy_filtered
+    invert = True
+    frame_laser_on = coord[coord["t"]>=time_laser_on].index.values.astype(int)
+    print(frame_laser_on)
 
-#     plot_single_bodypart_trajectories(
-#         coords=xy_filtered,
-#         ax=axs,
-#         invert_y=True,
-#         color="red",
-#         transparancy=0.2
-#     )
+    plot_single_bodypart_trajectories(
+            coords=coord,
+            cm_per_pixel=CM_PER_PIXEL,
+            frame_laser_on=frame_laser_on[0] if len(frame_laser_on) != 0 else None,
+            ax=axs,
+            color="blue",
+            transparancy=0.5,
+        )
+    all_coords.append(coord)
+    print(len(coord))
 
-# avg_coords = (pd.concat(all_coords, axis=1)
-#                 .T
-#                 .groupby(level=0)
-#                 .mean()
-#                 .T)
+avg_coords = (pd.concat(all_coords, axis=1)
+                .T
+                .groupby(level=0)
+                .mean()
+                .T)
 
 # plot_single_bodypart_trajectories(
 #         coords=avg_coords,
+#         cm_per_pixel=CM_PER_PIXEL,
+#         frame_laser_on=frame_laser_on[0] if len(frame_laser_on) != 0 else None,
 #         ax=axs,
-#         invert_y=True,
 #         color="blue",
-#         transparancy=1
+#         transparancy=1,
+#         rat_background=False, # display a rat in the background
 #     )
 
-# title = (
-#     "Trajectories across trials with settings:\n"
-#     f"{output_fig_dir.stem}\n"
-#     f"Number of trials: {len(csv_list)}"
+title = (
+        "Trajectories across trials with settings:\n"
+        f"{output_fig_dir.stem}\n"
+        f"Number of trials: {len(csv_list) - len(failed_trials) }"
+    )
+
+# axs.invert_xaxis()
+
+axs.yaxis.tick_right()
+axs.yaxis.set_label_position("right")
+
+axs.spines["top"].set_visible(False)
+axs.spines["left"].set_visible(False)
+axs.spines["right"].set_visible(True)
+
+axs.tick_params(direction="out")
+
+axs.set_xlabel("x (cm)")
+axs.set_ylabel("y (cm)")
+# axs.set_xlim(0, 512)
+# axs.set_ylim(0, 512)
+# axs.invert_yaxis()
+axs.invert_xaxis()
+
+axs.set_title(title, fontsize=12)
+fig.savefig(output_stacked_traj)
+
+if SHOW:
+    plt.show()
+plt.close(fig)
+
+
+
+    # ------------------------------------ plotting velocity ---------------------------------------
+
+#     # creat trajectory object for metric calculation
+#     Traj = Trajectory(coords=xy,
+#                     reaching_coords=xy_filtered, 
+#                     laserOn_coords=xy_laserOn,
+#                     fps=125, 
+#                     cm_per_pixel=CM_PER_PIXEL)
+
+#     instant_velo : pd.DataFrame = Traj.instant_velocity()
+#     all_velocity.append(instant_velo)
+
+#     # plotting
+#     plot_stacked_metric(data=instant_velo["velocity"], 
+#                     time=instant_velo["t"],
+#                     laser_on=time_laser_on,
+#                     ax = axs, 
+#                     color="green",
+#                     transparancy=0.3,
+#                     y_invert=False)
+
+#     # y_pos : pd.DataFrame = xy_filtered[['y','t']]
+#     # all_velocity.append(y_pos)
+
+# # plotting average velocity over time
+# avg_velocity = (
+#     pd.concat(all_velocity, axis=1)
+#       .T
+#       .groupby(level=0)
+#       .mean()
+#       .T
 # )
+# avg_velocity = avg_velocity.set_index("t")["velocity"]
 
-# print("\nFailed trial : ")
-# print(str(path) for path in failed_trial)
-# print(f"Number of failed trial : {len(failed_trial)}")
+# if all_laser_on[0] is not None : 
+#     avg_laser_on = np.array(all_laser_on).mean()
+# else : 
+#     avg_laser_on = None
 
-# axs.set_title(title, fontsize=12)
-# fig.savefig(output_stacked_traj)
+# plot_stacked_metric(data=avg_velocity,
+#                 time = avg_velocity.index,
+#                 laser_on=avg_laser_on,
+#                 ax = axs, 
+#                 show_pad_off=True,
+#                 color="blue",
+#                 y_invert=False,
+#                 transparancy=1)
+
+# title = (
+#     "Average velocity of the left paw, across trials with settings:\n"
+#     f"{output_fig_dir.name}\n"
+#     f"Number of trials: {len(csv_list) - len(failed_trials)}"
+#     )
+
+# axs.set_title(title, color="blue")
+# axs.set_xlabel("Time (seconds)")
+# axs.set_ylabel("Velocity (cm.s$^{-1}$)")  # ("Velocity (cm.s$^{-1}$)")
+
+# fig.savefig(output_stacked_velo)
 
 # if SHOW:
 #     plt.show()
@@ -199,59 +310,78 @@ for i, csv_path in enumerate(csv_list) :
 
 
 
-    # ------------------------------------ plotting metrics ---------------------------------------
-
-    # creat trajectory object for metric calculation
-    Traj = Trajectory(coords=xy,
-                    reaching_coords=xy_filtered, 
-                    laserOn_coords=xy_laserOn,
-                    fps=125, 
-                    cm_per_pixel=CM_PER_PIXEL)
-
-    instant_velo : pd.DataFrame = Traj.instant_velocity()
-    all_velocity.append(instant_velo.set_index("t")["velocity"])
-
-    # plotting
-    plot_stacked_metric(data=instant_velo["velocity"],
-                    time=instant_velo["t"],
-                    laser_on=time_laser_on,
-                    ax = axs, 
-                    color="green",
-                    transparancy=0.3)
 
 
-# plotting average velocity over time
-avg_velocity = pd.concat(all_velocity, axis=1).mean(axis=1)
-avg_pad_off = np.array(all_pad_off).mean()
+   # ------------------------------------ plotting y position ---------------------------------------
+   
 
-if all_laser_on[0] is not None : 
-    avg_laser_on = np.array(all_laser_on).mean()
-else : 
-    avg_laser_on = None
+#     # plotting
+#     plot_stacked_metric(data=xy_filtered["y"], # cm instead of pixels
+#                     time=xy_filtered["t"],
+#                     laser_on=time_laser_on,
+#                     ax = axs, 
+#                     color="green",
+#                     transparancy=0.3,
+#                     y_invert=True)
 
-plot_stacked_metric(data=avg_velocity,
-                time = avg_velocity.index,
-                laser_on=avg_laser_on,
-                ax = axs, 
-                show_pad_off=True,
-                color="blue",
-                transparancy=1)
+#     y_pos : pd.DataFrame = xy_filtered[['y','t']]
+#     all_velocity.append(y_pos)
 
-title = (
-    "Velocities across trials with settings:\n"
-    f"{output_fig_dir.name}\n"
-    f"Number of trials: {len(csv_list)}"
-    )
+# # plotting average velocity over time
+# avg_velocity = (
+#     pd.concat(all_velocity, axis=1)
+#       .T
+#       .groupby(level=0)
+#       .mean()
+#       .T
+# )
+# avg_velocity = avg_velocity.set_index("t")["y"]
 
-axs.set_title(title, color="blue")
-axs.set_xlabel("Time (seconds)")
-axs.set_ylabel("Velocity (cm.s$^{-1}$)")
+# if all_laser_on[0] is not None : 
+#     avg_laser_on = np.array(all_laser_on).mean()
+# else : 
+#     avg_laser_on = None
+
+# plot_stacked_metric(data=avg_velocity,
+#                 time = avg_velocity.index,
+#                 laser_on=avg_laser_on,
+#                 ax = axs, 
+#                 show_pad_off=True,
+#                 color="blue",
+#                 y_invert=True,
+#                 transparancy=1)
+
+# title = (
+#     "Height position of the left paw, across trials with settings:\n"
+#     f"{output_fig_dir.name}\n"
+#     f"Number of trials: {len(csv_list) - len(failed_trials)}"
+#     )
+
+# axs.set_title(title, color="blue")
+# axs.set_xlabel("Time (seconds)")
+# axs.set_ylabel("Position (cm)")  # ("Velocity (cm.s$^{-1}$)")
+
+# axs.spines["top"].set_visible(False)
+# axs.spines["right"].set_visible(False)
+
+# axs.tick_params(direction="out")
+# axs.invert_yaxis()
+
+# fig.savefig(output_y_position)
+
+
+
+
+################################################################################## statistics
+
 
 print(f"\nNumber of failed trial : {len(failed_trials)}")
+print(f"Mean number of lost coords {np.mean([d['nb_lost_coords'] for d in all_lost_coords])}")
 
 # save failed trial
 pd.DataFrame(failed_trials).to_csv(output_fig_dir / "failed_trial.csv", index=False)
-fig.savefig(output_stacked_velo)
+pd.DataFrame(all_lost_coords).to_csv(output_fig_dir / "lost_coords.csv")
+
 
 if SHOW:
     plt.show()

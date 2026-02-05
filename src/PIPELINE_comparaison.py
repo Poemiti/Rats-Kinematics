@@ -8,18 +8,22 @@ import seaborn as sns
 
 from utils.trajectory_metrics import Trajectory
 
-METRIC = "toruosity"  # or peak or distance
+names = ["average velocity", "peak velocity", "tortuosity"]
+METRIC =  names[2]
 THRESHOLD = 0.5
 BODYPART = 'left_hand'
 SINGLE_TRAJ = False
 SHOW = True
-
+RAT_NAME = "#525"
 
 # plot titles 
-title = "Tortuosity distribution, for CHR rat population\n" \
+title = f"{METRIC} distribution, for {RAT_NAME} CHR rat population\n" \
         "bodypart observed : left hand, L1 task"
-ylabel = "Tortuosity" # (cm.s$^{-1}$)"
-saving_name = "Violin_tortuosity_CHR_L1.png"
+ylabel = f"{METRIC}" # (cm.s$^{-1}$)"
+if "velocity" in METRIC : 
+     ylabel += " (cm.s$^{-1}$)"
+
+saving_name = f"Violin_{METRIC}_DETAIL_CHR_L1.png"
 
 
 # define cm per pixel
@@ -30,27 +34,30 @@ M_PER_PIXEL = frame_width_m / frame_width_px
 # ------------------------------------ setup path ---------------------------------------
 
 GENERATED_DATA_DIR = Path("../data")
-ANALYSIS_DIR = GENERATED_DATA_DIR / "analysis_results" / "#517"
-OUTPUT_DIR = GENERATED_DATA_DIR / "analysis_results" / "comparative_results"
+ANALYSIS_DIR = GENERATED_DATA_DIR / "analysis_results" / RAT_NAME
+OUTPUT_DIR = GENERATED_DATA_DIR / "analysis_results" / RAT_NAME / "comparative_results"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ------------------------------------ velocity comparaison ---------------------------------------
 
-# =================================================================== CTRL CONDITION
-#default
-beta_OFF_1_csv = "../data/analysis_results/#517/#517_CHR_Beta_RightHemi_CueL1_H001_LaserOff/metrics_per_clips.csv"
-conti_OFF_1_csv = "../data/analysis_results/#517/#517_CHR_Conti_RightHemi_CueL1_H001_LaserOff/metrics_per_clips.csv"
+# =================================================================== CHR CONDITION
 
-beta_ON_1_csv = "../data/analysis_results/#517/#517_CHR_Beta_RightHemi_CueL1_H001_LaserOn/metrics_per_clips.csv"
-conti_ON_1_csv = "../data/analysis_results/#517/#517_CHR_Conti_RightHemi_CueL1_H001_LaserOn/metrics_per_clips.csv"
+#default
+beta_OFF_1_csv = f"../data/analysis_results/{RAT_NAME}/{RAT_NAME}_CHR_Beta_RightHemi_CueL1_H001_LaserOff/metrics_per_clips.csv"
+conti_OFF_1_csv = f"../data/analysis_results/{RAT_NAME}/{RAT_NAME}_CHR_Conti_RightHemi_CueL1_H001_LaserOff/metrics_per_clips.csv"
+
+beta_ON_1_csv = f"../data/analysis_results/{RAT_NAME}/{RAT_NAME}_CHR_Beta_RightHemi_CueL1_H001_LaserOn/metrics_per_clips.csv"
+conti_ON_1_csv = f"../data/analysis_results/{RAT_NAME}/{RAT_NAME}_CHR_Conti_RightHemi_CueL1_H001_LaserOn/metrics_per_clips.csv"
 
 # greater
-beta_OFF_2_csv = "../data/analysis_results/#517/#517_CHR_Beta_RightHemi_CueL1_H001_LaserOff_2,5mW/metrics_per_clips.csv"
-conti_OFF_2_csv = "../data/analysis_results/#517/#517_CHR_Conti_RightHemi_CueL1_H001_LaserOff_0,75mW/metrics_per_clips.csv"
+beta_OFF_2_csv = f"../data/analysis_results/{RAT_NAME}/{RAT_NAME}_CHR_Beta_RightHemi_CueL1_H001_LaserOff_2,5mW/metrics_per_clips.csv"
+conti_OFF_2_csv = f"../data/analysis_results/{RAT_NAME}/{RAT_NAME}_CHR_Conti_RightHemi_CueL1_H001_LaserOff_0,75mW/metrics_per_clips.csv"
 
-beta_ON_2_csv = "../data/analysis_results/#517/#517_CHR_Beta_RightHemi_CueL1_H001_LaserOn_2,5mW/metrics_per_clips.csv"
-conti_ON_2_csv = "../data/analysis_results/#517/#517_CHR_Conti_RightHemi_CueL1_H001_LaserOn_0,75mW/metrics_per_clips.csv"
+beta_ON_2_csv = f"../data/analysis_results/{RAT_NAME}/{RAT_NAME}_CHR_Beta_RightHemi_CueL1_H001_LaserOn_2,5mW/metrics_per_clips.csv"
+conti_ON_2_csv = f"../data/analysis_results/{RAT_NAME}/{RAT_NAME}_CHR_Conti_RightHemi_CueL1_H001_LaserOn_0,75mW/metrics_per_clips.csv"
+
+
 
 # default
 beta_OFF_1_velo = pd.read_csv(beta_OFF_1_csv)[METRIC]
@@ -77,16 +84,28 @@ def _pack(values, condition, intensity):
         })
 
 df_long = pd.concat([
-    _pack(beta_OFF_1_velo, "NoStim", "conti=0.5, beta=1"),
-    _pack(conti_OFF_1_velo, "NoStim", "conti=0.5, beta=1"),
+    _pack(beta_OFF_1_velo, "Beta-NoStim", "conti=0.5, beta=1"),
+    _pack(conti_OFF_1_velo, "Conti-NoStim", "conti=0.5, beta=1"),
     _pack(beta_ON_1_velo, "Beta", "conti=0.5, beta=1"),
     _pack(conti_ON_1_velo, "Conti", "conti=0.5, beta=1"),
 
-    _pack(beta_OFF_2_velo, "NoStim", "conti=0.75, beta=2.5"),
-    _pack(conti_OFF_2_velo, "NoStim", "conti=0.75, beta=2.5"),
+    _pack(beta_OFF_2_velo, "Beta-NoStim", "conti=0.75, beta=2.5"),
+    _pack(conti_OFF_2_velo, "Conti-NoStim", "conti=0.75, beta=2.5"),
     _pack(beta_ON_2_velo, "Beta", "conti=0.75, beta=2.5"),
     _pack(conti_ON_2_velo, "Conti", "conti=0.75, beta=2.5"),
 ])
+
+# df_long = pd.concat([
+#     _pack(beta_OFF_1_velo, "NoStim", "conti=0.5, beta=1"),
+#     _pack(conti_OFF_1_velo, "NoStim", "conti=0.5, beta=1"),
+#     _pack(beta_ON_1_velo, "Beta", "conti=0.5, beta=1"),
+#     _pack(conti_ON_1_velo, "Conti", "conti=0.5, beta=1"),
+
+#     _pack(beta_OFF_2_velo, "NoStim", "conti=0.75, beta=2.5"),
+#     _pack(conti_OFF_2_velo, "NoStim", "conti=0.75, beta=2.5"),
+#     _pack(beta_ON_2_velo, "Beta", "conti=0.75, beta=2.5"),
+#     _pack(conti_ON_2_velo, "Conti", "conti=0.75, beta=2.5"),
+# ])
 
 # remove extreme values with the interquarile range method (IQR)
 def trim_extremes_iqr(df, value_col="Value", group_cols=("Condition", "LaserIntensity"), k=1.5):
@@ -122,9 +141,22 @@ sns.violinplot(
     split=True,
     gap= .1,
     inner="quart",
-    order=["NoStim", "Conti", "Beta"],
+    order=["Conti-NoStim", "Beta-NoStim", "Conti", "Beta"],
     palette={"conti=0.5, beta=1": "lightblue", "conti=0.75, beta=2.5": "salmon"},
 )
+
+# sns.violinplot(
+#     x="Condition",
+#     y="Value",
+#     hue="LaserIntensity",
+#     data=df_long_trimed,
+#     ax=ax,
+#     split=True,
+#     gap= .1,
+#     inner="quart",
+#     order=["NoStim", "Conti", "Beta"],
+#     palette={"conti=0.5, beta=1": "lightblue", "conti=0.75, beta=2.5": "salmon"},
+# )
 
 sns.stripplot(
     x="Condition",
@@ -148,7 +180,8 @@ y_max = df_long_trimed["Value"].max()
 y_offset = 0.05 * y_max
 
 for _, row in counts.iterrows():
-    x = ["NoStim", "Conti", "Beta"].index(row["Condition"])
+    x = ["Conti-NoStim", "Beta-NoStim", "Conti", "Beta"].index(row["Condition"])
+    # x = ["NoStim", "Conti", "Beta"].index(row["Condition"])
     x += -0.15 if row["LaserIntensity"] == "conti=0.5, beta=1" else 0.20
 
     ax.text(
@@ -178,9 +211,9 @@ plt.close(fig)
 # =================================================================== CTRL CONDITION
 
 
-# noStim_csv = "../data/analysis_results/#517/#517_CTRL_Conti_LeftHemi_CueL1_H001_LaserOff_2,5mW/metrics_per_clips.csv"
-# beta_ON_1_csv = "../data/analysis_results/#517/#517_CTRL_Beta_LeftHemi_CueL1_H001_LaserOn/metrics_per_clips.csv"
-# conti_ON_1_csv = "../data/analysis_results/#517/#517_CTRL_Conti_LeftHemi_CueL1_H001_LaserOn/metrics_per_clips.csv"
+# noStim_csv = "../data/analysis_results/{RAT_NAME}/{RAT_NAME}_CTRL_Conti_LeftHemi_CueL1_H001_LaserOff_2,5mW/metrics_per_clips.csv"
+# beta_ON_1_csv = "../data/analysis_results/{RAT_NAME}/{RAT_NAME}_CTRL_Beta_LeftHemi_CueL1_H001_LaserOn/metrics_per_clips.csv"
+# conti_ON_1_csv = "../data/analysis_results/{RAT_NAME}/{RAT_NAME}_CTRL_Conti_LeftHemi_CueL1_H001_LaserOn/metrics_per_clips.csv"
 
 # noStim_velo = pd.read_csv(noStim_csv)[METRIC]
 # beta1_velo = pd.read_csv(beta_ON_1_csv)[METRIC]

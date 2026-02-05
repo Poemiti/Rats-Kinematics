@@ -63,7 +63,7 @@ RAT_NAME = DATABASE['rat_name'][0]
 COUNTER = 0
 COUNTER_LIMIT = 999
 
-for video_path in DATABASE["filename"]: 
+for video_path in DATABASE["filename"].iloc[18:]: 
 
     if COUNTER > COUNTER_LIMIT : 
         break

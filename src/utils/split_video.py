@@ -288,6 +288,31 @@ def run_ffmpeg(ffmpeg_args: list[str]) -> None :
 
 
 
+
+def split_clip_range(clip_path: Path,
+                     output_path : Path,
+                     start: float,
+                     duration: float) -> None : 
+    
+    print(f"\nSplitting from [ {start} -> {start + duration} ]\n")
+
+    ffmpeg_args = [
+            "ffmpeg",
+            "-y",
+
+            "-i", clip_path,
+            "-ss", str(start),
+            "-t", str(duration),
+            "-c", "copy",
+            
+            str(output_path)
+        ]
+    run_ffmpeg(ffmpeg_args)
+
+
+
+
+
 if __name__ == "__main__":
     # ---------------------------------------------- setup path -------------------------------------------------
 

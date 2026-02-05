@@ -3,6 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from matplotlib.patches import Patch
+from PIL import Image
+import numpy as np
 
 from utils.trajectory_metrics import define_StartEnd_of_trajectory
 
@@ -43,11 +45,13 @@ def open_clean_csv(csv_path : Path) -> pd.DataFrame :
 
 def plot_single_bodypart_trajectories(
     coords: pd.DataFrame,
+    cm_per_pixel: float,
+    frame_laser_on : float = None,
     ax: plt.axes = None,
-    invert_y: bool = True,
     color: str = "red",
     transparancy: float = 0.7,
-    marker: str = None, 
+    marker: str = None,
+    rat_background : bool=False, 
 ) -> plt.axes :
     """
     Plot body part trajectories from a DeepLabCut CSV file.
@@ -70,28 +74,35 @@ def plot_single_bodypart_trajectories(
     if ax is None:
         fig, ax = plt.subplots()
 
+    if rat_background: 
+        img = np.asarray(Image.open("/home/poemiti/Rats-Kinematics/data/rat_image.png"))
+        ax.imshow(img, alpha=0.3)
+
+    H_px = 512  # pixels
+
+    x = (H_px - coords["x"]) * cm_per_pixel
+    y = (H_px - coords["y"]) * cm_per_pixel
+    # x = coords["x"]
+    # y = coords["y"]
+
     ax.plot(
-        coords["x"],
-        coords["y"],
+        x,
+        y,
         marker=marker,
         color=color,
         linestyle="-",
         alpha=transparancy,
     )
 
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-
-    ax.tick_params(direction="out")
-
-    ax.set_xlabel("x (pixel)")
-    ax.set_ylabel("y (pixel)")
-
-    ax.set_xlim(0, 512) # video dimension
-    ax.set_ylim(0, 512)
-
-    if invert_y:
-        ax.invert_yaxis()
+    if frame_laser_on:
+        ax.plot(
+            x[frame_laser_on: ],
+            y[frame_laser_on: ],
+            marker=marker,
+            color="red",
+            linestyle="-",
+            alpha=0.7,
+        )
 
     return ax
 

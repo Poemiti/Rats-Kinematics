@@ -9,8 +9,9 @@ from utils.database_filter import Model, View, Controller
 from utils.file_management import make_database, make_directory_name, is_csv, verify_exist
 from utils.trajectory_ploting import plot_single_bodypart_trajectories, open_clean_csv, plot_3D_traj
 from utils.video_annotation import annotate_single_bodypart
-from utils.trajectory_metrics import Trajectory, plot_metric_time, define_End_of_trajectory
+from utils.trajectory_metrics import Trajectory, plot_metric_time, define_End_of_trajectory, animate_plot
 from utils.led_detection import get_time_led_on, get_time_led_off
+from utils.split_video import split_clip_range
 
 # set parameters
 THRESHOLD = 0.5
@@ -25,6 +26,7 @@ ANNOT_CLIP = False
 METRICS = True
 METRICS_PLOT = False
 PLOT3D = False
+ANIM = False
 
 # define m per pixel
 if view == 'left' : 
@@ -85,11 +87,17 @@ print([val for val in str(output_fig_dir.name).split("_")])
 
 #############################################################################################################
 
+count = 0
+break_count = 999
 
 metrics : list[dict] = []
 failed_trials : list[dict] = []
+all_lost_coords = []
 
 for i, csv_path in enumerate(csv_list) : 
+
+    if count>break_count : 
+        break
     
     verify_exist(csv_path)
 
@@ -99,7 +107,7 @@ for i, csv_path in enumerate(csv_list) :
 # ------------------------------------ OPENING AND GET SOME VARIABLE  ---------------------------------------
 
     # get time when pad is ON or OFF
-    luminosity_path = GENERATED_DATA_DIR / "luminosity" / RAT_NAME / csv_path.parent.stem / f"luminosity_{csv_path.stem.replace('_pred_results', '')}.csv"
+    luminosity_path = GENERATED_DATA_DIR / "luminosity" / RAT_NAME / csv_path.parent.stem / f"luminosity_{csv_path.stem.replace('pred_results_', '')}.csv"
     verify_exist(luminosity_path)
 
     time_pad_off = get_time_led_off(luminosity_path, "LED_3", in_sec=True) # in sec
@@ -109,15 +117,34 @@ for i, csv_path in enumerate(csv_list) :
     coords = open_clean_csv(csv_path)
     xy = coords[BODYPART].copy()
     xy = xy.assign(t=np.arange(len(xy)) / 125)
-    xy_filtered = xy.loc[xy["likelihood"] >= THRESHOLD, ["x", "y", "t"]]
+    xy = xy.loc[xy["likelihood"] >= THRESHOLD, ["x", "y", "t"]]
+
+    # count the number of lost coord after threshold
+    n_lost_coords = len(coords) - len(xy)
+    print("nb lost coords = ", n_lost_coords)
+    all_lost_coords.append({
+        "file" : csv_path.as_posix(),
+        "nb_lost_coords" : n_lost_coords})
+    
+    # verification
+    if n_lost_coords > 10 : # in sec
+        print(f"  ! Too much lost coords : {n_lost_coords}")
+        failed_trials.append({
+            "path": csv_path.as_posix(),
+            "reason": f"Too much lost coords ",
+            "pad_off": time_pad_off,
+            "nb_lost_coords" : n_lost_coords
+        })
+        continue
 
     # verification
-    if time_pad_off is None or time_pad_off+LASER_ON_TIME > len(xy_filtered)-1 : # in sec
+    if time_pad_off is None or time_pad_off+LASER_ON_TIME > len(xy)-1 : # in sec
         print(f"  ! Failed trial on, Pad off at {time_pad_off}")
         failed_trials.append({
             "path": csv_path.as_posix(),
             "reason": f"Failed trial",
             "pad_off": time_pad_off,
+            "nb_lost_coords" : n_lost_coords
         })
         continue
     
@@ -145,8 +172,12 @@ for i, csv_path in enumerate(csv_list) :
             "path": csv_path.as_posix(),
             "reason": f"Empty reaching coords",
             "pad_off": time_pad_off,
+            "nb_lost_coords" : n_lost_coords
         })
         continue
+
+
+    ##################################################################################################
 
     
     if SINGLE_TRAJ : 
@@ -156,20 +187,31 @@ for i, csv_path in enumerate(csv_list) :
 
         output_traj_dir = output_fig_dir / "trajectory_per_clip" 
         output_traj_dir.mkdir(parents=True, exist_ok=True)
-        output_traj_path = output_traj_dir / f"trajectory_{csv_path.stem.replace('_pred_results', '')}.png"
-
-        
+        output_traj_path = output_traj_dir / f"trajectory_{csv_path.stem.replace('pred_results_', '')}.png"
 
         ax = plot_single_bodypart_trajectories(
-                    coords=xy_filtered,
-                    ax=None,
-                    invert_y=True,
-                    color="red",
-                    transparancy=0.7,
-                    marker="o"
-                )
-        
-        ax.set_title(f"Trajectories of \n{csv_path.stem.replace('_pred_results', '')}")
+            coords=xy_filtered,
+            cm_per_pixel=CM_PER_PIXEL,
+            frame_laser_on=int(time_laser_on * 125) if time_laser_on is not None else None,
+            invert_y=False,
+            color="blue",
+            transparancy=0.5
+        )
+
+        ax.invert_xaxis()
+
+        ax.yaxis.tick_right()
+        ax.yaxis.set_label_position("right")
+
+        ax.spines["top"].set_visible(False)
+        ax.spines["left"].set_visible(False)
+        ax.spines["right"].set_visible(True)
+
+        ax.tick_params(direction="out")
+
+        ax.set_xlabel("x (cm)")
+        ax.set_ylabel("y (cm)")
+        ax.set_title(f"Trajectories of \n{csv_path.stem.replace('pred_results_', '')}")
 
         fig = ax.figure
         fig.savefig(output_traj_path)
@@ -184,15 +226,16 @@ for i, csv_path in enumerate(csv_list) :
         output_annotated_clip_dir = output_fig_dir / "annotated_clips"
         output_annotated_clip_dir.mkdir(parents=True, exist_ok=True)
 
-        input_clip_path = CLIP_DIR / csv_path.parent.stem / f"{csv_path.stem.replace('_pred_results', '')}.mp4"
+        input_clip_path = CLIP_DIR / csv_path.parent.stem / f"{csv_path.stem.replace('pred_results_', '')}.mp4"
         verify_exist(input_clip_path)
         
         annotate_single_bodypart(video_path=input_clip_path,
                                 csv_path=csv_path,
-                                output_path=output_annotated_clip_dir / f"annotated_{csv_path.stem.replace('_pred_results', '')}.mp4",
+                                output_path=output_annotated_clip_dir / f"annotated_{csv_path.stem.replace('pred_results_', '')}.mp4",
                                 bodypart_name=BODYPART,
                                 radius=5,
                                 likelihood_threshold= THRESHOLD)
+
 
     if METRICS : 
         # --------------------------------------- compute metrics ----------------------------------------------
@@ -210,9 +253,9 @@ for i, csv_path in enumerate(csv_list) :
         
         metrics.append({"file" : csv_path,
                         "distance" : Traj.distance(),
-                        "velocity_avg" : Traj.mean_velocity(),
-                        "velocity_peak" : Traj.peak(),
-                        "toruosity" : Traj.tortuosity()
+                        "average velocity" : Traj.mean_velocity(),
+                        "peak velocity" : Traj.peak(),
+                        "tortuosity" : Traj.tortuosity()
                         })
 
         output_velo_dir = output_fig_dir / "velocity_per_clip" 
@@ -220,8 +263,8 @@ for i, csv_path in enumerate(csv_list) :
         output_velo_dir.mkdir(parents=True, exist_ok=True)
         output_acc_dir.mkdir(parents=True, exist_ok=True)
 
-        output_velo_path = output_velo_dir / f"velocity_{csv_path.stem.replace('_pred_results', '')}.csv"
-        output_acc_path = output_acc_dir / f"acceleration_{csv_path.stem.replace('_pred_results', '')}.csv"
+        output_velo_path = output_velo_dir / f"velocity_{csv_path.stem.replace('pred_results_', '')}.csv"
+        output_acc_path = output_acc_dir / f"acceleration_{csv_path.stem.replace('pred_results_', '')}.csv"
 
         # compute metrics
         instant_velo = Traj.instant_velocity()
@@ -239,7 +282,7 @@ for i, csv_path in enumerate(csv_list) :
 
         output_fig_metric_dir = output_fig_dir / "metric_over_time" 
         output_fig_metric_dir.mkdir(parents=True, exist_ok=True)
-        output_fig_metric_path = output_fig_metric_dir / f"metricOverTime_{csv_path.stem.replace('_pred_results', '')}.png"
+        output_fig_metric_path = output_fig_metric_dir / f"metricOverTime_{csv_path.stem.replace('pred_results_', '')}.png"
         
         # plotting
         fig, axs = plt.subplots(1, 3, figsize=(15, 5))
@@ -261,15 +304,15 @@ for i, csv_path in enumerate(csv_list) :
         axs[1].set_xlabel("Time (s)")
         axs[1].set_ylabel("Acceleration (cm.s$^{-2}$)")
 
-        plot_metric_time(metric=xy_filtered["y"].to_numpy(), 
-                         time=xy_filtered['t'].to_numpy(),
+        plot_metric_time(metric=xy_filtered["y"], 
+                         time=xy_filtered['t'],
                         ax = axs[2],
                         laser_on=time_laser_on,
-                        color="blue", 
-                        y_invert=True)
+                        color="blue")
         axs[2].set_title("Height position over time of a trial", color="blue")
         axs[2].set_xlabel("Time (s)")
         axs[2].set_ylabel("Position (pixel)")
+        axs[2].invert_yaxis()
 
         plt.savefig(output_fig_metric_path)
         plt.close(fig)
@@ -282,7 +325,7 @@ for i, csv_path in enumerate(csv_list) :
 
         output_fig_plo3D_dir = output_fig_dir / "plot_3D" 
         output_fig_plo3D_dir.mkdir(parents=True, exist_ok=True)
-        output_fig_plo3D_path = output_fig_plo3D_dir / f"plot3D_{csv_path.stem.replace('_pred_results', '')}.png"
+        output_fig_plo3D_path = output_fig_plo3D_dir / f"plot3D_{csv_path.stem.replace('pred_results_', '')}.png"
 
         ax = plot_3D_traj(coords=xy_filtered,
                           time=xy_filtered["t"],
@@ -292,7 +335,7 @@ for i, csv_path in enumerate(csv_list) :
                           transparancy=0.7,
                           y_invert=True)        
 
-        ax.set_title(f"Trajectories over time of \n{csv_path.stem.replace('_pred_results', '')}")
+        ax.set_title(f"Trajectories over time of \n{csv_path.stem.replace('pred_results_', '')}")
 
         fig = ax.figure
         fig.savefig(output_fig_plo3D_path)
@@ -300,14 +343,80 @@ for i, csv_path in enumerate(csv_list) :
         plt.close(fig)
 
 
-# save overall computed metrics
-metrics_df = pd.DataFrame(metrics)
-metrics_df.to_csv(output_fig_dir / "metrics_per_clips.csv", index=False)
+    if ANIM : 
+
+        print("Plotting animation...")
+
+        output_anim_dir = output_fig_dir / "animated_plot" 
+        output_anim_dir.mkdir(parents=True, exist_ok=True)
+        output_anim_path = output_anim_dir / f"anim_plot_{csv_path.stem.replace('pred_results_', '')}.mp4"
+
+        output_annotated_clip_dir = output_fig_dir / "annotated_clips"
+        input_clip_path = output_annotated_clip_dir / f"annotated_{csv_path.stem.replace('pred_results_', '')}.mp4"
+        output_clip_path = output_anim_dir / f"splited_clip_{csv_path.stem.replace('pred_results_', '')}.mp4"
+        verify_exist(input_clip_path)
+
+        # ----------------------------- extract data --------------------------
+
+        Traj = Trajectory(coords=xy,
+                        reaching_coords=xy.loc[
+                                        (xy["t"] >= 0) &
+                                        (xy["t"] <= time_pad_off + 0.5)
+                                    ].reset_index(drop=True), 
+                        laserOn_coords=xy_filtered,
+                        fps=125, 
+                        cm_per_pixel=CM_PER_PIXEL)
+        instant_velo : pd.DataFrame = Traj.instant_velocity()
+        print(f"lenght instant velo : {(len(instant_velo))}")
+
+        # ----------------------------- cut clip --------------------------
+
+        split_clip_range(input_clip_path,
+                         output_path=output_clip_path,
+                         start=0,
+                         duration= len(instant_velo)/30 ) # converte frames to sec (30 fps)
+        
+        # ----------------------------- animate plot --------------------------
+        
+        
+
+        fig, ax = plt.subplots(figsize=(12, 6))
+        anim = animate_plot(data=instant_velo["velocity"],
+                            time=instant_velo['t'],
+                            laser_on=time_laser_on,
+                            ax=ax)
+        
+        title = (
+            "Velocity of the left paw, with settings:\n" 
+            f"{output_fig_dir.name}\n" 
+            f"clip = {csv_path.stem[-15:-8]}"
+            )
+        
+        ax.set_title(title, pad=15)
+        ax.set_xlabel("Time (sec)")
+        ax.set_ylabel("Velocity")
+
+        anim.save(output_anim_path, writer="ffmpeg", fps=30)
+        plt.close(fig)
+
+
+        count += 1
+
+
+if METRICS : # save overall computed metrics
+    metrics_df = pd.DataFrame(metrics)
+    metrics_df.to_csv(output_fig_dir / "metrics_per_clips.csv", index=False)
+
+
+
+###### statistics
 
 print(f"\nNumber of failed trial : {len(failed_trials)}")
+print(f"Mean number of lost coords {np.mean([d['nb_lost_coords'] for d in all_lost_coords])}")
 
-# save failed trial
 pd.DataFrame(failed_trials).to_csv(output_fig_dir / "failed_trial.csv", index=False)
+pd.DataFrame(all_lost_coords).to_csv(output_fig_dir / "lost_coords.csv")
+
 
 print("\nDone !")
 

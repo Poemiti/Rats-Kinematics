@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from scipy.signal import find_peaks
-
+import matplotlib.animation as animation
 
 # --------------------------------- csv utils ----------------------------------
 
@@ -231,7 +231,7 @@ class Trajectory:
         start = self.laserOn_coords[["x", "y"]].iloc[0]
         end = self.laserOn_coords[["x", "y"]].iloc[-1]
         direct_path_length = np.linalg.norm(end - start)  # calculate the norm √((x-x)² + (y-y²)
-        return actual_path_length / direct_path_length
+        return actual_path_length / (direct_path_length * self.cm_per_pixel)
 
 
     
@@ -244,8 +244,7 @@ def plot_metric_time(metric: pd.Series,
                      laser_on : float | None,
                      ax: plt.axes,
                      color: str,
-                     transparancy: float=0.7,
-                     y_invert: bool=False) -> plt.axes : 
+                     transparancy: float=0.7) -> plt.axes : 
     """
     Plot the velocity or acceleration in time, for 1 condition (either NoStim, Beta or conti), for 1 clip
     The plot is highlighted between time 0.25 sec and 0.325 which correspond to
@@ -276,13 +275,6 @@ def plot_metric_time(metric: pd.Series,
         ax.axvline(laser_on - 0.025, color='k', lw=0.8, ls='--', label="pad off")
         ax.legend()
 
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-
-    ax.tick_params(direction="out")
-
-    if y_invert: 
-        ax.invert_yaxis()
 
     return ax
 
@@ -311,23 +303,12 @@ def plot_stacked_metric(data: pd.Series,
         ax.legend()
 
         # show laser on
-        laser_on = relative_time[0] + 0.025
-        laser_off = laser_on +  0.3 # sec or 37.5 frame
-        ax.axvspan(laser_on, laser_off, color='red', alpha=0.3, label="laser on")
-        ax.legend()
+        if laser_on :
+            laser_on = relative_time[0] + 0.025
+            laser_off = laser_on +  0.3 # sec or 37.5 frame
+            ax.axvspan(laser_on, laser_off, color='red', alpha=0.3, label="laser on")
+            ax.legend()
         
-
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-
-    ax.tick_params(direction="out")
-
-    # set scale (eye balled)
-    ax.set_xlim(-0.02, 0.35) 
-    ax.set_ylim(-10, 350)
-
-    if y_invert: 
-        ax.invert_yaxis()
 
     return ax
 
@@ -358,6 +339,56 @@ def create_trajectory_object(coords_path, bodypart, threshold, cm_per_pixel) -> 
 
 
 
+
+
+def animate_plot(data: pd.Series, 
+                time : pd.Series,
+                laser_on : float | None,
+                ax: plt.axes
+                ) -> plt.axes :
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(12, 6))
+        ax.set_title("Velocity over time", pad=15)
+        ax.set_xlabel("Time (sec)")
+        ax.set_ylabel("Velocity")
+    else:
+        fig = ax.figure
+
+    laser_off = laser_on + 0.3 if laser_on is not None else None
+    line_base, = ax.plot([], [], lw=2, color="blue", label="Velocity")
+
+    if laser_on : 
+        ax.axvline(laser_on - 0.025, color='k', lw=0.8, ls='--', label="pad off")
+        ax.axvspan(laser_on, laser_off, color='red', alpha=0.3, label="laser on")
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.tick_params(direction="out")
+
+    ax.set_ylim(min(data)-10, max(data)+10)
+    ax.set_xlim(0, max(time) + 0.5)
+
+    ax.legend()
+
+    def animate(frame):
+        x = time.iloc[:frame]
+        y = data.iloc[:frame]
+
+        line_base.set_data(x, y)
+        return line_base
+
+    anim = animation.FuncAnimation(
+        fig,
+        animate,
+        frames=len(data),
+        interval=5,
+        repeat=False,
+        blit=False
+    )
+
+    return anim
+    
 
 
 

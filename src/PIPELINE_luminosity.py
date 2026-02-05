@@ -46,12 +46,21 @@ LUMINOSITY_DIR.mkdir(parents=True, exist_ok=True)
 
 # ------------------------------------ get luminosity + classify ---------------------------------------
 
-for video_path in DATABASE["filename"] : 
+count = 0
+
+for i, video_path in enumerate(DATABASE["filename"].iloc[:]) : 
+
+
     video_path = Path(video_path)
 
-    verify_exist(video_path)
+    # verify_exist(video_path)
 
-    print(f"\nGetting luminosity of {video_path}")
+    print(f"\n[{i}/{len(DATABASE)}]")
+    print(f"Getting luminosity of {video_path}")
+
+    if "LaserOff" in video_path.stem or "LaserOn" in video_path.stem:
+        print("already done!")
+        continue
 
     output_dir = LUMINOSITY_DIR / video_path.parent.stem  # get the folder name
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -85,9 +94,13 @@ for video_path in DATABASE["filename"] :
     # get the trajectory prediction csv path for renaming
     clip_number = str(video_path.stem)[-8:]
     trajectory_csv_dir = TRAJECTORY_DIR / str(video_path.stem)[:-8]
-    trajectory_csv_path = trajectory_csv_dir / f"{str(video_path.stem)[:-8]}_pred_results{clip_number}.csv"
+    trajectory_csv_path = trajectory_csv_dir / f"pred_results_{video_path.stem}.csv"
     
-    verify_exist(trajectory_csv_path)
+    # if not verify_exist(trajectory_csv_path) : 
+    if not trajectory_csv_path.exists() :
+        print(f"   ! video path : {video_path}")
+        print(f"   ! trajectory does not exist : {trajectory_csv_path}")
+        continue
 
     cue_type = define_cue_type(luminosities["LED_1"])
     led_on, _ = is_led_on(luminosities["LED_4"])
@@ -97,5 +110,7 @@ for video_path in DATABASE["filename"] :
         rename_file(path,
                     laser_on=led_on,
                     new_cue=cue_type)
+        
+    count += 1
 
 print("Done !")
