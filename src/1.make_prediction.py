@@ -10,66 +10,25 @@ from utils.file_management import make_database, is_video
 from utils.split_video import split_video
 from utils.dlc_prediction import dlc_predict_Julien
 from utils.database_filter import Model, View, Controller
+from config import load_config
+from pipeline_maker import load_database
 
 # Disable "weights only" before analyzing
 set_load_weights_only(False)
 
 
-# ------------------------------------ setup path ---------------------------------------
+# ------------------------------------ setup  ---------------------------------------
 
-INPUT_VIDEO_DIR = Path("/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024")
-MODEL_PATH = Path("/media/filer2/T4b/Models/DLC/REJANE_rat_right_model-2025-06-18/DLC-project-2025-06-18")
-
-GENERATED_DATA_DIR = Path("../data")
-GENERATED_VIDEOS_DIR = GENERATED_DATA_DIR / "clips"
-
-TEMPORARY_PATH = Path("../data/temporary")
-DATABASE_DIR = GENERATED_DATA_DIR / "database"
-
-GENERATED_DATA_DIR.mkdir(parents=True, exist_ok=True)
-GENERATED_VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
-DATABASE_DIR.mkdir(parents=True, exist_ok=True)
-TEMPORARY_PATH.mkdir(parents=True, exist_ok=True)
-
-# ------------------------------------ setup parameters ---------------------------------------
-
-DURATION = 12.5  # sec
-PRED_LIKELIHOOD = 0.5
-
-# ------------------------------------ make database ---------------------------------------
-
-raw_database = make_database(INPUT_VIDEO_DIR, is_video)
-
-model = Model(raw_database, DATABASE_DIR)
-view = View()
-controller = Controller(model, view)
-view.mainloop()
-
-DATABASE = controller.filtered_dataset.reset_index(drop=True)
-print(DATABASE)
-
-# save database
-if controller.dataset_name.get() :
-    dataset_name = f"{controller.dataset_name.get().strip()}.csv"
-    DATABASE.to_csv(DATABASE_DIR / dataset_name)
-    print(f"\nFiltered dataset saved as : {DATABASE_DIR / dataset_name}")
-
-print(f"\nNumber of files in database : {len(DATABASE)}")
+cfg = load_config()
+DATABASE = load_database()
 
 RAT_NAME = DATABASE['rat_name'][0]
 
-# ------------------------------------ loop ---------------------------------------
+for video_path in DATABASE["filename"].iloc[:]: 
 
-COUNTER = 0
-COUNTER_LIMIT = 999
-
-for video_path in DATABASE["filename"].iloc[18:]: 
-
-    if COUNTER > COUNTER_LIMIT : 
-        break
 
     video_path = Path(video_path) 
-    output_clips_dir = GENERATED_VIDEOS_DIR / video_path.stem 
+    output_clips_dir = cfg.paths.clips / RAT_NAME / video_path.stem 
     
     # ----------------------------------------------- video splitting --------------------------------------------------
 
@@ -77,11 +36,11 @@ for video_path in DATABASE["filename"].iloc[18:]:
 
     split_video(input_path= video_path, 
                 output_path= output_clips_dir, 
-                CLIP_DURATION= DURATION)
+                CLIP_DURATION= cfg.clip_length)
     
     
-    OUTPUT_H5_PATH = GENERATED_DATA_DIR / "dlc_results" / video_path.stem
-    OUTPUT_CSV_PATH = GENERATED_DATA_DIR / "csv_results" / video_path.stem
+    OUTPUT_H5_PATH = cfg.paths.h5 / RAT_NAME / video_path.stem
+    OUTPUT_CSV_PATH = cfg.paths.coords / RAT_NAME /  video_path.stem
 
     OUTPUT_H5_PATH.mkdir(parents=True, exist_ok=True)
     OUTPUT_CSV_PATH.mkdir(parents=True, exist_ok=True)
@@ -95,12 +54,10 @@ for video_path in DATABASE["filename"].iloc[18:]:
         print(f"\nPrediction of clip : {clip_path}\n")
 
         dlc_predict_Julien(
-            model_path=MODEL_PATH,
+            model_path=cfg.paths.model,
             video_path=clip_path,
             output_csv_path=csv_path,
         )
-
-    COUNTER += 1
 
 
 
