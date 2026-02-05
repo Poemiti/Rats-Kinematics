@@ -5,11 +5,8 @@ import pandas as pd
 import os
 from deeplabcut.pose_estimation_pytorch import set_load_weights_only
 
-
-from utils.file_management import make_database, is_video
 from utils.split_video import split_video
 from utils.dlc_prediction import dlc_predict_Julien
-from utils.database_filter import Model, View, Controller
 from config import load_config
 from pipeline_maker import load_database
 
