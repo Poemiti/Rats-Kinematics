@@ -6,6 +6,7 @@ utils/__pycache__/file_management.cpython-310.pyc
 
 data/
 exploration/
+Nicolas_Figures/
 
 *.csv 
 *.h5
