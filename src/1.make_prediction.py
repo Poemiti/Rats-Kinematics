@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
 from pathlib import Path
-import pandas as pd
-import os
 from deeplabcut.pose_estimation_pytorch import set_load_weights_only
 
 from utils.split_video import split_video
@@ -21,10 +19,13 @@ DATABASE = load_database()
 
 RAT_NAME = DATABASE['rat_name'][0]
 
-for video_path in DATABASE["filename"].iloc[:]: 
-
-
+for i, video_path in enumerate(DATABASE["filename"].iloc[:]): 
     video_path = Path(video_path) 
+
+    print(f"\n[{i}/{len(DATABASE)}]")
+    print(f"Prediction of {video_path}\n")
+
+
     output_clips_dir = cfg.paths.clips / RAT_NAME / video_path.stem 
     
     # ----------------------------------------------- video splitting --------------------------------------------------
