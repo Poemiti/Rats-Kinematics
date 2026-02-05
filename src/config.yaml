@@ -1,0 +1,33 @@
+
+# analysis type
+source: csv
+
+# parameters
+threshold: 0.5
+bodypart: left_hand
+fps: 125
+clip_length: 12.5   # sec
+laser_on_duration: 0.3  # sec 
+max_lost_coords: 10
+view: left
+frame_width_px: 512 # pixels
+
+paths:
+  # raw data
+  model: "/media/filer2/T4b/Models/DLC/REJANE_rat_right_model-2025-06-18/DLC-project-2025-06-18"
+  raw_videos: "/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024"
+
+  # results folder
+  metrics: ../data/metrics_results
+  figures: ../data/figures_results
+
+  # source data for analysis
+  data: ../data
+  clips: ../data/clips
+  coords: ../data/csv_results
+  database: ../data/database
+  luminosity: ../data/luminosity
+
+  # complementary folder
+  frames: ../data/frames
+  h5: ../data/dlc_results
