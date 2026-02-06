@@ -6,7 +6,7 @@ from deeplabcut.pose_estimation_pytorch import set_load_weights_only
 from utils.split_video import split_video
 from utils.dlc_prediction import dlc_predict_Julien
 from config import load_config
-from pipeline_maker import load_database
+from utils.pipeline_maker import load_database
 
 # Disable "weights only" before analyzing
 set_load_weights_only(False)
@@ -22,7 +22,7 @@ RAT_NAME = DATABASE['rat_name'][0]
 for i, video_path in enumerate(DATABASE["filename"].iloc[:]): 
     video_path = Path(video_path) 
 
-    print(f"\n[{i}/{len(DATABASE)}]")
+    print(f"\n[{i+1}/{len(DATABASE)}]")
     print(f"Prediction of {video_path}\n")
 
 

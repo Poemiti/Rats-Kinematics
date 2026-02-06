@@ -6,7 +6,7 @@ import pandas as pd
 from utils.file_management import is_left_view
 from utils.led_detection import get_luminosity, rename_file, define_cue_type, is_led_on
 from config import load_config
-from pipeline_maker import load_database
+from utils.pipeline_maker import load_database
 
 
 # ------------------------------------ setup ---------------------------------------
@@ -22,7 +22,7 @@ RAT_NAME = DATABASE['rat_name'][0]
 for i, video_path in enumerate(DATABASE["filename"].iloc[:]) : 
     video_path = Path(video_path)
 
-    print(f"\n[{i}/{len(DATABASE)}]")
+    print(f"\n[{i+1}/{len(DATABASE)}]")
     print(f"Getting luminosity of {video_path}\n")
 
     if "LaserOff" in video_path.stem or "LaserOn" in video_path.stem:

@@ -2,37 +2,45 @@
 
 from pathlib import Path
 import pandas as pd
-import yaml
+import joblib
 import numpy as np
 
-from utils.database_filter import Model, View, Controller
 from utils.file_management import make_directory_name, verify_exist
-from utils.trajectory_ploting import open_clean_csv
+from utils.plot import open_clean_csv
+from utils.trajectory_metrics import Trajectory
 from utils.led_detection import get_time_led_on, get_time_led_off
 
 from config import load_config
-from pipeline_maker import load_database, init_metrics, to_yaml, check_lost_coords, check_non_empty, check_times
+from utils.pipeline_maker import load_database, init_metrics, to_yaml, check_lost_coords, check_non_empty, check_times
 
 # ------------------------------------ setup ---------------------------------------
 
 cfg = load_config()
-DATABASE = load_database("csv")
+DATABASE = load_database(cfg, "csv")
 
 RAT_NAME = DATABASE['rat_name'][0]
 
 # ------------------------------------ get luminosity + classify ---------------------------------------
 
-METRICS = {}
+METRICS = []
 
 old_dir = cfg.paths.metrics / RAT_NAME / make_directory_name(Path(DATABASE["filename"][0]).stem)
 old_dir.mkdir(parents=True, exist_ok=True)
 
-db = sorted(DATABASE["filename"])
+filenames = (
+    DATABASE.sort_values(
+        by=["rat_name", "rat_type", "condition", "task", "laser_intensity", "laser_on"],
+        ascending=[True, True, True, True, True, True], 
+    )
+    ["filename"]
+    .tolist()
+)
 
-for i, coords_path in enumerate(db) : 
+
+for i, coords_path in enumerate(filenames) : 
     coords_path = Path(coords_path)
 
-    print(f"\n[{i}/{len(db)}]")
+    print(f"\n[{i+1}/{len(filenames)}]")
     print(f"Getting coords of {coords_path}\n")
 
     # get time when pad is ON or OFF
@@ -44,11 +52,10 @@ for i, coords_path in enumerate(db) :
     # if new condition, save metrics.yaml + initialise metrics dictionary + make new folder
     new_dir = cfg.paths.metrics / RAT_NAME / make_directory_name(coords_path.stem)
     if new_dir != old_dir : 
-        with open(cfg.paths.metrics / old_dir / f"metrics.yaml", "w") as file : 
-            yaml.dump(METRICS, file , default_flow_style=False, indent=4, sort_keys=False)
+        joblib.dump(METRICS, cfg.paths.metrics / old_dir / "metrics.joblib")
 
         old_dir = new_dir
-        METRICS = {}
+        METRICS = []
         new_dir.mkdir(parents=True, exist_ok=True)
         print(f"File will be stored in {new_dir}")
 
@@ -74,16 +81,14 @@ for i, coords_path in enumerate(db) :
     print("nb lost coords = ", n_lost_coords)
 
     # verification
-    if not check_lost_coords(xy_filtered, coords):
-        METRICS[clip_path.stem] = TRIAL_METRICS
-        continue
-
-    if not check_times(time_pad_off, time_laser_on, len(xy), cfg.laser_on_duration):
-        METRICS[clip_path.stem] = TRIAL_METRICS
-        continue
-
-    if not check_non_empty(xy_filtered, time_pad_off):
-        METRICS[clip_path.stem] = TRIAL_METRICS
+    if not check_lost_coords(xy_filtered, coords) or \
+    not check_times(time_pad_off, time_laser_on, len(xy), cfg.laser_on_duration) or \
+    not check_non_empty(xy_filtered, time_pad_off):
+        TRIAL_METRICS["trial_success"] = False
+        TRIAL_METRICS["lost_coords"] = n_lost_coords
+        TRIAL_METRICS["pad_off"] = time_pad_off
+        TRIAL_METRICS["laser_on"] = time_laser_on
+        METRICS.append(TRIAL_METRICS)
         continue
     
     #  pad off -> laser off coords 
@@ -102,8 +107,6 @@ for i, coords_path in enumerate(db) :
         ].reset_index(drop=True)
     else : 
         xy_laserOn = xy_pad_off
-    
-
 
 
     # compute metrics
@@ -116,26 +119,26 @@ for i, coords_path in enumerate(db) :
     
     # final saving
     TRIAL_METRICS["trial_success"] = True
+    TRIAL_METRICS["lost_coords"] = n_lost_coords
     TRIAL_METRICS["pad_off"] = time_pad_off
     TRIAL_METRICS["laser_on"] = time_laser_on
 
-    TRIAL_METRICS["average_distance"] = to_yaml(Traj.distance())
-    TRIAL_METRICS["average_velocity"] = to_yaml(Traj.mean_velocity())
-    TRIAL_METRICS["peak_velocity"] = to_yaml(Traj.peak())
-    TRIAL_METRICS["tortuosity"] = to_yaml(Traj.tortuosity())
+    TRIAL_METRICS["average_distance"] = Traj.distance()
+    TRIAL_METRICS["average_velocity"] = Traj.mean_velocity()
+    TRIAL_METRICS["peak_velocity"] = Traj.peak()
+    TRIAL_METRICS["tortuosity"] = Traj.tortuosity()
 
-    TRIAL_METRICS["instant_velocity"] = to_yaml(Traj.instant_velocity())
-    TRIAL_METRICS["acceleration"] = to_yaml(Traj.acceleration())
+    TRIAL_METRICS["instant_velocity"] = Traj.instant_velocity()
+    TRIAL_METRICS["acceleration"] = Traj.acceleration()
 
-    TRIAL_METRICS["xy_raw"] = to_yaml(xy)
-    TRIAL_METRICS["xy_filtered"] = to_yaml(xy_filtered)
-    TRIAL_METRICS["xy_pad_off"] = to_yaml(xy_pad_off)
-    TRIAL_METRICS["xy_laser_on"] = to_yaml(xy_laserOn)
+    TRIAL_METRICS["xy_raw"] = xy
+    TRIAL_METRICS["xy_filtered"] = xy_filtered
+    TRIAL_METRICS["xy_pad_off"] = xy_pad_off
+    TRIAL_METRICS["xy_laser_on"] = xy_laserOn
     
-    METRICS[clip_path.stem] = TRIAL_METRICS
+    METRICS.append(TRIAL_METRICS)
 
-with open(cfg.paths.metrics / old_dir / f"metrics.yaml", "w") as file : 
-            yaml.dump(METRICS, file , default_flow_style=False, indent=4, sort_keys=False)
+joblib.dump( METRICS, cfg.paths.metrics / old_dir / "metrics.joblib")
 
 print("Done !")
 
