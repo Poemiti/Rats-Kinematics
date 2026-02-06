@@ -6,7 +6,7 @@ import yaml
 
 class PathsConfig(BaseModel):
     model: Path
-    raw_video: Path
+    raw_videos: Path
     metrics: Path
     figures: Path
     data: Path
@@ -25,7 +25,6 @@ class PathsConfig(BaseModel):
 
 
 class Config(BaseModel):
-    source: str= Literal["csv", "video"]
     threshold: float = Field(..., ge=0.0, le=1.0)
     bodypart: str
     fps: int = Field(..., gt=0)

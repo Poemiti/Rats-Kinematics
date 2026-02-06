@@ -1,7 +1,4 @@
 
-# analysis type
-source: csv
-
 # parameters
 threshold: 0.5
 bodypart: left_hand
