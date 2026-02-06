@@ -8,7 +8,7 @@ import numpy as np
 
 from utils.database_filter import Model, View, Controller
 from utils.file_management import is_video, make_database, make_directory_name, is_csv, verify_exist
-from utils.trajectory_ploting import open_clean_csv, plot_single_bodypart_trajectories
+from utils.plot import open_clean_csv, plot_single_bodypart_trajectories
 from utils.trajectory_metrics import Trajectory, plot_metric_time, plot_stacked_metric
 from utils.led_detection import get_time_led_on, get_time_led_off
 
