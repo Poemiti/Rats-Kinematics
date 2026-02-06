@@ -12,7 +12,7 @@ from pipeline_maker import load_database
 # ------------------------------------ setup ---------------------------------------
 
 cfg = load_config()
-DATABASE = load_database()
+DATABASE = load_database("video")
 
 RAT_NAME = DATABASE['rat_name'][0]
 
