@@ -6,12 +6,9 @@ import yaml
 import numpy as np
 
 from utils.database_filter import Model, View, Controller
-from utils.file_management import make_database, make_directory_name, is_csv, verify_exist
-from utils.trajectory_ploting import plot_single_bodypart_trajectories, open_clean_csv, plot_3D_traj
-from utils.video_annotation import annotate_single_bodypart
-from utils.trajectory_metrics import Trajectory, plot_metric_time, define_End_of_trajectory, animate_plot
+from utils.file_management import make_directory_name, verify_exist
+from utils.trajectory_ploting import open_clean_csv
 from utils.led_detection import get_time_led_on, get_time_led_off
-from utils.split_video import split_clip_range
 
 from config import load_config
 from pipeline_maker import load_database, init_metrics, to_yaml, check_lost_coords, check_non_empty, check_times
