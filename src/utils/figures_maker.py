@@ -4,6 +4,7 @@ from tkinter import ttk
 import inspect
 
 import utils.plot as plot
+import utils.plot_comparative as plot_comparative
 
 class Controller:
     def __init__(self, model, view):
@@ -104,9 +105,16 @@ class View(tk.Tk):
 
 
 class Model:
-    def __init__(self, metric_dir: Path):
+    def __init__(self, metric_dir: Path, single_plot: bool):
         self.metrics_paths = sorted(metric_dir.rglob("*.joblib"))
 
-        self.available_functions = {
-            name: func
-            for name, func in inspect.getmembers(plot, inspect.isfunction)}
+        if single_plot : 
+            self.available_functions = {
+                name: func
+                for name, func in inspect.getmembers(plot, inspect.isfunction)
+                if name.startswith("plot")}
+        else : 
+            self.available_functions = {
+                name: func
+                for name, func in inspect.getmembers(plot_comparative, inspect.isfunction)
+                if name.startswith("plot")}

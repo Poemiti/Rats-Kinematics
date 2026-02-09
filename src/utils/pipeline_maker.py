@@ -5,6 +5,7 @@ import pandas as pd
 import yaml 
 import numpy as np
 import joblib
+import sys
 
 from utils.file_management import make_database, is_csv, is_video
 import utils.database_filter as db
@@ -47,9 +48,9 @@ def load_database(cfg, source: str):
 
 
 
-def load_figure_maker(cfg, rat_name) : 
+def load_figure_maker(cfg, rat_name, single_plot: bool) : 
 
-    model = fg.Model(cfg.paths.metrics / rat_name)
+    model = fg.Model(cfg.paths.metrics / rat_name, single_plot)
     view = fg.View()
     controller = fg.Controller(model, view)
     view.mainloop()
@@ -133,6 +134,16 @@ def check_non_empty(xy_filtered, time_pad_off):
 
 
 
+def check_analysis_choice(files, choice) : 
+    if not choice or all(v is False for v in choice.values()):
+        print("No plotting option selected ! Stop")
+        sys.exit()
+
+    if len(files) == 0 : 
+        print("No files selected ! Stop")
+        sys.exit()
+
+
 # ------------------------------------------ load metrics ------------------------------------
 
 
@@ -149,7 +160,6 @@ def load_metrics(path: Path) -> dict :
 
 
 
-def make_output_path(base_dir, folder_name, file_name):
-    path = base_dir / folder_name
-    path.mkdir(parents=True, exist_ok=True)
-    return path / file_name
+def make_output_path(base_dir, file_name):
+    base_dir.mkdir(parents=True, exist_ok=True)
+    return base_dir / file_name

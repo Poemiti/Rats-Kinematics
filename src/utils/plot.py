@@ -12,7 +12,7 @@ import matplotlib.animation as animation
 
 # --------------------------------- plotting ----------------------------------
 
-def annotate_single_bodypart(video_path: Path,
+def plot_annotated_video(video_path: Path,
                             csv_path: Path,
                             output_path: Path,
                             bodypart_name: str,
@@ -311,41 +311,6 @@ def plot_metric_time(metric: pd.Series,
 
 
 
-def plot_stacked_metric(data: pd.Series, 
-                     time: pd.Series,
-                     ax: plt.axes,
-                     color: str,
-                     laser_on: float,
-                     show_pad_off: bool = False,
-                     transparancy: float=0.7,
-                     y_invert: bool=False) -> plt.axes : 
-    fps = 125
-
-    if ax is None:
-        fig, ax = plt.subplots()
-
-    # relative time
-    relative_time = time - time[0]
-
-    ax.plot(relative_time, data, color= color, alpha=transparancy)
-    if show_pad_off :
-        # add line for pad off 
-        ax.axvline(relative_time[0], color='k', lw=0.8, ls='--', label="pad off")
-        ax.legend()
-
-        # show laser on
-        if laser_on :
-            laser_on = relative_time[0] + 0.025
-            laser_off = laser_on +  0.3 # sec or 37.5 frame
-            ax.axvspan(laser_on, laser_off, color='red', alpha=0.3, label="laser on")
-            ax.legend()
-        
-
-    return ax
-
-
-
-
 
 def plot_animation(data: pd.Series, 
                 time : pd.Series,
@@ -395,63 +360,3 @@ def plot_animation(data: pd.Series,
 
     return anim
     
-
-
-
-
-
-
-
-if __name__ == "__main__":
-    
-    # ---------------------------------------------- setup path -------------------------------------------------
-
-    # inputs (should exist)
-    GENERATED_DATA_DIR = Path("../exploration/data")
-    DATABASE_PATH = GENERATED_DATA_DIR / "database/rat_517_H001.csv"  # if it does not exist, make one with make_database (in file_management.py)
-
-    # get the path for a video (path in a premade database)
-    database = pd.read_csv(DATABASE_PATH)
-    VIDEO_EXEMPLE = Path(database.iloc[0]["filename"])
-    CSV_DIR = GENERATED_DATA_DIR / "csv_results" / VIDEO_EXEMPLE.stem
-    INPUT_CSV_PATH = CSV_DIR/ f"pred_results_{VIDEO_EXEMPLE.stem}_clip_00.csv"
-
-    # output
-    OUTPUT_TRAJECTORY_PATH = GENERATED_DATA_DIR / "ANALYSIS_RESULTS" / VIDEO_EXEMPLE.stem
-    OUTPUT_TRAJECTORY_PATH.mkdir(parents=True, exist_ok=True)
-
-    # ---------------------------------------------- plot single trajectory of bodypart -------------------------------------------------
-    
-    THRESHOLD = 0.5
-    BODYPART = ["left_hand"]
-
-    fig, ax = plt.subplots()
-
-    for csv_path in CSV_DIR.iterdir() :
-
-        fig, ax = plt.subplots() 
-
-        output_fig_dir = OUTPUT_TRAJECTORY_PATH / "trajectory_per_clip"
-        output_fig_dir.mkdir(parents=True, exist_ok=True)
-        output_fig_path = output_fig_dir / csv_path.stem
-
-        coords = pd.read_csv(csv_path)
-        xy = coords[BODYPART]
-        mask = xy["likelihood"] >= THRESHOLD
-        xy_filtered = xy[mask]
-
-        print(len(xy_filtered))
-
-        ax = plot_single_bodypart_trajectories(
-                    coords=xy_filtered,
-                    ax=None,
-                    invert_y=True,
-                    color="red",
-                    transparancy=0.7
-                )
-
-        ax.set_title(f"Trajectory of {csv_path.stem}, threshold 0.5,\nL1, NoStim, Successful")
-        # plt.show()
-        fig.savefig(output_fig_path)   
-
-        plt.close(fig) 
