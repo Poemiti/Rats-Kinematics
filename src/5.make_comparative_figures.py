@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from utils.file_management import verify_exist
-from utils.plot_comparative import plot_stacked_velocity, plot_stacked_Yposition, plot_violin_distribution_velocity
+from utils.plot_comparative import plot_stacked_velocity, plot_stacked_Yposition, plot_violin_distribution_velocity, plot_stacked_trajectories
 from config import load_config
 from utils.pipeline_maker import load_metrics, load_figure_maker, make_output_path, check_analysis_choice
 
@@ -29,7 +29,6 @@ if plot_choice["plot_stacked_velocity"] :
         print(f"Making figures of {metrics_path.parent.stem}\n")
 
         metrics = load_metrics(metrics_path)
-
         ax = plot_stacked_velocity(cfg, metrics)
 
         title = (
@@ -57,6 +56,7 @@ if plot_choice["plot_stacked_Yposition"] :
         metrics_path = Path(metrics_path) 
         output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.parent.stem
 
+        metrics = load_metrics(metrics_path)
         ax = plot_stacked_Yposition(cfg, metrics)
 
         title = (
@@ -70,11 +70,44 @@ if plot_choice["plot_stacked_Yposition"] :
         ax.set_xlabel("Time (seconds)")
         ax.set_ylabel("Position (cm)")  
 
-        ax.set_xlim(0, 1.35)
-
+        # ax.set_xlim(0, 1.35)
 
         fig = ax.figure
-        fig.savefig(make_output_path(output_fig_dir, f"stacked_Y_position.png"))
+        fig.savefig(make_output_path(output_fig_dir, f"stacked_Y_position_3sec.png"))
+        plt.close(fig)
+
+
+
+
+
+if plot_choice["plot_stacked_trajectories"] : 
+
+    for i, metrics_path in enumerate(filenames) :
+
+        metrics_path = Path(metrics_path) 
+        output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.parent.stem
+
+        metrics = load_metrics(metrics_path)
+        ax = plot_stacked_trajectories(cfg, metrics)
+
+        ax.yaxis.tick_right()
+        ax.yaxis.set_label_position("right")
+
+        ax.spines["top"].set_visible(False)
+        ax.spines["left"].set_visible(False)
+        ax.spines["right"].set_visible(True)
+
+
+        ax.tick_params(direction="out")
+
+        ax.set_xlabel("x (cm)")
+        ax.set_ylabel("y (cm)")
+        ax.set_title(f"Stacked Trajectories of \n{metrics_path.parent.stem}")
+
+        ax.invert_xaxis()
+
+        fig = ax.figure
+        fig.savefig(make_output_path(output_fig_dir, f"stacked_trajectories.png"))
         plt.close(fig)
 
 

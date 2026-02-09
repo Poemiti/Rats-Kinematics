@@ -144,6 +144,19 @@ def check_analysis_choice(files, choice) :
         sys.exit()
 
 
+
+def check_trial_success(trial) : 
+    if not trial["trial_success"] :
+        print("Trial success : ", trial["trial_success"])
+        return False 
+    elif "202405" in  trial["filename_clips"].as_posix() or \
+        "052024" in trial["filename_clips"].as_posix() : 
+        print("Trial made in may 2024, skipped")
+        return False
+    return True
+        
+
+
 # ------------------------------------------ load metrics ------------------------------------
 
 

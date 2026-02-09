@@ -7,6 +7,36 @@ from pathlib import Path
 
 # ----------------------------------- function for classifiaction of file based on their name --------------------------------------
 
+def open_clean_csv(csv_path : Path) -> pd.DataFrame : 
+    """
+    Load and clean a DeepLabCut CSV file.
+
+    DeepLabCut CSV files contain a three-level header
+    (scorer, bodypart, coordinate). This function removes the scorer
+    level and drops the first data row to return a clean DataFrame.
+
+    Parameters
+    ----------
+    csv_path : pathlib.Path
+        Path to the DeepLabCut CSV file.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Cleaned DataFrame with a two-level column index
+        (bodypart, coordinate).
+    """
+
+    # DLC CSV has 3 header rows (scorer, bodyparts, coords)
+    df = pd.read_csv(csv_path, header=[0, 1, 2])
+
+    # clean dataframe
+    df.columns = df.columns.droplevel(0)  # remove scorer row
+    clean_df = df.iloc[1:].reset_index(drop=True)
+
+    return clean_df
+
+
 def is_left_view(filename : str) -> bool : 
     """
     Determine whether a video corresponds to the left camera view.

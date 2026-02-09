@@ -179,16 +179,28 @@ def plot_single_bodypart_trajectories(
     # x = coords["x"]
     # y = coords["y"]
 
-    ax.plot(
-        x,
-        y,
-        marker=marker,
-        color=color,
-        linestyle="-",
-        alpha=transparancy,
-    )
 
     if frame_laser_on:
+        ax.plot(
+            x[0: frame_laser_on+int(0.5*125)],
+            y[0: frame_laser_on+int(0.5*125)],
+            marker=marker,
+            color=color,
+            linestyle="-",
+            alpha=transparancy,
+        )
+    else : 
+        ax.plot(
+            x,
+            y,
+            marker=marker,
+            color=color,
+            linestyle="-",
+            alpha=transparancy,
+        )
+
+    
+    if frame_laser_on : 
         ax.plot(
             x[frame_laser_on: frame_laser_on+int(0.3*125)],
             y[frame_laser_on: frame_laser_on+int(0.3*125)],
@@ -196,7 +208,10 @@ def plot_single_bodypart_trajectories(
             color="red",
             linestyle="-",
             alpha=0.7,
+            label="Laser on"
         )
+
+    
 
     return ax
 
@@ -305,7 +320,6 @@ def plot_metric_time(metric: pd.Series,
         # add line for pad off 
         ax.axvline(laser_on - 0.025, color='k', lw=0.8, ls='--', label="pad off")
         ax.legend()
-
 
     return ax
 

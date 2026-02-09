@@ -14,7 +14,6 @@ def relative_metric(data: pd.Series,
                      laser_on: bool = False,
                      show_pad_off: bool = False,
                      transparancy: float=0.7) -> plt.axes : 
-    fps = 125
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -40,6 +39,7 @@ def relative_metric(data: pd.Series,
 
 
 def plot_stacked_velocity(cfg, metrics: dict) :
+    from utils.pipeline_maker import check_trial_success
 
     all_velocity = []
     fig, axs = plt.subplots(figsize=(9, 7))
@@ -47,21 +47,22 @@ def plot_stacked_velocity(cfg, metrics: dict) :
 
     for t, trial in enumerate(metrics) : 
 
-        # print(f"\n[{t}/{len(metrics)}]")
+        if not check_trial_success(trial) : 
+            continue 
 
-        if trial["trial_success"] : 
-            trial_name = trial['filename_clips'].stem
-            # print(f"Making figures of {trial_name}")
 
-            velo = trial["instant_velocity"]
-            all_velocity.append(velo)
+        trial_name = trial['filename_clips'].stem
+        print(f"Making figures of {trial_name}")
 
-            relative_metric(data=velo["velocity"],
-                                time=velo['t'],
-                                ax = axs, 
-                                laser_on=False, 
-                                color="green",
-                                transparancy=0.3)
+        velo = trial["instant_velocity"]
+        all_velocity.append(velo)
+
+        relative_metric(data=velo["velocity"],
+                            time=velo['t'],
+                            ax = axs, 
+                            laser_on=False, 
+                            color="green",
+                            transparancy=0.3)
             
 
     avg_velocity = (
@@ -86,6 +87,7 @@ def plot_stacked_velocity(cfg, metrics: dict) :
 
 
 def plot_stacked_Yposition(cfg, metrics: dict) :
+    from utils.pipeline_maker import check_trial_success
 
     all_pos = []
     fig, axs = plt.subplots(figsize=(9, 7))
@@ -95,19 +97,21 @@ def plot_stacked_Yposition(cfg, metrics: dict) :
 
         # print(f"\n[{t}/{len(metrics)}]")
 
-        if trial["trial_success"] : 
-            trial_name = trial['filename_clips'].stem
-            # print(f"Making figures of {trial_name}")
+        if not check_trial_success(trial) : 
+            continue 
 
-            y_pos = trial["xy_filtered"] 
-            all_pos.append(y_pos)
+        trial_name = trial['filename_clips'].stem
+        print(f"Making figures of {trial_name}")
 
-            relative_metric(data=y_pos["y"] * cfg.cm_per_pixel,
-                                time=y_pos['t'],
-                                ax = axs, 
-                                laser_on=False, 
-                                color="green",
-                                transparancy=0.3)
+        y_pos = trial["xy_filtered"] 
+        all_pos.append(y_pos)
+
+        relative_metric(data=y_pos["y"] * cfg.cm_per_pixel,
+                        time=y_pos['t'],
+                        ax = axs, 
+                        laser_on=trial["laser_on"], 
+                        color="green",
+                        transparancy=0.3)
 
     # avg_y_pos = (
     #     pd.concat(all_pos, axis=1)
@@ -123,12 +127,91 @@ def plot_stacked_Yposition(cfg, metrics: dict) :
     #                 show_pad_off=True,
     #                 laser_on=True,
     #                 color="blue",
-    #                 transparancy=1)
+    #                 transparancy=0)
 
     
     return axs
 
 
+
+
+def plot_stacked_trajectories(cfg, metrics) : 
+    from utils.plot import plot_single_bodypart_trajectories
+    from utils.pipeline_maker import check_trial_success
+
+    all_coords = []
+    fig, ax = plt.subplots(figsize=(9, 7))
+
+
+    for t, trial in enumerate(metrics) : 
+
+        if not check_trial_success(trial) : 
+            continue
+
+        trial_name = trial['filename_clips'].stem
+        print(f"\nMaking figures of {trial_name}")
+
+        coords = trial["xy_filtered"] 
+
+        if trial["laser_on"] is not None:
+            frame_laser_on = coords.index[coords["t"] >= trial["laser_on"]][0]
+            print(
+                f"trial laser on: {trial['laser_on']},\n"
+                f"frame laser on: {frame_laser_on}"
+            )
+        else:
+            frame_laser_on = None
+
+        plot_single_bodypart_trajectories(
+                coords=coords,
+                cm_per_pixel=cfg.cm_per_pixel,
+                frame_laser_on=frame_laser_on,
+                ax=ax,
+                color="green",
+                transparancy=0.5,
+            )
+        all_coords.append(coords)
+
+    # avg_coords = (pd.concat(all_coords, axis=1)
+    #                 .T
+    #                 .groupby(level=0)
+    #                 .mean()
+    #                 .T)
+
+    # plot_single_bodypart_trajectories(
+    #         coords=avg_coords,
+    #         cm_per_pixel=cfg.cm_per_pixel,
+    #         frame_laser_on=None,
+    #         ax=ax,
+    #         color="blue",
+    #         transparancy=1,
+    #         rat_background=False, # display a rat in the background
+    #     )
+
+    return ax
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+############################################################################# violin ################################################""
 
 
 

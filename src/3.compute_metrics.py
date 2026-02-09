@@ -5,8 +5,7 @@ import pandas as pd
 import joblib
 import numpy as np
 
-from utils.file_management import make_directory_name, verify_exist
-from utils.plot import open_clean_csv
+from utils.file_management import make_directory_name, verify_exist, open_clean_csv
 from utils.trajectory_metrics import Trajectory
 from utils.led_detection import get_time_led_on, get_time_led_off
 

@@ -1,4 +1,3 @@
-from pathlib import Path
 import pandas as pd
 import numpy as np
 from scipy.signal import find_peaks
@@ -100,8 +99,3 @@ class Trajectory:
 
 
     
-
-
-if __name__ == "__main__":
-    
-    print("No main")
