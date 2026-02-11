@@ -3,10 +3,10 @@
 from pathlib import Path
 from deeplabcut.pose_estimation_pytorch import set_load_weights_only
 
-from utils.split_video import split_video
-from utils.dlc_prediction import dlc_predict_Julien
-from config import load_config
-from utils.pipeline_maker import load_database
+from rats_kinematics_utils.split_video import split_video
+from rats_kinematics_utils.dlc_prediction import dlc_predict_Julien
+from rats_kinematics_utils.config import load_config
+from rats_kinematics_utils.pipeline_maker import load_database
 
 # Disable "weights only" before analyzing
 set_load_weights_only(False)
@@ -15,7 +15,7 @@ set_load_weights_only(False)
 # ------------------------------------ setup  ---------------------------------------
 
 cfg = load_config()
-DATABASE = load_database("video")
+DATABASE = load_database(cfg.paths.raw_videos, cfg.paths.database, "video")
 
 RAT_NAME = DATABASE['rat_name'][0]
 

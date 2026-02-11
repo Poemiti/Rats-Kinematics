@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from config import load_config
+from rats_kinematics_utils.config import load_config
 
 cft = load_config()
 

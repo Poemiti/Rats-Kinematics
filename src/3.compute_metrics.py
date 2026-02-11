@@ -5,26 +5,25 @@ import pandas as pd
 import joblib
 import numpy as np
 
-from utils.file_management import make_directory_name, verify_exist, open_clean_csv
-from utils.trajectory_metrics import Trajectory
-from utils.led_detection import get_time_led_on, get_time_led_off
+from rats_kinematics_utils.file_management import make_name_by_condition, verify_exist, open_clean_csv
+from rats_kinematics_utils.trajectory_metrics import Trajectory
+from rats_kinematics_utils.led_detection import get_time_led_on, get_time_led_off
 
-from config import load_config
-from utils.pipeline_maker import load_database, init_metrics, to_yaml, check_lost_coords, check_non_empty, check_times
+from rats_kinematics_utils.config import load_config
+from rats_kinematics_utils.pipeline_maker import load_database, init_metrics, to_yaml, check_lost_coords, check_non_empty, check_times
 
 # ------------------------------------ setup ---------------------------------------
 
 cfg = load_config()
-DATABASE = load_database(cfg, "csv")
+RAT_NAME = "#525"
+DATABASE = load_database(cfg.paths.coords / RAT_NAME, cfg.paths.database, "csv")
 
-RAT_NAME = DATABASE['rat_name'][0]
-
-# ------------------------------------ get luminosity + classify ---------------------------------------
+output_dir = cfg.paths.metrics / RAT_NAME
+output_dir.mkdir(parents=True, exist_ok=True)
 
 METRICS = []
 
-old_dir = cfg.paths.metrics / RAT_NAME / make_directory_name(Path(DATABASE["filename"][0]).stem)
-old_dir.mkdir(parents=True, exist_ok=True)
+old_filename =  make_name_by_condition(Path(DATABASE["filename"][0]).stem)
 
 filenames = (
     DATABASE.sort_values(
@@ -34,6 +33,9 @@ filenames = (
     ["filename"]
     .tolist()
 )
+
+
+# ------------------------------------ loop ---------------------------------------
 
 
 for i, coords_path in enumerate(filenames) : 
@@ -49,14 +51,13 @@ for i, coords_path in enumerate(filenames) :
     verify_exist(luminosity_path)
     
     # if new condition, save metrics.yaml + initialise metrics dictionary + make new folder
-    new_dir = cfg.paths.metrics / RAT_NAME / make_directory_name(coords_path.stem)
-    if new_dir != old_dir : 
-        joblib.dump(METRICS, cfg.paths.metrics / old_dir / "metrics.joblib")
+    new_filename = make_name_by_condition(coords_path.stem)
+    if new_filename != old_filename : 
+        joblib.dump(METRICS, output_dir / f"{old_filename}.joblib")
 
-        old_dir = new_dir
+        old_filename = new_filename
         METRICS = []
-        new_dir.mkdir(parents=True, exist_ok=True)
-        print(f"File will be stored in {new_dir}")
+        print(f"File will be stored in {new_filename}")
 
 
     ##################################
@@ -137,7 +138,6 @@ for i, coords_path in enumerate(filenames) :
     
     METRICS.append(TRIAL_METRICS)
 
-joblib.dump( METRICS, cfg.paths.metrics / old_dir / "metrics.joblib")
-
+joblib.dump(METRICS, output_dir / f"{old_filename}.joblib")
 print("Done !")
 

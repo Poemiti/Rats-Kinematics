@@ -5,25 +5,26 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils.file_management import verify_exist
-from utils.plot_comparative import plot_stacked_velocity, plot_stacked_Yposition, plot_violin_distribution_velocity, plot_stacked_trajectories
-from config import load_config
-from utils.pipeline_maker import load_metrics, load_figure_maker, make_output_path, check_analysis_choice
+from rats_kinematics_utils.file_management import verify_exist
+from rats_kinematics_utils.plot_comparative import plot_stacked_velocity, plot_stacked_Yposition, plot_violin_distribution_velocity, plot_stacked_trajectories, plot_velocity_over_sessiontime
+from rats_kinematics_utils.config import load_config
+from rats_kinematics_utils.pipeline_maker import load_metrics, load_figure_maker, make_output_path, check_analysis_choice
 
 # ------------------------------------ setup ---------------------------------------
 
 RAT_NAME = "#525"
+SHOW = True
 cfg = load_config()
-filenames, plot_choice = load_figure_maker(cfg, RAT_NAME, single_plot=False)
+filenames, plot_choice = load_figure_maker(cfg.paths.metrics / RAT_NAME, single_plot=False)
 
 check_analysis_choice(filenames, plot_choice)
-
+ 
 if plot_choice["plot_stacked_velocity"] : 
 
     for i, metrics_path in enumerate(filenames) :
 
         metrics_path = Path(metrics_path) 
-        output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.parent.stem
+        output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.stem
 
         print(f"\n[{i+1}/{len(filenames)}]")
         print(f"Making figures of {metrics_path.parent.stem}\n")
@@ -43,6 +44,9 @@ if plot_choice["plot_stacked_velocity"] :
 
         fig = ax.figure
         fig.savefig(make_output_path(output_fig_dir, f"stacked_velocity.png"))
+
+        if SHOW : 
+            plt.show()
         plt.close(fig)
 
 
@@ -54,7 +58,7 @@ if plot_choice["plot_stacked_Yposition"] :
     for i, metrics_path in enumerate(filenames) :
 
         metrics_path = Path(metrics_path) 
-        output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.parent.stem
+        output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.stem
 
         metrics = load_metrics(metrics_path)
         ax = plot_stacked_Yposition(cfg, metrics)
@@ -74,6 +78,9 @@ if plot_choice["plot_stacked_Yposition"] :
 
         fig = ax.figure
         fig.savefig(make_output_path(output_fig_dir, f"stacked_Y_position_3sec.png"))
+
+        if SHOW : 
+            plt.show()
         plt.close(fig)
 
 
@@ -85,7 +92,7 @@ if plot_choice["plot_stacked_trajectories"] :
     for i, metrics_path in enumerate(filenames) :
 
         metrics_path = Path(metrics_path) 
-        output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.parent.stem
+        output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.stem
 
         metrics = load_metrics(metrics_path)
         ax = plot_stacked_trajectories(cfg, metrics)
@@ -108,6 +115,9 @@ if plot_choice["plot_stacked_trajectories"] :
 
         fig = ax.figure
         fig.savefig(make_output_path(output_fig_dir, f"stacked_trajectories.png"))
+
+        if SHOW : 
+            plt.show()
         plt.close(fig)
 
 
@@ -133,8 +143,34 @@ if plot_choice["plot_violin_distribution_velocity"] :
 
     fig = ax.figure
     fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "violin_distribution", f"violin_velocity_DETAIL_CHR_L1.png"))
+
+    if SHOW : 
+        plt.show()
     plt.close(fig)
 
+
+
+
+
+
+
+if plot_choice['plot_velocity_over_sessiontime'] : 
+
+    velocity= []
+    date = []
+
+    for i, metrics_path in enumerate(filenames) :
+        metrics = load_metrics(Path(metrics_path))
+        velocity.append(pd.Series(v["average_velocity"] for v in metrics if v.get('trial_success')))
+        date.append(pd.Series(d["date"] for d in metrics if d.get('trial_success')))
+
+    ax = plot_velocity_over_sessiontime(cfg, velocity, date)
+
+    plt.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "metrics_by_sessions", f"velocity_DETAIL_CHR_L1.png"))
+
+    if SHOW : 
+        plt.show()
+    plt.close()
 
 
 

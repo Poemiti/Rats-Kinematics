@@ -3,16 +3,16 @@
 from pathlib import Path
 import pandas as pd
 
-from utils.file_management import is_left_view
-from utils.led_detection import get_luminosity, rename_file, define_cue_type, is_led_on
-from config import load_config
-from utils.pipeline_maker import load_database
+from rats_kinematics_utils.file_management import is_left_view
+from rats_kinematics_utils.led_detection import get_luminosity, rename_file, define_cue_type, is_led_on
+from rats_kinematics_utils.config import load_config
+from rats_kinematics_utils.pipeline_maker import load_database
 
 
 # ------------------------------------ setup ---------------------------------------
 
 cfg = load_config()
-DATABASE = load_database("video")
+DATABASE = load_database(cfg.paths.clips, cfg.paths.database, "video")
 
 RAT_NAME = DATABASE['rat_name'][0]
 

@@ -5,25 +5,25 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils.file_management import verify_exist
-from utils.plot import plot_single_bodypart_trajectories, plot_3D_traj, plot_animation, plot_metric_time, plot_annotated_video
-from utils.split_video import split_clip_range
+from rats_kinematics_utils.file_management import verify_exist
+from rats_kinematics_utils.plot import plot_single_bodypart_trajectories, plot_3D_traj, plot_animation, plot_metric_time, plot_annotated_video
+from rats_kinematics_utils.split_video import split_clip_range
 
-from config import load_config
-from utils.pipeline_maker import load_metrics, load_figure_maker, make_output_path, check_analysis_choice, check_trial_success
+from rats_kinematics_utils.config import load_config
+from rats_kinematics_utils.pipeline_maker import load_metrics, load_figure_maker, make_output_path, check_analysis_choice, check_trial_success
 
 # ------------------------------------ setup ---------------------------------------
 
 RAT_NAME = "#525"
 cfg = load_config()
-filenames, plot_choice = load_figure_maker(cfg, RAT_NAME, single_plot=True)
+filenames, plot_choice = load_figure_maker(cfg.paths.metrics / RAT_NAME, single_plot=True)
 
 check_analysis_choice(filenames, plot_choice)
 
 for i, metrics_path in enumerate(filenames) :
 
     metrics_path = Path(metrics_path) 
-    output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.parent.stem
+    output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.stem
 
     print(f"\n[{i+1}/{len(filenames)}]")
     print(f"Making figures of {metrics_path.parent.stem}\n")
