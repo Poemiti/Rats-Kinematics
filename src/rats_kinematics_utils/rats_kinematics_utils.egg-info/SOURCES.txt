@@ -1,0 +1,5 @@
+setup.py
+rats_kinematics_utils.egg-info/PKG-INFO
+rats_kinematics_utils.egg-info/SOURCES.txt
+rats_kinematics_utils.egg-info/dependency_links.txt
+rats_kinematics_utils.egg-info/top_level.txt

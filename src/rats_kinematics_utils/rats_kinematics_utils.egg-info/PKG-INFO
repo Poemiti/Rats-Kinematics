@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: rats_kinematics_utils
+Version: 1.1
+Summary: Utility modules to make analysis of Rats kinematics
+Author: Poemiti Duprat
+Author-email: poemiti.duprat@gmail.com
+License: MIT
+Requires-Python: >=3.10
+Dynamic: author
+Dynamic: author-email
+Dynamic: license
+Dynamic: requires-python
+Dynamic: summary
