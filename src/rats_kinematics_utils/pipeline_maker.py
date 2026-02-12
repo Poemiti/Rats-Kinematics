@@ -7,7 +7,7 @@ import numpy as np
 import joblib
 import sys
 
-from rats_kinematics_utils.file_management import make_database, is_csv, is_video, get_date
+from rats_kinematics_utils.file_management import make_database, is_csv, is_video, get_date, get_condition, get_clip_number
 import rats_kinematics_utils.database_filter as db
 import rats_kinematics_utils.figures_maker as fg
 
@@ -65,23 +65,8 @@ def init_metrics(coords: Path, lum: Path, clip: Path) :
             "filename_luminosity" : lum,
             "filename_clips" : clip,
             "date" : get_date(coords.stem), # datetime object
-
-            "trial_success" : False,
-            "lost_coords" : 0,
-            "pad_off" : 0.0,
-            "laser_on" : 0.0,
-
-            "average_distance" : 0,
-            "average_velocity" : 0,
-            "peak_velocity" : 0,
-            "tortuosity" : 0,
-            "instant_velocity" : None,
-            "acceleration" : None,
-
-            "xy_raw" : None,
-            "xy_filtered" : None,
-            "xy_pad_off" : None,
-            "xy_laser_on" : None
+            "condition" : get_condition(coords.stem),
+            "nb_clip" : get_clip_number(coords.stem),
         }
 
 
@@ -124,6 +109,14 @@ def check_times(time_pad_off, time_laser_on, n_frames, laser_duration):
 def check_non_empty(xy_filtered, time_pad_off):
     if len(xy_filtered) == 0:
         print(f"  ! Empty reaching coords, Pad off at {time_pad_off}")
+        return False
+    return True
+
+
+
+def check_reward(time_reward) : 
+    if time_reward is None : 
+        print("  ! Reward time is None")
         return False
     return True
 

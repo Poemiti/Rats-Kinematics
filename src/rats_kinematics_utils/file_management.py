@@ -564,8 +564,6 @@ def make_name_by_condition(name : str) :
                 result["laser_on"] = match
 
     new_name = [val for val in result.values() if val != "Unknown"]
-    print(f"old name : {name}")
-    print(f"new name : {new_name}")
 
     return "_".join(new_name)
 
@@ -586,6 +584,43 @@ def get_date(name : str) :
         match = extract_type(token, r'(\d{4}20\d{2}|20\d{6})')
         if match : 
             return parse_mixed_date(match)
+        
+
+
+
+def get_condition(name: str) :
+    name_comp = name.split("_")
+
+    condition = ""
+    state = ""
+
+    for token in name_comp:
+        match = extract_type(token, r"(Conti|NOstim|Beta)")
+        if match : 
+            condition += match
+    
+        match = extract_type(token, r"On|Off")
+        if match : 
+            state += match
+
+    return condition + "_" + state
+
+
+
+def get_clip_number(name: str):
+
+    match = re.search(r"clip_(\d+)", name)
+    if match:
+        return int(match.group(1))  # return the number as int
+    return None  # if no clip number found
+
+
+def get_session(name : str) : 
+
+    match = re.search(r"S\d+", name)
+    if match: 
+        return match.group(0)
+    return None
     
         
 def verify_exist(path) : 

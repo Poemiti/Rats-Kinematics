@@ -5,8 +5,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from rats_kinematics_utils.file_management import verify_exist
-from rats_kinematics_utils.plot_comparative import plot_stacked_velocity, plot_stacked_Yposition, plot_violin_distribution_velocity, plot_stacked_trajectories, plot_velocity_over_sessiontime
+from rats_kinematics_utils.file_management import verify_exist, get_session
+from rats_kinematics_utils.plot_comparative import plot_stacked_velocity, plot_stacked_Yposition, plot_violin_distribution_velocity, plot_stacked_trajectories, plot_velocity_over_sessiontime, plot_velocity_over_cliptime
 from rats_kinematics_utils.config import load_config
 from rats_kinematics_utils.pipeline_maker import load_metrics, load_figure_maker, make_output_path, check_analysis_choice
 
@@ -164,13 +164,58 @@ if plot_choice['plot_velocity_over_sessiontime'] :
         velocity.append(pd.Series(v["average_velocity"] for v in metrics if v.get('trial_success')))
         date.append(pd.Series(d["date"] for d in metrics if d.get('trial_success')))
 
-    ax = plot_velocity_over_sessiontime(cfg, velocity, date)
+    fig = plot_velocity_over_sessiontime(cfg, velocity, date)
 
-    plt.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "metrics_by_sessions", f"velocity_DETAIL_CHR_L1.png"))
+    fig.suptitle(f"Velocity over Session : {RAT_NAME}")
+    fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "metrics_by_sessions", f"velocity_over_session_DETAIL_CHR_L1.png"))
 
     if SHOW : 
         plt.show()
-    plt.close()
+    plt.close(fig)
+
+
+
+
+
+if plot_choice['plot_velocity_over_cliptime'] : 
+
+    data = pd.DataFrame()
+
+    for i, metrics_path in enumerate(filenames) :
+        metrics = load_metrics(Path(metrics_path))
+
+        for trial in metrics : 
+
+            if not trial["trial_success"] : 
+                continue
+
+            name = trial["filename_clips"].as_posix()
+            session = get_session(name)
+
+            df = pd.DataFrame({
+                "date": [trial["date"]],
+                "velocity": [trial["average_velocity"]],
+                "condition": [trial["condition"]],
+                "clip" : [trial["nb_clip"]],
+                "session" : [session]
+            })
+
+
+            data = pd.concat([data, df])
+
+    final_data = data.sort_values(
+                by=["date", "condition",  "clip", "session"],
+                ascending=[True, True, True, True], 
+            )
+    
+    fig = plot_velocity_over_cliptime(final_data)
+    # fig.suptitle(f"Velocity over clips of {RAT_NAME}   |   Default settings : beta=1mw, conti=0.5mw")
+    fig.suptitle(f"Velocity over clips of {RAT_NAME}   |   Greater settings : beta=2.5mw, conti=0.75mw")
+    fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "metrics_by_sessions", f"velocity_overclip_greater_DETAIL_CHR_L1.png"))
+
+    if SHOW : 
+        plt.show()
+    plt.close(fig)
 
 
 

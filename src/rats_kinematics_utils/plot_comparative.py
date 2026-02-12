@@ -259,25 +259,25 @@ def plot_violin_distribution_velocity(cfg, velocity_list) :
 
 
     df_long = pd.concat([
-        _pack(beta_OFF_1_velo, "Beta-NoStim", "conti=0.5, beta=1"),
-        _pack(conti_OFF_1_velo, "Conti-NoStim", "conti=0.5, beta=1"),
+        _pack(beta_OFF_1_velo, "Beta-OFF", "conti=0.5, beta=1"),
+        _pack(conti_OFF_1_velo, "Conti-OFF", "conti=0.5, beta=1"),
         _pack(beta_ON_1_velo, "Beta", "conti=0.5, beta=1"),
         _pack(conti_ON_1_velo, "Conti", "conti=0.5, beta=1"),
 
-        _pack(beta_OFF_2_velo, "Beta-NoStim", "conti=0.75, beta=2.5"),
-        _pack(conti_OFF_2_velo, "Conti-NoStim", "conti=0.75, beta=2.5"),
+        _pack(beta_OFF_2_velo, "Beta-OFF", "conti=0.75, beta=2.5"),
+        _pack(conti_OFF_2_velo, "Conti-OFF", "conti=0.75, beta=2.5"),
         _pack(beta_ON_2_velo, "Beta", "conti=0.75, beta=2.5"),
         _pack(conti_ON_2_velo, "Conti", "conti=0.75, beta=2.5"),
     ])
 
     # df_long = pd.concat([
-    #     _pack(beta_OFF_1_velo, "NoStim", "conti=0.5, beta=1"),
-    #     _pack(conti_OFF_1_velo, "NoStim", "conti=0.5, beta=1"),
+    #     _pack(beta_OFF_1_velo, "OFF", "conti=0.5, beta=1"),
+    #     _pack(conti_OFF_1_velo, "OFF", "conti=0.5, beta=1"),
     #     _pack(beta_ON_1_velo, "Beta", "conti=0.5, beta=1"),
     #     _pack(conti_ON_1_velo, "Conti", "conti=0.5, beta=1"),
 
-    #     _pack(beta_OFF_2_velo, "NoStim", "conti=0.75, beta=2.5"),
-    #     _pack(conti_OFF_2_velo, "NoStim", "conti=0.75, beta=2.5"),
+    #     _pack(beta_OFF_2_velo, "OFF", "conti=0.75, beta=2.5"),
+    #     _pack(conti_OFF_2_velo, "OFF", "conti=0.75, beta=2.5"),
     #     _pack(beta_ON_2_velo, "Beta", "conti=0.75, beta=2.5"),
     #     _pack(conti_ON_2_velo, "Conti", "conti=0.75, beta=2.5"),
     # ])
@@ -300,7 +300,7 @@ def plot_violin_distribution_velocity(cfg, velocity_list) :
         split=True,
         gap= .1,
         inner="quart",
-        order=["Conti-NoStim", "Beta-NoStim", "Conti", "Beta"],
+        order=["Conti-OFF", "Beta-OFF", "Conti", "Beta"],
         palette={"conti=0.5, beta=1": "lightblue", "conti=0.75, beta=2.5": "salmon"},
     )
 
@@ -313,7 +313,7 @@ def plot_violin_distribution_velocity(cfg, velocity_list) :
     #     split=True,
     #     gap= .1,
     #     inner="quart",
-    #     order=["NoStim", "Conti", "Beta"],
+    #     order=["OFF", "Conti", "Beta"],
     #     palette={"conti=0.5, beta=1": "lightblue", "conti=0.75, beta=2.5": "salmon"},
     # )
 
@@ -340,8 +340,8 @@ def plot_violin_distribution_velocity(cfg, velocity_list) :
     y_offset = 0.05 * y_max
 
     for _, row in counts.iterrows():
-        x = ["Conti-NoStim", "Beta-NoStim", "Conti", "Beta"].index(row["Condition"])
-        # x = ["NoStim", "Conti", "Beta"].index(row["Condition"])
+        x = ["Conti-OFF", "Beta-OFF", "Conti", "Beta"].index(row["Condition"])
+        # x = ["OFF", "Conti", "Beta"].index(row["Condition"])
         x += -0.15 if row["LaserIntensity"] == "conti=0.5, beta=1" else 0.20
 
         ax.text(
@@ -382,12 +382,18 @@ def plot_one_setting(ax, title, beta_OFF, conti_OFF, beta_ON, conti_ON):
 
 
     # combine OFF velocities and dates
-    vel_off = pd.concat([beta_OFF[0], conti_OFF[0]])
-    date_off = pd.concat([beta_OFF[1], conti_OFF[1]])
+    # vel_off = pd.concat([beta_OFF[0], conti_OFF[0]])
+    # date_off = pd.concat([beta_OFF[1], conti_OFF[1]])
 
-    # create a single DataFrame with a 'Condition' column
-    df_off = prepare_df(vel_off, date_off)
-    df_off["Condition"] = "OFF"
+    # # create a single DataFrame with a 'Condition' column
+    # df_off = prepare_df(vel_off, date_off)
+    # df_off["Condition"] = "OFF"
+
+    df_beta_OFF = prepare_df(beta_OFF[0], beta_OFF[1])
+    df_beta_OFF["Condition"] = "beta-off"
+
+    df_conti_OFF = prepare_df(conti_OFF[0], conti_OFF[1])
+    df_conti_OFF["Condition"] = "conti-off"
 
     df_beta_ON = prepare_df(beta_ON[0], beta_ON[1])
     df_beta_ON["Condition"] = "beta"
@@ -395,7 +401,7 @@ def plot_one_setting(ax, title, beta_OFF, conti_OFF, beta_ON, conti_ON):
     df_conti_ON = prepare_df(conti_ON[0], conti_ON[1])
     df_conti_ON["Condition"] = "conti"
 
-    df_all = pd.concat([df_off, df_beta_ON, df_conti_ON])
+    df_all = pd.concat([df_conti_OFF, df_beta_OFF, df_beta_ON, df_conti_ON])
     df_all["date"] = pd.to_datetime(df_all["date"])
 
     # seaborn stripplot
@@ -445,7 +451,7 @@ def plot_velocity_over_sessiontime(cfg, velocity_list, date_list):
     beta_OFF_2_velo = (velocity_list[1], date_list[1])
     conti_OFF_2_velo = (velocity_list[5], date_list[5])
 
-    beta_ON_2_velo =( velocity_list[3], date_list[3] )
+    beta_ON_2_velo =(velocity_list[3], date_list[3])
     conti_ON_2_velo = (velocity_list[7], date_list[7])
 
     # DEFAULT
@@ -468,5 +474,42 @@ def plot_velocity_over_sessiontime(cfg, velocity_list, date_list):
         conti_ON_2_velo,
     )
     
-    plt.tight_layout()
-    return axs
+    return fig
+
+
+
+
+
+def plot_velocity_over_cliptime(data) : 
+
+    nb_day = len(data["date"].unique())
+    fig, axs = plt.subplots(1, nb_day, figsize=(15, 5), sharey=True)
+    
+    for i, d in enumerate(data["date"].unique()) : 
+
+        df = data[data["date"] == d]
+        print(len(df))
+
+        sns.lineplot(
+            x="clip",
+            y="velocity",
+            hue="condition",
+            data=df,
+            # jitter=0.2,
+            # size=4,
+            alpha=0.7,
+            ax=axs[i],
+            style="condition",
+            hue_order=["Conti_Off", 'Beta_Off', "Conti_On", "Beta_On"],
+            markers=True
+        )
+            
+        axs[i].set_title(d.date())
+        axs[i].set_xlabel("Trial order")
+        axs[i].set_ylabel("Velocity (cm.s$^{-1}$)")
+        axs[i].grid(axis="y", alpha=0.3)
+        axs[i].legend(title="Condition")
+        axs[i].tick_params(axis='x', rotation=45)
+
+
+    return fig
