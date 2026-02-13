@@ -622,10 +622,28 @@ def get_session(name : str) :
         return match.group(0)
     return None
     
+
+
+def get_laser_intensity(name: str) : 
+
+    condition = extract_type(name, r"(Conti|NOstim|Beta)")
+    laser_state = extract_type(name, r"LaserOn|LaserOff")
+
+    laser_intensity = extract_type(name, r"\d,\d*(mW)")
+    if laser_intensity and condition:
+        return laser_intensity
+    
+    if not laser_intensity and condition == "Beta" : 
+        return "1mW"    
+    elif not laser_intensity and condition == "Conti" : 
+        return "0,5mW"
+    
+    return None
+
         
 def verify_exist(path) : 
     if not path.exists() : 
-        raise FileExistsError(f'This file does not exist : {path}')
+        raise FileExistsError(f'This file does not exist : {path}')    
 
 
 

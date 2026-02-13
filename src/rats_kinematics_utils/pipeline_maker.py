@@ -7,7 +7,7 @@ import numpy as np
 import joblib
 import sys
 
-from rats_kinematics_utils.file_management import make_database, is_csv, is_video, get_date, get_condition, get_clip_number
+from rats_kinematics_utils.file_management import make_database, is_csv, is_video, get_date, get_condition, get_clip_number, get_laser_intensity
 import rats_kinematics_utils.database_filter as db
 import rats_kinematics_utils.figures_maker as fg
 
@@ -67,6 +67,7 @@ def init_metrics(coords: Path, lum: Path, clip: Path) :
             "date" : get_date(coords.stem), # datetime object
             "condition" : get_condition(coords.stem),
             "nb_clip" : get_clip_number(coords.stem),
+            "laser_intensity" : get_laser_intensity(coords.stem),
         }
 
 

@@ -137,12 +137,13 @@ def plot_stacked_Yposition(cfg, metrics: dict) :
 
 
 
-def plot_stacked_trajectories(cfg, metrics) : 
+def plot_stacked_trajectories(cfg, metrics, ax: plt.axes = None) : 
     from rats_kinematics_utils.plot import plot_single_bodypart_trajectories
     from rats_kinematics_utils.pipeline_maker import check_trial_success
 
     all_coords = []
-    fig, ax = plt.subplots(figsize=(9, 7))
+    if not ax :
+        fig, ax = plt.subplots(figsize=(9, 7))
 
 
     for t, trial in enumerate(metrics) : 
@@ -479,37 +480,34 @@ def plot_velocity_over_sessiontime(cfg, velocity_list, date_list):
 
 
 
-
 def plot_velocity_over_cliptime(data) : 
 
-    nb_day = len(data["date"].unique())
-    fig, axs = plt.subplots(1, nb_day, figsize=(15, 5), sharey=True)
-    
-    for i, d in enumerate(data["date"].unique()) : 
+    g = sns.FacetGrid(
+        data=data,
+        row="condition",
+        col="date",
+        height=2,
+        aspect=2,
+        margin_titles=True,
+        palette="pastel",
+        legend_out=True,
+    )
 
-        df = data[data["date"] == d]
-        print(len(df))
-
-        sns.lineplot(
+    g.map_dataframe(
+        sns.lineplot,
             x="clip",
             y="velocity",
             hue="condition",
-            data=df,
-            # jitter=0.2,
-            # size=4,
+            data=data,
             alpha=0.7,
-            ax=axs[i],
             style="condition",
             hue_order=["Conti_Off", 'Beta_Off', "Conti_On", "Beta_On"],
             markers=True
         )
             
-        axs[i].set_title(d.date())
-        axs[i].set_xlabel("Trial order")
-        axs[i].set_ylabel("Velocity (cm.s$^{-1}$)")
-        axs[i].grid(axis="y", alpha=0.3)
-        axs[i].legend(title="Condition")
-        axs[i].tick_params(axis='x', rotation=45)
+    g.set_titles(col_template="{col_name}", row_template="{row_name}")
+    g.set_axis_labels("Trial order", "Velocity (cm.s$^{-1}$)")
+    g.tight_layout()
 
 
-    return fig
+    return g

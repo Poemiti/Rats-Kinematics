@@ -209,13 +209,13 @@ if plot_choice['plot_velocity_over_cliptime'] :
             )
     
     fig = plot_velocity_over_cliptime(final_data)
-    # fig.suptitle(f"Velocity over clips of {RAT_NAME}   |   Default settings : beta=1mw, conti=0.5mw")
-    fig.suptitle(f"Velocity over clips of {RAT_NAME}   |   Greater settings : beta=2.5mw, conti=0.75mw")
+    # fig.set_titles(f"Velocity over clips of {RAT_NAME}   |   Default settings : beta=1mw, conti=0.5mw")
+    # fig.suptitle(f"Velocity over clips of {RAT_NAME}   |   Greater settings : beta=2.5mw, conti=0.75mw")
     fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "metrics_by_sessions", f"velocity_overclip_greater_DETAIL_CHR_L1.png"))
 
     if SHOW : 
         plt.show()
-    plt.close(fig)
+    plt.close()
 
 
 

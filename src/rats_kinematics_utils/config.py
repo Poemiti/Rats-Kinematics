@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Literal
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, validator
 import yaml
 
 
@@ -17,7 +17,8 @@ class PathsConfig(BaseModel):
     frames: Path
     h5: Path
 
-    @field_validator("*", mode="before")
+    # @field_validator("*", mode="before")
+    @validator("*")
     @classmethod
     def expand_paths(cls, v):
         return Path(v).expanduser().resolve()

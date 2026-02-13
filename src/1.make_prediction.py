@@ -8,6 +8,10 @@ from rats_kinematics_utils.dlc_prediction import dlc_predict_Julien
 from rats_kinematics_utils.config import load_config
 from rats_kinematics_utils.pipeline_maker import load_database
 
+# lauching line : 
+#            nohup python3 -u 1.make_prediction.py > main.out &
+#            tail -f main.out 
+
 # Disable "weights only" before analyzing
 set_load_weights_only(False)
 
