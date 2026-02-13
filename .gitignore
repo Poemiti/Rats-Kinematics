@@ -7,11 +7,13 @@ utils/__pycache__/file_management.cpython-310.pyc
 data/
 exploration/
 Nicolas_Figures/
+src/rats_kinematics_utils.egg-info/
 
 *.csv 
 *.h5
 *.png
 
+src/test.py
 notes.txt
 old_course/
 
