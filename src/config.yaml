@@ -12,8 +12,8 @@ frame_width_px: 512 # pixels
 paths:
   # raw data
   model: "/media/filer2/T4b/Models/DLC/REJANE_rat_right_model-2025-06-18/DLC-project-2025-06-18"
-  raw_videos: "/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024"
-  # raw_videos: "/media/filer2/T4b/UserFolders/Raphael/Raphael_M2_2024/Opto_SkilledReaching_2024_experiments/MOVIES" 
+  # raw_videos: "/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024"
+  raw_videos: "/media/filer2/T4b/UserFolders/Raphael/Raphael_M2_2024/Opto_SkilledReaching_2024_experiments/MOVIES/#521_DONE" 
 
   # results folder
   metrics: ../data/metrics_results
@@ -27,5 +27,6 @@ paths:
   luminosity: ../data/luminosity
 
   # complementary folder
+  report: ../data/trial_report
   frames: ../data/frames
   h5: ../data/dlc_results

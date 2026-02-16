@@ -14,6 +14,7 @@ class PathsConfig(BaseModel):
     coords: Path
     database: Path
     luminosity: Path
+    report: Path
     frames: Path
     h5: Path
 

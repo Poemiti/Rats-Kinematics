@@ -170,6 +170,10 @@ g2.set_axis_labels("", "Failed trials count")
 g2.tight_layout()
 
 
+output_dir = cfg.paths.report / RAT_NAME
+output_dir.mkdir(parents=True, exist_ok=True)
+g1.savefig(output_dir / "overall_failed.png")
+g2.savefig(output_dir / "failing_reason.png")
 
 plt.show()
 plt.close("all")

@@ -553,7 +553,7 @@ def make_name_by_condition(name : str) :
                 result["cue_type"] = match
 
         if result["laser_intensity"] == "Unknown":
-            match = extract_type(token, r"\d,\d*(mW)")
+            match = extract_type(token, r"\d,\d*(mW)|\d*(mW)")
             if match:
                 result["laser_intensity"] = match
 

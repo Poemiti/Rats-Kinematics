@@ -248,7 +248,7 @@ def rename_file(file_path: Path, laser_on: bool, new_cue: str):
         raise FileExistsError(f"Target already exists: {new_path}")
 
     # /!\ WARNING this line rename file, must uncomment manually 
-    file_path.rename(new_path)
+    # file_path.rename(new_path)
 
     print(f"\nRenamed {file_path.name} into : \n\t{new_path.name}")
 

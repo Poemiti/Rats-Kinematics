@@ -12,14 +12,17 @@ from rats_kinematics_utils.pipeline_maker import load_database
 # ------------------------------------ setup ---------------------------------------
 
 cfg = load_config()
-DATABASE = load_database(cfg.paths.clips, cfg.paths.database, "video")
+RAT_NAME = "#521"
+DATABASE = load_database(cfg.paths.clips / RAT_NAME, cfg.paths.database, "video")
 
 RAT_NAME = DATABASE['rat_name'][0]
 
 # ------------------------------------ get luminosity + classify ---------------------------------------
 
+db = DATABASE[DATABASE["date"] != "20240529"]
+print(db)
 
-for i, video_path in enumerate(DATABASE["filename"].iloc[:]) : 
+for i, video_path in enumerate(db["filename"].iloc[:]) : 
     video_path = Path(video_path)
 
     print(f"\n[{i+1}/{len(DATABASE)}]")
