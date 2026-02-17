@@ -85,13 +85,14 @@ for i, coords_path in enumerate(filenames) :
         TRIAL_METRICS["pad_off"] = time_pad_off
         TRIAL_METRICS["laser_on"] = time_laser_on
         TRIAL_METRICS["reward"] = time_reward
+        TRIAL_METRICS["xy_raw"] = xy
         METRICS.append(TRIAL_METRICS)
         continue
     
     #  pad off -> laser off coords 
     xy_raw_pad_off = crop_xy(xy, time_pad_off, time_pad_off + cfg.laser_on_duration + 0.025) 
     xy_pad_off = crop_xy(xy_filtered, time_pad_off, time_pad_off + cfg.laser_on_duration + 0.025) 
-    xy_reward = crop_xy(xy_filtered, time_laser_on, time_reward) 
+    xy_reward = crop_xy(xy_filtered, time_pad_off, time_reward) 
 
     # laser on -> laser off coords
     if time_laser_on: 
@@ -108,6 +109,7 @@ for i, coords_path in enumerate(filenames) :
         TRIAL_METRICS["pad_off"] = time_pad_off
         TRIAL_METRICS["laser_on"] = time_laser_on
         TRIAL_METRICS["reward"] = time_reward
+        TRIAL_METRICS["xy_raw"] = xy
         METRICS.append(TRIAL_METRICS)
         continue
 
