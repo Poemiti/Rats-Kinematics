@@ -15,7 +15,7 @@ from rats_kinematics_utils.pipeline_maker import load_database, init_metrics, to
 # ------------------------------------ setup ---------------------------------------
 
 cfg = load_config()
-RAT_NAME = "#525"
+RAT_NAME = "#517"
 DATABASE = load_database(cfg.paths.coords / RAT_NAME, cfg.paths.database, "csv")
 
 output_dir = cfg.paths.metrics / RAT_NAME
@@ -78,8 +78,7 @@ for i, coords_path in enumerate(filenames) :
     xy_filtered = xy.loc[xy["likelihood"] >= cfg.threshold, ["x", "y", "t"]]
 
     # verification
-    if not check_reward(time_reward) or \
-    not check_times(time_pad_off, time_laser_on, len(xy), cfg.laser_on_duration) or \
+    if not check_times(time_pad_off, time_laser_on, len(xy), cfg.laser_on_duration) or \
     not check_non_empty(xy_filtered, time_pad_off):
         TRIAL_METRICS["trial_success"] = False
         TRIAL_METRICS["pad_off"] = time_pad_off
@@ -92,13 +91,17 @@ for i, coords_path in enumerate(filenames) :
     #  pad off -> laser off coords 
     xy_raw_pad_off = crop_xy(xy, time_pad_off, time_pad_off + cfg.laser_on_duration + 0.025) 
     xy_pad_off = crop_xy(xy_filtered, time_pad_off, time_pad_off + cfg.laser_on_duration + 0.025) 
-    xy_reward = crop_xy(xy_filtered, time_pad_off, time_reward) 
+
+    if check_reward(time_reward) :
+        xy_reward = crop_xy(xy_filtered, time_pad_off, time_reward) 
+    else :
+        xy_reward = None
 
     # laser on -> laser off coords
     if time_laser_on: 
         xy_laserOn = crop_xy(xy_filtered, time_laser_on, time_laser_on+0.3) 
     else : 
-        xy_laserOn = xy_pad_off
+        xy_laserOn = None
 
     n_lost_coords = len(xy_raw_pad_off) - len(xy_pad_off)
 

@@ -299,7 +299,7 @@ def classify_file(file_path: Path, videos: list) -> None:
             #     print(result["task"], token)
 
         if result["laser_intensity"] == "Unknown":
-            match = extract_type(token, r"\d,\d*(mW)")
+            match = extract_type(token, r"\d,\d*(mW)|\d*(mW)")
             if match:
                 result["laser_intensity"] = match
 

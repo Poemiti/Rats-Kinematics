@@ -251,7 +251,7 @@ def split_video(input_path: Path, output_path: Path,
             "-i", str(fixed_video_path),
             "-t", str(CLIP_DURATION),
 
-            "-c", "copy",
+            # "-c", "copy",
 
             str(output_path / f"{output_path.stem}_clip_{i:02d}.mp4")
         ]

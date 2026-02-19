@@ -4,8 +4,9 @@ import xarray as xr
 import pandas as pd
 import cv2
 import numpy as np
-import matplotlib.cm as cm
+import matplotlib
 import numba
+
 
 
 def annotate_video_from_xr(video_path: Path, output_path: Path, pose: xr.DataArray, radius=5, likelihood_threshold: int = 0.5):
@@ -53,7 +54,8 @@ def annotate_video_from_xr(video_path: Path, output_path: Path, pose: xr.DataArr
     num_frames = pose.sizes["frame_num"]
 
     # Colors per bodypart
-    cmap = cm.get_cmap("jet", num_bodyparts)
+    # cmap = cm.get_cmap("jet", num_bodyparts)    old version
+    cmap = matplotlib.colormaps.get_cmap("jet").resampled(num_bodyparts)
     colors = np.array([tuple(int(c * 255) for c in cmap(i)[:3]) for i in range(num_bodyparts)])
 
     # Precompute circle offsets
@@ -163,9 +165,10 @@ def annotate_video_from_csv(video_path: Path, csv_path: Path, output_path: Path,
 
     # Load CSV
     df = pd.read_csv(csv_path, header=[0, 1, 2])
-
+    
     # Drop scorer level to get only (bodypart, coord)
     df.columns = df.columns.droplevel(0)
+    df = df.iloc[1:].reset_index(drop=True)
 
     bodyparts = list(df.columns.get_level_values(0).unique())
     bodyparts.remove("bodyparts")
@@ -194,7 +197,8 @@ def annotate_video_from_csv(video_path: Path, csv_path: Path, output_path: Path,
     )
 
     # Colors per bodypart
-    cmap = cm.get_cmap("jet", num_bodyparts)
+    # cmap = cm.get_cmap("jet", num_bodyparts)    old version
+    cmap = matplotlib.colormaps.get_cmap("jet").resampled(num_bodyparts)
     colors = np.array(
         [tuple(int(c * 255) for c in cmap(i)[:3]) for i in range(num_bodyparts)],
         dtype=np.uint8,
@@ -382,89 +386,4 @@ def annotate_single_bodypart(video_path: Path,
 
 if __name__ == "__main__" : 
 
-    # Disable "weights only" before analyzing
-    set_load_weights_only(False)
-
-    # -------------------------------------- setup path ------------------------------------
-
-    # inputs (should exist)
-    GENERATED_DATA_DIR = Path("../exploration/data")
-    DATABASE_PATH = GENERATED_DATA_DIR / "database/rat_517_H001.csv"  # if it does not exist, make one with make_database (in file_management.py)
-
-    # get the path for a video (path in a premade database)
-    database = pd.read_csv(DATABASE_PATH)
-    VIDEO_EXEMPLE = Path(database.iloc[0]["filename"])
-    INPUT_VIDEO_PATH = GENERATED_DATA_DIR / "clips" / VIDEO_EXEMPLE.stem / f"{VIDEO_EXEMPLE.stem}_clip_00.mp4"
-    MODEL_PATH = Path("/media/filer2/T4b/Models/DLC/REJANE_rat_right_model-2025-06-18/DLC-project-2025-06-18")
-
-    # outputs
-    OUTPUT_H5_PATH = GENERATED_DATA_DIR / "dlc_results" / VIDEO_EXEMPLE.stem 
-    OUTPUT_CSV_PATH = GENERATED_DATA_DIR / "csv_results" / VIDEO_EXEMPLE.stem
-    OUTPUT_VIDEO_PATH = GENERATED_DATA_DIR / "video_annotation" / VIDEO_EXEMPLE.stem
-
-
-   # -------------------------------------- prediction ------------------------------------
-
-    print("\nVideo Annotation ...\n")
-
-    from rats_kinematics_utils.dlc_prediction import dlc_predict_Julien
-    from deeplabcut.pose_estimation_pytorch import set_load_weights_only
-
-    dlc_points_xr = dlc_predict_Julien(MODEL_PATH, 
-                                       INPUT_VIDEO_PATH)
-
-
-    anot_start = time.perf_counter()
-
-    annotate_video_from_xr(INPUT_VIDEO_PATH, 
-                           OUTPUT_VIDEO_PATH / f"annotated_xr_allbodypart_{INPUT_VIDEO_PATH.stem}.mp4", 
-                           dlc_points_xr, radius=5, likelihood_threshold=0.5) # default radius
-
-    anot_end = time.perf_counter()
-
-    # -------------------------------------- video anotation ------------------------------------
-
-    anot_start_csv = time.perf_counter()
-
-    annotate_video_from_csv(INPUT_VIDEO_PATH, 
-                            OUTPUT_CSV_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.csv", 
-                            OUTPUT_VIDEO_PATH / f"annotated_csv_allbodypart_{INPUT_VIDEO_PATH.stem}.mp4", 
-                            radius=5, likelihood_threshold=0.5)
-    
-    anot_end_csv = time.perf_counter()
-
-
-    # -------------------------------------- video anotation of single bodypart ------------------------------------
-
-    annotate_single_bodypart(video_path= INPUT_VIDEO_PATH,
-                             csv_path=OUTPUT_CSV_PATH / f"pred_results_{INPUT_VIDEO_PATH.stem}.csv",
-                             output_path=OUTPUT_VIDEO_PATH / f"annotated_lefthand_{INPUT_VIDEO_PATH.stem}.mp4",
-                             bodypart_name="left_hand",
-                             radius=5,
-                             likelihood_threshold=0.5)
-
-    # -------------------------------------- display performance ------------------------------------
-
-
-    annotation_time = anot_end - anot_start
-    annotation_time_csv = anot_end_csv - anot_start_csv
-
-    total_n_clip = 27692               # 27692 : calculated in split_video_by_trial.py
-    total_time_annotation = ((annotation_time * total_n_clip) / 60 ) / 60 # h
-    total_time_annotation_csv = ((annotation_time_csv * total_n_clip) / 60 ) / 60 # h
-
-    print(f"\nPerformance : ")
-    print(f"  Video annotation time (xarray)                :  {annotation_time:.2f} sec")
-    print(f"  Video annotation time (csv)                   :  {annotation_time_csv:.2f} sec\n")
-
-    print(f"\nOVERALL PERFOMANCE PREDICTION")
-    print(f"  Video annotation time (xarray)   :  {total_time_annotation:.2f} h")
-    print(f"  Video annotation time (csv)      :  {total_time_annotation_csv:.2f} h\n")
-
-    # Performance : 
-    #   Video annotation time (xarray)                :  1.06 sec
-    #   Video annotation time (csv)                   :  0.79 sec
-
-    # OVERALL PERFORMANCE PREDICTION : 
-    #   Video annotation time (xarray)   :  8.16 h
-    #   Video annotation time (csv)      :  6.05 h
+    print("no main")

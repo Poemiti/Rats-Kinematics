@@ -253,6 +253,18 @@ def rename_file(file_path: Path, laser_on: bool, new_cue: str):
     print(f"\nRenamed {file_path.name} into : \n\t{new_path.name}")
 
 
+def remove_file(file_path : Path) : 
+    if not isinstance(file_path, Path):
+        raise TypeError("file_path must be a pathlib.Path object")
+
+    if not file_path.exists():
+        raise FileNotFoundError(f"No such file: '{file_path}'")
+
+    if file_path.is_dir():
+        raise IsADirectoryError(f"Expected a file but got a directory: '{file_path}'")
+
+    file_path.unlink()
+
 
 def get_time_led_on(luminosity_path: Path, 
                     LED: str = "LED_4", 
