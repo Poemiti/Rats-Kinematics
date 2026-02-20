@@ -291,6 +291,7 @@ def get_time_led_off(luminosity_path: Path,
                     LED: str = "LED_3", 
                     in_sec: bool = False, 
                     fps: int =125) : 
+    print(LED)
     luminosities = pd.read_csv(luminosity_path)
 
     # clean dataframe

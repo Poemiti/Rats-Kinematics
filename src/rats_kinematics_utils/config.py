@@ -52,10 +52,10 @@ class Config(BaseModel):
     @property
     def task_pad(self) -> str:
         """return which pad we should be looking at depending on the task
-        L1 (left lever) : PAD_3
-        L2 (right lever) : PAD_2"""
+        L1 (left lever) : LED_3
+        L2 (right lever) : LED_2"""
         
-        return "PAD_3" if self.task == "L1" else "PAD_2"
+        return "LED_3" if self.task == "L1" else "LED_2"
 
 
 def load_config(path: str = "config.yaml") -> Config:
