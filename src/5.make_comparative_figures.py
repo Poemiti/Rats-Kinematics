@@ -8,13 +8,16 @@ import matplotlib.pyplot as plt
 from rats_kinematics_utils.file_management import verify_exist, get_session
 from rats_kinematics_utils.plot_comparative import plot_stacked_velocity, plot_stacked_Yposition, plot_violin_distribution_velocity, plot_stacked_trajectories, plot_velocity_over_sessiontime, plot_velocity_over_cliptime
 from rats_kinematics_utils.config import load_config
-from rats_kinematics_utils.pipeline_maker import load_metrics, load_figure_maker, make_output_path, check_analysis_choice
+from rats_kinematics_utils.pipeline_maker import load_metrics, load_figure_maker, make_output_path, check_analysis_choice, print_analysis_info
 
 # ------------------------------------ setup ---------------------------------------
 
-RAT_NAME = "#525"
 SHOW = True
 cfg = load_config()
+print_analysis_info(cfg, "Making comparative figures")
+
+
+RAT_NAME = cfg.rat_name
 filenames, plot_choice = load_figure_maker(cfg.paths.metrics / RAT_NAME, single_plot=False)
 
 check_analysis_choice(filenames, plot_choice)

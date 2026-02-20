@@ -6,13 +6,16 @@ import pandas as pd
 from rats_kinematics_utils.file_management import is_left_view
 from rats_kinematics_utils.led_detection import get_luminosity, rename_file, define_cue_type, is_led_on, remove_file
 from rats_kinematics_utils.config import load_config
-from rats_kinematics_utils.pipeline_maker import load_database
+from rats_kinematics_utils.pipeline_maker import load_database, print_analysis_info
 
 
 # ------------------------------------ setup ---------------------------------------
 
 cfg = load_config()
-RAT_NAME = "#521"
+print_analysis_info(cfg, "Reading leads")
+
+
+RAT_NAME = cfg.rat_name
 DATABASE = load_database(cfg.paths.clips / RAT_NAME, cfg.paths.database, "video")
 
 RAT_NAME = DATABASE['rat_name'][0]
@@ -20,7 +23,7 @@ RAT_NAME = DATABASE['rat_name'][0]
 # ------------------------------------ get luminosity + classify ---------------------------------------
 
 
-for i, video_path in enumerate(DATABASE["filename"].iloc[622:]) : 
+for i, video_path in enumerate(DATABASE["filename"].iloc[:]) : 
     video_path = Path(video_path)
 
     print(f"\n[{i+1}/{len(DATABASE)}]")

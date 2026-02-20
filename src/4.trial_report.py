@@ -8,7 +8,7 @@ import seaborn as sns
 import yaml
 
 from rats_kinematics_utils.config import load_config
-from rats_kinematics_utils.pipeline_maker import load_metrics
+from rats_kinematics_utils.pipeline_maker import load_metrics, print_analysis_info
 
 
 # ------- plot styling -------
@@ -161,8 +161,11 @@ def plot_trial_report(yaml_file: Path, output_path: Path) :
 # -------------------------------- main -----------------------------------------
 
 
-RAT_NAME = "#517"
 cfg = load_config()
+print_analysis_info(cfg, "Trials reporting")
+
+
+RAT_NAME = cfg.rat_name
 filenames = list((cfg.paths.metrics / RAT_NAME).glob("*.joblib"))
 output_dir = cfg.paths.report / RAT_NAME
 output_dir.mkdir(parents=True, exist_ok=True)

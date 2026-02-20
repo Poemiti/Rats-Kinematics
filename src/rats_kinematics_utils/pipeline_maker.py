@@ -165,3 +165,14 @@ def load_metrics(path: Path) -> dict :
 def make_output_path(base_dir, file_name):
     base_dir.mkdir(parents=True, exist_ok=True)
     return base_dir / file_name
+
+
+# ----------------- display info ---------------------------
+
+def print_analysis_info(cfg, analysis) : 
+    print(f"\n====== {analysis} of {cfg.rat_name} ======")
+    print(f"  bodypart : {cfg.bodypart}")
+    print(f"  view : {cfg.view}")
+    print(f"  task : {cfg.task} -> {cfg.task_pad}")
+    print(f"  cm per pixel : {cfg.cm_per_pixel}")
+    print(f"============================================\n")

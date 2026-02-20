@@ -10,12 +10,15 @@ from rats_kinematics_utils.plot import plot_single_bodypart_trajectories, plot_3
 from rats_kinematics_utils.split_video import split_clip_range
 
 from rats_kinematics_utils.config import load_config
-from rats_kinematics_utils.pipeline_maker import load_metrics, load_figure_maker, make_output_path, check_analysis_choice, check_trial_success
+from rats_kinematics_utils.pipeline_maker import load_metrics, load_figure_maker, make_output_path, check_analysis_choice, check_trial_success, print_analysis_info
 
 # ------------------------------------ setup ---------------------------------------
 
-RAT_NAME = "#525"
 cfg = load_config()
+print_analysis_info(cfg, "Making single figures")
+
+
+RAT_NAME = cfg.rat_name
 filenames, plot_choice = load_figure_maker(cfg.paths.metrics / RAT_NAME, single_plot=True)
 
 check_analysis_choice(filenames, plot_choice)

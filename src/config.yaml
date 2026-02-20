@@ -1,13 +1,17 @@
 
-# parameters
+# parameter
+rat_name: "#521"
+bodypart: right_hand 
+view: right           # camera view
+task: "L2"            # L1: left lever, L2: right lever
+
+# hyper parameters
 threshold: 0.5
-bodypart: left_hand
 fps: 125
-clip_length: 12.5   # sec
+clip_length: 12.5       # sec
 laser_on_duration: 0.3  # sec 
 max_lost_coords: 10
-view: left
-frame_width_px: 512 # pixels
+frame_width_px: 512     # pixels
 
 paths:
   # raw data

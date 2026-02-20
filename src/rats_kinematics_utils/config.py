@@ -27,13 +27,16 @@ class PathsConfig(BaseModel):
 
 
 class Config(BaseModel):
-    threshold: float = Field(..., ge=0.0, le=1.0)
+    rat_name: str
     bodypart: str
+    view: Literal["left", "right"]
+    task: Literal["L1", "L2"]
+
+    threshold: float = Field(..., ge=0.0, le=1.0)
     fps: int = Field(..., gt=0)
     clip_length: float = Field(..., gt=0)
     laser_on_duration: float = Field(..., gt=0)
     max_lost_coords: int = Field(..., ge=0)
-    view: Literal["left", "right"]
     frame_width_px: int = Field(..., gt=0)
 
     paths: PathsConfig
@@ -45,6 +48,14 @@ class Config(BaseModel):
     @property
     def cm_per_pixel(self) -> float:
         return self.frame_width_cm / self.frame_width_px
+    
+    @property
+    def task_pad(self) -> str:
+        """return which pad we should be looking at depending on the task
+        L1 (left lever) : PAD_3
+        L2 (right lever) : PAD_2"""
+        
+        return "PAD_3" if self.task == "L1" else "PAD_2"
 
 
 def load_config(path: str = "config.yaml") -> Config:

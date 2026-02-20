@@ -10,12 +10,15 @@ from rats_kinematics_utils.trajectory_metrics import Trajectory, crop_xy
 from rats_kinematics_utils.led_detection import get_time_led_on, get_time_led_off
 
 from rats_kinematics_utils.config import load_config
-from rats_kinematics_utils.pipeline_maker import load_database, init_metrics, to_yaml, check_lost_coords, check_non_empty, check_times, check_reward
+from rats_kinematics_utils.pipeline_maker import load_database, init_metrics, to_yaml, check_lost_coords, check_non_empty, check_times, check_reward, print_analysis_info
 
 # ------------------------------------ setup ---------------------------------------
 
 cfg = load_config()
-RAT_NAME = "#517"
+print_analysis_info(cfg, "Computing metrics")
+
+
+RAT_NAME = cfg.rat_name
 DATABASE = load_database(cfg.paths.coords / RAT_NAME, cfg.paths.database, "csv")
 
 output_dir = cfg.paths.metrics / RAT_NAME
@@ -67,7 +70,7 @@ for i, coords_path in enumerate(filenames) :
                                         clip_path)
     
 
-    time_pad_off = get_time_led_off(luminosity_path, "LED_3", in_sec=True) # in sec
+    time_pad_off = get_time_led_off(luminosity_path, cfg.task_pad, in_sec=True) # in sec
     time_laser_on = get_time_led_on(luminosity_path, "LED_4", in_sec=True) # in sec
     time_reward = get_time_led_on(luminosity_path, "LED_5", in_sec=True)
 

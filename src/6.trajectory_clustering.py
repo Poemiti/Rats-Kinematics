@@ -9,7 +9,7 @@ import time
 import seaborn as sns
 
 from rats_kinematics_utils.config import load_config
-from rats_kinematics_utils.pipeline_maker import load_metrics
+from rats_kinematics_utils.pipeline_maker import load_metrics, print_analysis_info
 from rats_kinematics_utils.clustering import extract_trajectories, make_distance_matrix, plot_true_clustered_traj, plot_clustered_trajectories, display_distance_matrix, plot_trajectories
 
 from sklearn.cluster import HDBSCAN
@@ -20,8 +20,11 @@ from sklearn.preprocessing import LabelEncoder
 
 SHOW = False
 NORMALIZE = False
-RAT_NAME = "#525"
 cfg = load_config()
+print_analysis_info(cfg, "Trajectory Clustering")
+
+
+RAT_NAME = cfg.rat_name
 
 matrix_dir = cfg.paths.metrics / "distance_matrix" / RAT_NAME
 figures_dir = cfg.paths.figures / RAT_NAME / "distance_matrix" 
