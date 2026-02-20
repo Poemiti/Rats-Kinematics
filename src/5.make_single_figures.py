@@ -150,7 +150,7 @@ for i, metrics_path in enumerate(filenames) :
             axs[2].set_xlabel("Time (s)")
             axs[2].set_ylabel("Position (pixel)")
             axs[2].invert_yaxis()
-            axs[2].set_xlim(trial["pad_off"]-0.015, trial["laser_on"] +  0.325)
+            axs[2].set_xlim(trial["pad_off"]-0.015, trial["pad_off"] +  0.4)
 
             plt.savefig(make_output_path(output_fig_dir / "metric_over_time", f"metricOverTime_{trial_name}.png"))
             plt.close(fig)

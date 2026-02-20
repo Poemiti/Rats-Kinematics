@@ -288,8 +288,10 @@ def classify_file(file_path: Path, videos: list) -> None:
                 result["view"] = match
 
         if result["task"] == "Unknown" and token in [
-            "onlyL1LeftHand", "onlyL2", "onlyL1",
+            "onlyL1LeftHand", "onlyL2", "onlyL1", "onlyL2RightHand"
             "L1", "L2", "L1L2", "L1L26040", "L1L25050", "L1-60", "L2-40",
+
+            "CueL2RightHand",
             "CueL1", "CueL2" # those 2 are for renamed clip (led_detection.py) that tell exactly which cue is on
         ]:
             result["task"] = token
@@ -627,9 +629,8 @@ def get_session(name : str) :
 def get_laser_intensity(name: str) : 
 
     condition = extract_type(name, r"(Conti|NOstim|Beta)")
-    laser_state = extract_type(name, r"LaserOn|LaserOff")
-
     laser_intensity = extract_type(name, r"\d,\d*(mW)")
+
     if laser_intensity and condition:
         return laser_intensity
     
@@ -637,7 +638,10 @@ def get_laser_intensity(name: str) :
         return "1mW"    
     elif not laser_intensity and condition == "Conti" : 
         return "0,5mW"
+    elif not laser_intensity and condition == "NOstim" : 
+        return "NOstim"
     
+    print("No laser intensity found")
     return None
 
         

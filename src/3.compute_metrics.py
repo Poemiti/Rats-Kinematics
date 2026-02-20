@@ -40,12 +40,13 @@ filenames = (
 
 # ------------------------------------ loop ---------------------------------------
 
+ALL_METRICS = {}
 
 for i, coords_path in enumerate(filenames) : 
     coords_path = Path(coords_path)
 
-    print(f"\n[{i+1}/{len(filenames)}]")
-    print(f"Getting coords of {coords_path}\n")
+    # print(f"\n[{i+1}/{len(filenames)}]")
+    # print(f"Getting coords of {coords_path}\n")
 
     # get time when pad is ON or OFF
     luminosity_path = cfg.paths.luminosity / RAT_NAME / coords_path.parent.stem / f"luminosity_{coords_path.stem.replace('pred_results_', '')}.csv"
@@ -55,8 +56,12 @@ for i, coords_path in enumerate(filenames) :
     
     # if new condition, save metrics.yaml + initialise metrics dictionary + make new folder
     new_filename = make_name_by_condition(coords_path.stem)
-    if new_filename != old_filename : 
-        joblib.dump(METRICS, output_dir / f"{old_filename}.joblib")
+    if new_filename != old_filename: 
+        if old_filename in ALL_METRICS.keys() : 
+            for trial_metric in METRICS :
+                ALL_METRICS[old_filename].append(trial_metric)
+        else : 
+            ALL_METRICS[old_filename] = METRICS
 
         old_filename = new_filename
         METRICS = []
@@ -119,7 +124,7 @@ for i, coords_path in enumerate(filenames) :
         METRICS.append(TRIAL_METRICS)
         continue
 
-    print("  success")
+    # print("  success")
     # compute metrics
     Traj_pad_off = Trajectory(xy_pad_off, cm_per_pixel=cfg.cm_per_pixel)
     
@@ -145,6 +150,17 @@ for i, coords_path in enumerate(filenames) :
     
     METRICS.append(TRIAL_METRICS)
 
-joblib.dump(METRICS, output_dir / f"{old_filename}.joblib")
+ALL_METRICS[old_filename] = METRICS
+n_trial = 0 
+
+print(f"\n.joblib files Outputs :")
+for filename, metrics in ALL_METRICS.items() : 
+    print(f"  {filename} : {len(metrics)}")
+    joblib.dump(metrics, output_dir / f"{filename}.joblib")
+    n_trial += len(metrics)
+
+print(f"Number of joblib files generated: {len(ALL_METRICS)}")
+print(f"Number of trials processed: {n_trial}")
+print(f"Number of true pred.csv processed: {len(filenames)}")
 print("Done !")
 

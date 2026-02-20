@@ -134,14 +134,15 @@ def check_analysis_choice(files, choice) :
 
 
 
-def check_trial_success(trial) : 
+def check_trial_success(trial, may_restriction: bool = False) : 
     if not trial["trial_success"] :
         print("Trial success : ", trial["trial_success"])
         return False 
-    elif "202405" in  trial["filename_clips"].as_posix() or \
-        "052024" in trial["filename_clips"].as_posix() : 
-        print("Trial made in may 2024, skipped")
-        return False
+    if may_restriction : 
+        if "202405" in  trial["filename_clips"].as_posix() or \
+            "052024" in trial["filename_clips"].as_posix() : 
+            print("Trial made in may 2024, skipped")
+            return False
     return True
         
 

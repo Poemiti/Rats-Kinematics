@@ -12,7 +12,7 @@ from rats_kinematics_utils.pipeline_maker import load_metrics, load_figure_maker
 
 # ------------------------------------ setup ---------------------------------------
 
-SHOW = True
+SHOW = False
 cfg = load_config()
 print_analysis_info(cfg, "Making comparative figures")
 
@@ -112,7 +112,7 @@ if plot_choice["plot_stacked_trajectories"] :
 
         ax.set_xlabel("x (cm)")
         ax.set_ylabel("y (cm)")
-        ax.set_title(f"Stacked Trajectories of \n{metrics_path.parent.stem}")
+        ax.set_title(f"Stacked Trajectories of \n{metrics_path.stem}")
 
         ax.invert_xaxis()
 

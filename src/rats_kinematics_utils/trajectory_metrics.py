@@ -91,8 +91,13 @@ class Trajectory:
 
     def instant_velocity(self, coords: pd.DataFrame | None = None) -> pd.Series:
         """Instantaneous velocity"""
+        if coords is None:
+            coords = self.coords
+
         v = self.velocity_vector(coords)
-        return np.sqrt(v["vx"]**2 + v["vy"]**2)
+        velo = np.sqrt(v["vx"]**2 + v["vy"]**2)
+        return pd.DataFrame({'t': coords["t"],
+                             "velocity": velo})
 
     def mean_speed(self, coords: pd.DataFrame | None = None) -> float:
         """
@@ -128,8 +133,11 @@ class Trajectory:
 
     def peak_speed(self, coords: pd.DataFrame | None = None) -> float:
         """ Peak instantaneous speed """
+        if coords is None:
+            coords = self.coords
+
         s = self.instant_velocity(coords)
-        peaks, _ = find_peaks(s.dropna())
+        peaks, _ = find_peaks(s["velocity"].dropna())
         if len(peaks) == 0:
             return np.nan
         return s.iloc[peaks].max()
@@ -138,9 +146,14 @@ class Trajectory:
 
     def acceleration(self, coords: pd.DataFrame | None = None) -> pd.Series:
         """ Instantaneous acceleration magnitude """
+        if coords is None:
+            coords = self.coords
+
         v = self.velocity_vector(coords)[["vx", "vy"]]
         a = v.diff() / self.dt
-        return np.sqrt(a["vx"]**2 + a["vy"]**2)
+        acc= np.sqrt(a["vx"]**2 + a["vy"]**2)
+        return pd.DataFrame({'t': coords["t"],
+                             "acceleration": acc})
 
 
 

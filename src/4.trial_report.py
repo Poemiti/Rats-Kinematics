@@ -41,17 +41,19 @@ def trial_report(trials: list[dict]) -> dict:
             "No pad off": new_block(intensities),
         }
 
-    report = {
-        "Total number of trials": len(trials),
-        "Beta trials": init_group(["1mW", "2,5mW"]),
-        "Conti trials": init_group(["0,5mW", "0,75mW"]),
-    }
-
     def update(group, outcome, laser_state, intensity):
         group["Total"] += 1
         group[outcome]["Total"] += 1
         group[outcome][laser_state]["Total"] += 1
         group[outcome][laser_state][intensity] += 1
+
+
+    report = {
+        "Total number of trials": len(trials),
+        "Beta trials": init_group(["1mW", "2,5mW"]),
+        "Conti trials": init_group(["0,5mW", "0,75mW", "2,5mW"]),
+        "NOstim trials": init_group(["NOstim"]),
+    }
 
     #--------------------- loop ---------------------------
 
@@ -61,15 +63,19 @@ def trial_report(trials: list[dict]) -> dict:
 
         if "Beta" in condition:
             group = report["Beta trials"]
-        else:
+        elif "Conti" in condition:
             group = report["Conti trials"]
+        else : 
+            group = report["NOstim trials"]
 
         laser_state = "Laser ON" if "On" in condition else "Laser OFF"
 
         # Successful
         if t["trial_success"]:
-            update(group, "Successful", laser_state, intensity)
-
+            try : 
+                update(group, "Successful", laser_state, intensity)
+            except :
+                raise KeyError(f"{condition} {laser_state} {intensity}")
         # No pad off
         elif not t["pad_off"]:
             update(group, "No pad off", laser_state, intensity)
@@ -79,7 +85,7 @@ def trial_report(trials: list[dict]) -> dict:
             update(group, "No reward", laser_state, intensity)
 
         # No coords
-        elif not t["trial_success"] and t["lost_coords"]:
+        elif not t["lost_coords"]:
             update(group, "Too much lost coords", laser_state, intensity)
 
     return report
@@ -91,8 +97,9 @@ def plot_trial_report(yaml_file: Path, output_path: Path) :
         data = yaml.safe_load(f)
 
     rows = []
+    total = 0
 
-    for trial_type in ["Beta trials", "Conti trials"]:
+    for trial_type in ["Beta trials", "Conti trials", "NOstim trials"]:
         trial_block = data[trial_type]
 
         for outcome in trial_block:
@@ -106,6 +113,7 @@ def plot_trial_report(yaml_file: Path, output_path: Path) :
 
                 for power, value in laser_block.items():
                     if power == "Total":
+                        total = power
                         continue
 
                     rows.append({
@@ -171,7 +179,7 @@ output_dir = cfg.paths.report / RAT_NAME
 output_dir.mkdir(parents=True, exist_ok=True)
 report_path = output_dir / "trial_report.yaml"
 
-if not report_path.exists() : 
+if report_path.exists() : 
     print("Making trial report ...")
     all_trials = []
     for i, metrics_path in enumerate(filenames) :
@@ -180,8 +188,9 @@ if not report_path.exists() :
         for trial in metrics : 
             all_trials.append(trial)
 
+    print("True number of trials :", len(all_trials))
     report = trial_report(all_trials)
-
+    print(report.keys())
     # save report
     with open(output_dir / "trial_report.yaml", "w") as file :
         yaml.dump(report, file, default_flow_style=False, indent=4, sort_keys=False)

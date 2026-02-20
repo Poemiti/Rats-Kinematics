@@ -124,10 +124,10 @@ def define_cue_type(luminosities) :
     for t, luminosity in enumerate(luminosities) :
         luminosity = float(luminosity) 
 
-        if luminosity >= 50 : 
+        if luminosity >= 100 : 
             time += 1
 
-        if luminosity < 50 and time > 5 : 
+        if luminosity < 100 and time > 5 : 
             cue_count += 1
             time = 0
 
@@ -166,7 +166,7 @@ def is_led_on(luminosities) -> tuple[bool, float] :
     for t, luminosity in enumerate(luminosities) :
             luminosity = float(luminosity) 
 
-            if luminosity > 50 : 
+            if luminosity > 100 : 
                 time += 1
                 if first_time_on is None : 
                     first_time_on = t
@@ -186,7 +186,7 @@ def is_led_off(luminosities : pd.DataFrame) -> bool :
     for t, luminosity in enumerate(luminosities) :
             luminosity = float(luminosity) 
 
-            if luminosity < 50 : 
+            if luminosity < 100 : 
                 time += 1
                 if first_time_off is None : 
                     first_time_off = t
@@ -291,7 +291,6 @@ def get_time_led_off(luminosity_path: Path,
                     LED: str = "LED_3", 
                     in_sec: bool = False, 
                     fps: int =125) : 
-    print(LED)
     luminosities = pd.read_csv(luminosity_path)
 
     # clean dataframe
