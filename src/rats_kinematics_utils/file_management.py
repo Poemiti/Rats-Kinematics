@@ -190,138 +190,6 @@ def dict_to_df(dict : dict) -> pd.DataFrame :
     return pd.DataFrame(dict)
 
 
-def extract_type(input : str, regex : str) -> str : 
-    """
-    Extract a substring from a string using a regular expression.
-
-    Parameters
-    ----------
-    input : str
-        Input string to search.
-    regex : str
-        Regular expression pattern.
-
-    Returns
-    -------
-    str or None
-        The matched substring if found, otherwise None.
-    """
-
-    match = re.search(regex, input)
-
-    if match : 
-        return match.group(0)
-    
-    return None
-
-
-def classify_file(file_path: Path, videos: list) -> None:
-    """
-    Parse a video file_path and extract experimental metadata.
-
-    The function decomposes the file_path into tokens that are then
-    used to classify the file in certain categories.
-    The extracted metadata is appended as a dictionary to `videos`.
-
-    Parameters
-    ----------
-    file_path : pathlib.Path
-        Full path or name of the video file.
-    videos : list
-        List to which the extracted metadata dictionary is appended.
-
-    Returns
-    -------
-    None"""
-    
-    name_comp = decompose_filename(file_path.stem)
-
-    result = {
-        "rat_name": "Unknown",
-        "rat_type": "Unknown",
-        "condition": "Unknown",
-        "stim_location": "Unknown",
-        "task": "Unknown",
-        "handedness": "Unknown",
-        "session": "Unknown",
-        "view": "Unknown",
-        "laser_intensity": "Unknown",
-        "laser_on" : "Unknown",
-        "date" : "Unknown"
-    }
-
-    for token in name_comp:
-
-        if result["rat_name"] == "Unknown" :
-            match = extract_type(token, r"^#(\d\d\d)")
-            if match:
-                result["rat_name"] = match
-
-        if result["rat_type"] == "Unknown":
-            match = extract_type(token, r"(CTRL|CHR)")
-            if match:
-                result["rat_type"] = match
-
-        if result["condition"] == "Unknown":
-            match = extract_type(token, r"(Conti|NOstim|Beta)")
-            if match:
-                result["condition"] = match
-
-        if result["stim_location"] == "Unknown":
-            match = extract_type(token, r"(LeftHemi|RightHemi|Ipsi|ipsi|Bilateral|Contra)")
-            if match:
-                result["stim_location"] = match
-
-        if result["handedness"] == "Unknown":
-            match = extract_type(token, r"(Ambidexter|LeftHanded|RightHanded)")
-            if match:
-                result["handedness"] = match
-
-        if result["session"] == "Unknown":
-            match = extract_type(token, r"S\d+")
-            if match:
-                result["session"] = match
-
-        if result["view"] == "Unknown":
-            match = extract_type(token, r"H\d+")
-            if match:
-                result["view"] = match
-
-        if result["task"] == "Unknown" and token in [
-            "onlyL1LeftHand", "onlyL2", "onlyL1", "onlyL2RightHand"
-            "L1", "L2", "L1L2", "L1L26040", "L1L25050", "L1-60", "L2-40",
-
-            "CueL2RightHand",
-            "CueL1", "CueL2" # those 2 are for renamed clip (led_detection.py) that tell exactly which cue is on
-        ]:
-            result["task"] = token
-
-            # if "CueL1" in name_comp or "CueL2" in name_comp : 
-            #     print(name_comp)
-            #     print(result["task"], token)
-
-        if result["laser_intensity"] == "Unknown":
-            match = extract_type(token, r"\d,\d*(mW)|\d*(mW)")
-            if match:
-                result["laser_intensity"] = match
-
-        # this will work only for the renamed clips (led_detection.py)
-        if result["laser_on"] == "Unknown" :
-            match = extract_type(token, r'(LaserOn|LaserOff)')
-            if match : 
-                result["laser_on"] = match
-
-        if result["date"] == "Unknown" : 
-            match = extract_type(token, r'(\d{4}20\d{2}|20\d{6})')
-            if match : 
-                result["date"] = match
-
-    videos.append({
-        "filename": str(file_path),
-        **result
-    })
-
-
 def display_count_per_rat_condition(df : pd.DataFrame, 
                                     fig_output_path: Path, 
                                     condition : str, 
@@ -479,6 +347,139 @@ def make_database(root_dir : Path, satisfy_condition):
     return pd.DataFrame(sorted_videos)
 
 
+def extract_type(input : str, regex : str) -> str : 
+    """
+    Extract a substring from a string using a regular expression.
+
+    Parameters
+    ----------
+    input : str
+        Input string to search.
+    regex : str
+        Regular expression pattern.
+
+    Returns
+    -------
+    str or None
+        The matched substring if found, otherwise None.
+    """
+
+    match = re.search(regex, input)
+
+    if match : 
+        return match.group(0)
+    
+    return None
+
+
+def classify_file(file_path: Path, videos: list) -> None:
+    """
+    Parse a video file_path and extract experimental metadata.
+
+    The function decomposes the file_path into tokens that are then
+    used to classify the file in certain categories.
+    The extracted metadata is appended as a dictionary to `videos`.
+
+    Parameters
+    ----------
+    file_path : pathlib.Path
+        Full path or name of the video file.
+    videos : list
+        List to which the extracted metadata dictionary is appended.
+
+    Returns
+    -------
+    None"""
+    
+    name_comp = decompose_filename(file_path.stem)
+
+    result = {
+        "rat_name": "Unknown",
+        "rat_type": "Unknown",
+        "condition": "Unknown",
+        "stim_location": "Unknown",
+        "task": "Unknown",
+        "handedness": "Unknown",
+        "session": "Unknown",
+        "view": "Unknown",
+        "laser_intensity": "Unknown",
+        "laser_on" : "Unknown",
+        "date" : "Unknown"
+    }
+
+    for token in name_comp:
+
+        if result["rat_name"] == "Unknown" :
+            match = extract_type(token, r"^#(\d\d\d)")
+            if match:
+                result["rat_name"] = match
+
+        if result["rat_type"] == "Unknown":
+            match = extract_type(token, r"(CTRL|CHR)")
+            if match:
+                result["rat_type"] = match
+
+        if result["condition"] == "Unknown":
+            match = extract_type(token, r"(Conti|NOstim|Beta)")
+            if match:
+                result["condition"] = match
+
+        if result["stim_location"] == "Unknown":
+            match = extract_type(token, r"(LeftHemi|RightHemi|Ipsi|ipsi|Bilateral|Contra)")
+            if match:
+                result["stim_location"] = match
+
+        if result["handedness"] == "Unknown":
+            match = extract_type(token, r"(Ambidexter|LeftHanded|RightHanded)")
+            if match:
+                result["handedness"] = match
+
+        if result["session"] == "Unknown":
+            match = extract_type(token, r"S\d+")
+            if match:
+                result["session"] = match
+
+        if result["view"] == "Unknown":
+            match = extract_type(token, r"H\d+")
+            if match:
+                result["view"] = match
+
+        if result["task"] == "Unknown" and token in [
+            "onlyL1LeftHand", "onlyL2", "onlyL1", "onlyL2RightHand"
+            "L1", "L2", "L1L2", "L1L26040", "L1L25050", "L1-60", "L2-40",
+
+            "CueL2RightHand", "NoCue",
+            "CueL1", "CueL2" # those 2 are for renamed clip (led_detection.py) that tell exactly which cue is on
+        ]:
+            result["task"] = token
+
+            # if "CueL1" in name_comp or "CueL2" in name_comp : 
+            #     print(name_comp)
+            #     print(result["task"], token)
+
+        if result["laser_intensity"] == "Unknown":
+            match = extract_type(token, r"\d,\d*(mW)|\d*(mW)")
+            if match:
+                result["laser_intensity"] = match
+
+        # this will work only for the renamed clips (led_detection.py)
+        if result["laser_on"] == "Unknown" :
+            match = extract_type(token, r'(LaserOn|LaserOff)')
+            if match : 
+                result["laser_on"] = match
+
+        if result["date"] == "Unknown" : 
+            match = extract_type(token, r'(\d{4}20\d{2}|20\d{6})')
+            if match : 
+                result["date"] = match
+
+    videos.append({
+        "filename": str(file_path),
+        **result
+    })
+
+
+    
 
 def make_name_by_condition(name : str) : 
     """
