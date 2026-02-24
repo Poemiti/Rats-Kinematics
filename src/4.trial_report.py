@@ -134,6 +134,7 @@ def plot_trial_report(yaml_file: Path, output_path: Path) :
         hue="Laser intensity",
         col="Trial Type",
         row="Laser",
+        margin_titles=True,
         palette="pastel",
         height=4,
         aspect=1,
@@ -156,7 +157,7 @@ def plot_trial_report(yaml_file: Path, output_path: Path) :
         )
 
     g.set_xticklabels(rotation=45, fontsize=9)
-    g.set_titles(col_template="{col_name}", row_template="{row_name}", fontsize=10)
+    g.set_titles(col_template="{col_name}", row_template="{row_name}")
     g.set_axis_labels("", "Count")
     g.set_xticklabels(["Successful", "No reward", "Lost coords", "No pad off"])
 
