@@ -6,13 +6,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from rats_kinematics_utils.file_management import verify_exist, get_session
-from rats_kinematics_utils.plot_comparative import plot_stacked_velocity, plot_stacked_Yposition, plot_violin_distribution_velocity, plot_stacked_trajectories, plot_velocity_over_sessiontime, plot_velocity_over_cliptime
+from rats_kinematics_utils.plot_comparative import plot_stacked_velocity, plot_stacked_Yposition, _plot_violin_distribution, plot_stacked_trajectories, plot_velocity_over_cliptime
 from rats_kinematics_utils.config import load_config
 from rats_kinematics_utils.pipeline_maker import load_metrics, load_figure_maker, make_output_path, check_analysis_choice, print_analysis_info
 
 # ------------------------------------ setup ---------------------------------------
 
-SHOW = False
+SHOW = True
 cfg = load_config()
 print_analysis_info(cfg, "Making comparative figures")
 
@@ -30,7 +30,7 @@ if plot_choice["plot_stacked_velocity"] :
         output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.stem
 
         print(f"\n[{i+1}/{len(filenames)}]")
-        print(f"Making figures of {metrics_path.parent.stem}\n")
+        print(f"Making figures of {metrics_path.stem}\n")
 
         metrics = load_metrics(metrics_path)
         ax = plot_stacked_velocity(cfg, metrics)
@@ -44,6 +44,8 @@ if plot_choice["plot_stacked_velocity"] :
         ax.set_title(title, color="blue")
         ax.set_xlabel("Time (seconds)")
         ax.set_ylabel("Velocity (cm.s$^{-1}$)") 
+
+        ax.set_xlim(-0.1, 0.5)
 
         fig = ax.figure
         fig.savefig(make_output_path(output_fig_dir, f"stacked_velocity.png"))
@@ -77,7 +79,7 @@ if plot_choice["plot_stacked_Yposition"] :
         ax.set_xlabel("Time (seconds)")
         ax.set_ylabel("Position (cm)")  
 
-        # ax.set_xlim(0, 1.35)
+        ax.set_xlim(-0.1, 0.5)
 
         fig = ax.figure
         fig.savefig(make_output_path(output_fig_dir, f"stacked_Y_position_3sec.png"))
@@ -114,7 +116,7 @@ if plot_choice["plot_stacked_trajectories"] :
         ax.set_ylabel("y (cm)")
         ax.set_title(f"Stacked Trajectories of \n{metrics_path.stem}")
 
-        ax.invert_xaxis()
+        # ax.invert_xaxis()
 
         fig = ax.figure
         fig.savefig(make_output_path(output_fig_dir, f"stacked_trajectories.png"))
@@ -127,57 +129,63 @@ if plot_choice["plot_stacked_trajectories"] :
 
 
 
+def _preprocess_violin(METRIC: str) -> pd.DataFrame : 
+    data = pd.DataFrame()
 
+    for i, metrics_path in enumerate(filenames) :
+        metrics = load_metrics(Path(metrics_path))
+
+        for trial in metrics : 
+
+            if not trial["trial_success"] : 
+                continue
+
+            name = trial["filename_clips"].as_posix()
+            condition, laser_state = trial["condition"].split('_', 1)
+
+            df = pd.DataFrame({
+                "value": [trial[METRIC]],
+                "condition": [condition],
+                "laser_state": [laser_state],
+                "laser_intensity": [trial["laser_intensity"]]
+            })
+            data = pd.concat([data, df])
+
+    return data.sort_values(by="condition")
+
+
+def _make_violin(cfg, data, metric) : 
+    ax = _plot_violin_distribution(cfg, data)
+    
+    ax.set_ylabels(metric)
+    ax.set_titles(col_template="{col_name}", row_template="{row_name}")
+    ax.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "violin_distribution", f"violin_{metric}_all_CHR_L2.png"))
+
+    if SHOW : 
+        plt.show()
+    plt.close()
+
+
+if plot_choice["plot_violin_distribution_tortuosity"] : 
+    violin_data = _preprocess_violin(METRIC= "tortuosity")
+    _make_violin(cfg, violin_data, "tortuosity")
 
 if plot_choice["plot_violin_distribution_velocity"] : 
-        
-    violin_data = []
+    violin_data = _preprocess_violin(METRIC= "average_velocity")
+    print(violin_data)
+    _make_violin(cfg, violin_data, "average_velocity")
     
-    for i, metrics_path in enumerate(filenames) :
-        metrics = load_metrics(Path(metrics_path))
-        violin_data.append(pd.Series(v["average_velocity"] for v in metrics if v.get('trial_success')))
-
-    ax = plot_violin_distribution_velocity(cfg, violin_data)
-    
-    ax.set_ylabel("Velocity (cm.s$^{-1}$)")
-    ax.set_title("Velocity distribution, for CHR rat population\n" \
-                    "bodypart observed : left hand, L1 task")
-    ax.grid(axis="y", alpha=0.3)
-
-    fig = ax.figure
-    fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "violin_distribution", f"violin_velocity_DETAIL_CHR_L1.png"))
-
-    if SHOW : 
-        plt.show()
-    plt.close(fig)
+if plot_choice["plot_violin_distribution_peak"] : 
+    violin_data = _preprocess_violin(METRIC= "peak_velocity")
+    print(violin_data)
+    _make_violin(cfg, violin_data, "peak_velocity")
 
 
 
 
 
 
-
-if plot_choice['plot_velocity_over_sessiontime'] : 
-
-    velocity= []
-    date = []
-
-    for i, metrics_path in enumerate(filenames) :
-        metrics = load_metrics(Path(metrics_path))
-        velocity.append(pd.Series(v["average_velocity"] for v in metrics if v.get('trial_success')))
-        date.append(pd.Series(d["date"] for d in metrics if d.get('trial_success')))
-
-    fig = plot_velocity_over_sessiontime(cfg, velocity, date)
-
-    fig.suptitle(f"Velocity over Session : {RAT_NAME}")
-    fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "metrics_by_sessions", f"velocity_over_session_DETAIL_CHR_L1.png"))
-
-    if SHOW : 
-        plt.show()
-    plt.close(fig)
-
-
-
+############
 
 
 if plot_choice['plot_velocity_over_cliptime'] : 
@@ -206,15 +214,15 @@ if plot_choice['plot_velocity_over_cliptime'] :
 
             data = pd.concat([data, df])
 
-    final_data = data.sort_values(
+    final_data: pd.DataFrame = data.sort_values(
                 by=["date", "condition",  "clip", "session"],
                 ascending=[True, True, True, True], 
             )
-    
+    final_data["date"] = pd.to_datetime(final_data["date"]).dt.date
+    final_data.to_csv(cfg.paths.figures / RAT_NAME / "metrics_by_sessions" / f"data.csv")
+
     fig = plot_velocity_over_cliptime(final_data)
-    # fig.set_titles(f"Velocity over clips of {RAT_NAME}   |   Default settings : beta=1mw, conti=0.5mw")
-    # fig.suptitle(f"Velocity over clips of {RAT_NAME}   |   Greater settings : beta=2.5mw, conti=0.75mw")
-    fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "metrics_by_sessions", f"velocity_overclip_greater_DETAIL_CHR_L1.png"))
+    fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "metrics_by_sessions", f"velocity_overclip_LeftHemi_CHR_L2.png"))
 
     if SHOW : 
         plt.show()

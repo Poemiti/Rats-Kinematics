@@ -136,11 +136,12 @@ class Trajectory:
         if coords is None:
             coords = self.coords
 
-        s = self.instant_velocity(coords)
-        peaks, _ = find_peaks(s["velocity"].dropna())
+        v = self.instant_velocity(coords)
+        peaks, _ = find_peaks(v["velocity"].dropna())
         if len(peaks) == 0:
             return np.nan
-        return s.iloc[peaks].max()
+        p = v.iloc[peaks].max()
+        return p["velocity"]
 
     # ------------------- acceleration -------------------
 

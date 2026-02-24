@@ -6,11 +6,14 @@ import seaborn as sns
 from datetime import datetime
 import time
 
+from rats_kinematics_utils.trajectory_metrics import crop_xy
+
+
 # ==================================== Plots for comparative analysis ===========================================
 
 
-def relative_metric(velocity_list: pd.Series, 
-                     time: pd.Series,
+def _relative_metric(metric_list: pd.Series, 
+                     relative_time: pd.Series,
                      ax: plt.axes,
                      color: str,
                      laser_on: bool = False,
@@ -20,18 +23,15 @@ def relative_metric(velocity_list: pd.Series,
     if ax is None:
         fig, ax = plt.subplots()
 
-    # relative time
-    relative_time = time - time[0]
-
-    ax.plot(relative_time, velocity_list, color= color, alpha=transparancy)
+    ax.plot(relative_time, metric_list, color= color, alpha=transparancy)
     if show_pad_off :
         # add line for pad off 
-        ax.axvline(relative_time[0], color='k', lw=0.8, ls='--', label="pad off")
+        ax.axvline(0, color='k', lw=0.8, ls='--', label="pad off")
         ax.legend()
 
         # show laser on
         if laser_on :
-            laser_on = relative_time[0] + 0.025
+            laser_on = 0 + 0.025
             laser_off = laser_on +  0.3 # sec or 37.5 frame
             ax.axvspan(laser_on, laser_off, color='red', alpha=0.3, label="laser on")
             ax.legend()
@@ -43,45 +43,55 @@ def relative_metric(velocity_list: pd.Series,
 def plot_stacked_velocity(cfg, metrics: dict) :
     from rats_kinematics_utils.pipeline_maker import check_trial_success
 
-    all_velocity = []
     fig, axs = plt.subplots(figsize=(9, 7))
 
+    aligned_trials = []
 
-    for t, trial in enumerate(metrics) : 
+    for trial in metrics:
+        if not check_trial_success(trial):
+            continue
 
-        if not check_trial_success(trial) : 
-            continue 
-
-
-        trial_name = trial['filename_clips'].stem
-        print(f"Making figures of {trial_name}")
-
+        trial_name = trial["filename_clips"].stem
         velo = trial["instant_velocity"]
-        all_velocity.append(velo)
+        relative_time = velo["t"] - trial["pad_off"]
 
-        relative_metric(velocity_list=velo["velocity"],
-                            time=velo['t'],
-                            ax = axs, 
-                            laser_on=False, 
-                            color="green",
-                            transparancy=0.3)
-            
+        _relative_metric(velo["velocity"],
+                         relative_time=relative_time,
+                         ax=axs, 
+                         color="green",
+                         transparancy=0.33)
 
-    avg_velocity = (
-        pd.concat(all_velocity, axis=1)
-        .T
-        .groupby(level=0)
-        .mean()
-        .T
-    )
+        df = pd.DataFrame({
+            "velocity": velo["velocity"].values
+        }, index=relative_time.values)
 
-    relative_metric(velocity_list=avg_velocity["velocity"],
-                    time = avg_velocity["t"],
-                    ax = axs, 
+        aligned_trials.append(df)
+
+    common_time = np.linspace(-0.5, 1.0, 500)
+    aligned_resampled = []
+
+    for df in aligned_trials:
+        interp_values = np.interp(
+            common_time,
+            df.index.values,
+            df["velocity"].values,
+            left=np.nan,
+            right=np.nan
+        )
+        aligned_resampled.append(interp_values)
+
+    aligned_matrix = np.vstack(aligned_resampled)
+    avg_velocity = np.nanmean(aligned_matrix, axis=0)
+
+    _relative_metric(
+                    metric_list=avg_velocity,
+                    relative_time=common_time,
+                    ax=axs,
                     show_pad_off=True,
-                    laser_on=True,
+                    laser_on="LaserOn" in trial_name,
                     color="blue",
-                    transparancy=1)
+                    transparancy=1
+                )
 
     
     return axs
@@ -91,7 +101,7 @@ def plot_stacked_velocity(cfg, metrics: dict) :
 def plot_stacked_Yposition(cfg, metrics: dict) :
     from rats_kinematics_utils.pipeline_maker import check_trial_success
 
-    all_pos = []
+    aligned_pos = []
     fig, axs = plt.subplots(figsize=(9, 7))
 
 
@@ -102,36 +112,45 @@ def plot_stacked_Yposition(cfg, metrics: dict) :
         if not check_trial_success(trial) : 
             continue 
 
-        trial_name = trial['filename_clips'].stem
-        print(f"Making figures of {trial_name}")
+        trial_name = trial["filename_clips"].stem
+        y_pos = trial["xy_filtered"]
+        relative_time = y_pos["t"] - trial["pad_off"]
 
-        y_pos = trial["xy_filtered"] 
-        all_pos.append(y_pos)
-
-        relative_metric(velocity_list=y_pos["y"] * cfg.cm_per_pixel,
-                        time=y_pos['t'],
+        _relative_metric(metric_list=y_pos["y"] * cfg.cm_per_pixel,
+                        relative_time=relative_time,
                         ax = axs, 
-                        laser_on=trial["laser_on"], 
+                        laser_on=False, 
                         color="green",
                         transparancy=0.3)
+        
+        df = pd.DataFrame({"y_pos": y_pos["y"] * cfg.cm_per_pixel}, index=relative_time.values)
 
-    # avg_y_pos = (
-    #     pd.concat(all_pos, axis=1)
-    #     .T
-    #     .groupby(level=0)
-    #     .mean()
-    #     .T
-    # )
+        aligned_pos.append(df)
 
-    # relative_metric(velocity_list=avg_y_pos["y"],
-    #                 time = avg_y_pos["t"],
-    #                 ax = axs, 
-    #                 show_pad_off=True,
-    #                 laser_on=True,
-    #                 color="blue",
-    #                 transparancy=0)
+    common_time = np.linspace(-0.5, 1.0, 500)
+    aligned_resampled = []
 
-    
+    for df in aligned_pos:
+        interp_values = np.interp(
+            common_time,
+            df.index.values,
+            df["y_pos"].values,
+            left=np.nan,
+            right=np.nan
+        )
+        aligned_resampled.append(interp_values)
+
+    aligned_matrix = np.vstack(aligned_resampled)
+    avg_y_pos = np.nanmean(aligned_matrix, axis=0)
+
+    _relative_metric(metric_list=avg_y_pos,
+                    relative_time = common_time,
+                    ax = axs, 
+                    show_pad_off=True,
+                    laser_on="LaserOn" in trial_name,
+                    color="blue",
+                    transparancy=1)
+
     return axs
 
 
@@ -154,7 +173,7 @@ def plot_stacked_trajectories(cfg, metrics, ax: plt.axes = None) :
         trial_name = trial['filename_clips'].stem
         print(f"\nMaking figures of {trial_name}")
 
-        coords = trial["xy_filtered"] 
+        coords = trial["xy_pad_off"] 
 
         if trial["laser_on"] is not None:
             frame_laser_on = coords.index[coords["t"] >= trial["laser_on"]][0]
@@ -188,7 +207,6 @@ def plot_stacked_trajectories(cfg, metrics, ax: plt.axes = None) :
     #         ax=ax,
     #         color="blue",
     #         transparancy=1,
-    #         rat_background=False, # display a rat in the background
     #     )
 
     return ax
@@ -219,7 +237,7 @@ def plot_stacked_trajectories(cfg, metrics, ax: plt.axes = None) :
 
 
 # remove extreme values with the interquarile range method (IQR)
-def trim_extremes_iqr(df, value_col="Value", group_cols=("Condition", "LaserIntensity"), k=1.5):
+def _trim_extremes_iqr(df, value_col="value", group_cols=("condition", "laser_intensity"), k=1.5):
     def _trim(group):
         q1 = group[value_col].quantile(0.25)
         q3 = group[value_col].quantile(0.75)
@@ -237,260 +255,126 @@ def trim_extremes_iqr(df, value_col="Value", group_cols=("Condition", "LaserInte
 
 
 
-def plot_violin_distribution_velocity(cfg, velocity_list) : 
-    def _pack(values, condition, intensity):
-        return pd.DataFrame({
-            "Condition": condition,
-            "LaserIntensity": intensity,
-            "Value": values.dropna().values
-        })
-    # default
-    beta_OFF_1_velo = velocity_list[0]
-    conti_OFF_1_velo = velocity_list[4]
+def _plot_violin_distribution(cfg, data) : 
 
-    beta_ON_1_velo = velocity_list[2]
-    conti_ON_1_velo = velocity_list[6]
+    data_trimmed = _trim_extremes_iqr(data, k=1.5)
+    print(f"\nNumber of removed outliers : {len(data) - len(data_trimmed)}")
+    # print(data_trimmed)
 
-    # greater
-    beta_OFF_2_velo = velocity_list[1]
-    conti_OFF_2_velo = velocity_list[5]
-
-    beta_ON_2_velo = velocity_list[3]
-    conti_ON_2_velo = velocity_list[7]
-
-
-    df_long = pd.concat([
-        _pack(beta_OFF_1_velo, "Beta-OFF", "conti=0.5, beta=1"),
-        _pack(conti_OFF_1_velo, "Conti-OFF", "conti=0.5, beta=1"),
-        _pack(beta_ON_1_velo, "Beta", "conti=0.5, beta=1"),
-        _pack(conti_ON_1_velo, "Conti", "conti=0.5, beta=1"),
-
-        _pack(beta_OFF_2_velo, "Beta-OFF", "conti=0.75, beta=2.5"),
-        _pack(conti_OFF_2_velo, "Conti-OFF", "conti=0.75, beta=2.5"),
-        _pack(beta_ON_2_velo, "Beta", "conti=0.75, beta=2.5"),
-        _pack(conti_ON_2_velo, "Conti", "conti=0.75, beta=2.5"),
-    ])
-
-    # df_long = pd.concat([
-    #     _pack(beta_OFF_1_velo, "OFF", "conti=0.5, beta=1"),
-    #     _pack(conti_OFF_1_velo, "OFF", "conti=0.5, beta=1"),
-    #     _pack(beta_ON_1_velo, "Beta", "conti=0.5, beta=1"),
-    #     _pack(conti_ON_1_velo, "Conti", "conti=0.5, beta=1"),
-
-    #     _pack(beta_OFF_2_velo, "OFF", "conti=0.75, beta=2.5"),
-    #     _pack(conti_OFF_2_velo, "OFF", "conti=0.75, beta=2.5"),
-    #     _pack(beta_ON_2_velo, "Beta", "conti=0.75, beta=2.5"),
-    #     _pack(conti_ON_2_velo, "Conti", "conti=0.75, beta=2.5"),
-    # ])
-
-
-    df_long_trimed = trim_extremes_iqr(df_long, k=1.5)
-    print(f"\nNumber of removed outliers : {len(df_long) - len(df_long_trimed)}")
-    print(df_long_trimed)
-
-    # plotting
-    fig, ax = plt.subplots()
-
-
-    sns.violinplot(
-        x="Condition",
-        y="Value",
-        hue="LaserIntensity",
-        velocity_list=df_long_trimed,
-        ax=ax,
-        split=True,
-        gap= .1,
-        inner="quart",
-        order=["Conti-OFF", "Beta-OFF", "Conti", "Beta"],
-        palette={"conti=0.5, beta=1": "lightblue", "conti=0.75, beta=2.5": "salmon"},
-    )
-
-    # sns.violinplot(
-    #     x="Condition",
-    #     y="Value",
-    #     hue="LaserIntensity",
-    #     velocity_list=df_long_trimed,
-    #     ax=ax,
-    #     split=True,
-    #     gap= .1,
-    #     inner="quart",
-    #     order=["OFF", "Conti", "Beta"],
-    #     palette={"conti=0.5, beta=1": "lightblue", "conti=0.75, beta=2.5": "salmon"},
-    # )
-
-    sns.stripplot(
-        x="Condition",
-        y="Value",
-        hue="LaserIntensity",
-        velocity_list=df_long_trimed,
-        ax=ax,
+    g = sns.FacetGrid(data_trimmed, 
+                      col='laser_state',
+                      col_order=["On", "Off"],
+                      hue="laser_intensity",    
+                       
+                      palette="pastel", 
+                      margin_titles=True,
+                    #   sharey=False,
+                      height=4, aspect=0.8)
+    g.map_dataframe(
+        sns.stripplot,
+        x="condition",
+        y="value",
+        data=data_trimmed,
         dodge=True,
         color="black",
         size=2.5,
         alpha=0.5,
+        order=["NOstim", "Conti", "Beta"],
+        legend=False, 
     )
 
-
-    handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles[:2], labels[:2], title="Laser intensity", 
-            loc='lower right', fontsize=7)
-
-    # ---- add counts ----
-    counts = df_long_trimed.groupby(["Condition", "LaserIntensity"]).size().reset_index(name="N")
-    y_max = df_long_trimed["Value"].max()
-    y_offset = 0.05 * y_max
-
-    for _, row in counts.iterrows():
-        x = ["Conti-OFF", "Beta-OFF", "Conti", "Beta"].index(row["Condition"])
-        # x = ["OFF", "Conti", "Beta"].index(row["Condition"])
-        x += -0.15 if row["LaserIntensity"] == "conti=0.5, beta=1" else 0.20
-
-        ax.text(
-            x,
-            y_max + y_offset,
-            f"{row['N']}",
-            ha="center",
-            va="bottom",
-            fontsize=9,
-            fontweight="bold",
-            color = "lightblue" if row["LaserIntensity"] == "conti=0.5, beta=1" else "salmon"
-        )
-
-    return ax
-
-
-
-
-
-
-
-#####################
-
-
-
-
-def prepare_df(velocity_series, date_series):
-
-    df = pd.DataFrame({
-        "date": date_series.values,
-        "velocity": velocity_series.values
-    }).sort_values("date")
-
-    return df
-
-
-def plot_one_setting(ax, title, beta_OFF, conti_OFF, beta_ON, conti_ON):
-
-
-    # combine OFF velocities and dates
-    # vel_off = pd.concat([beta_OFF[0], conti_OFF[0]])
-    # date_off = pd.concat([beta_OFF[1], conti_OFF[1]])
-
-    # # create a single DataFrame with a 'Condition' column
-    # df_off = prepare_df(vel_off, date_off)
-    # df_off["Condition"] = "OFF"
-
-    df_beta_OFF = prepare_df(beta_OFF[0], beta_OFF[1])
-    df_beta_OFF["Condition"] = "beta-off"
-
-    df_conti_OFF = prepare_df(conti_OFF[0], conti_OFF[1])
-    df_conti_OFF["Condition"] = "conti-off"
-
-    df_beta_ON = prepare_df(beta_ON[0], beta_ON[1])
-    df_beta_ON["Condition"] = "beta"
-
-    df_conti_ON = prepare_df(conti_ON[0], conti_ON[1])
-    df_conti_ON["Condition"] = "conti"
-
-    df_all = pd.concat([df_conti_OFF, df_beta_OFF, df_beta_ON, df_conti_ON])
-    df_all["date"] = pd.to_datetime(df_all["date"])
-
-    # seaborn stripplot
-    sns.stripplot(
-        x="date",
-        y="velocity",
-        hue="Condition",
-        data=df_all,
-        jitter=0.2,
-        size=4,
-        alpha=0.7,
-        ax=ax
-    )
-
-    # for condition, color in zip(["OFF", "beta ON", "conti ON"], ["gray", "green", "orange"]):
-    #     df_subset = df_all[df_all["Condition"] == condition]
-    #     df_subset["date_num"] = df_subset["date"].map(datetime.toordinal)
-        
-    #     sns.regplot(
-    #         x="date",
-    #         y="velocity",
-    #         data=df_subset,
-    #         scatter=False,
-    #         ax=ax,
-    #         line_kws={"color": color, "lw": 2, "alpha": 0.7}
-    #     )
-
-    ax.set_title(title)
-    ax.set_xlabel("Date")
-    ax.set_ylabel("Velocity (cm.s$^{-1}$)")
-    ax.grid(axis="y", alpha=0.3)
-    ax.legend(title="Condition")
-    ax.tick_params(axis='x', rotation=45)
-
-
-def plot_velocity_over_sessiontime(cfg, velocity_list, date_list):
-    fig, axs = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
-
-    # default
-    beta_OFF_1_velo = (velocity_list[0], date_list[0])
-    conti_OFF_1_velo = (velocity_list[4], date_list[4])
-
-    beta_ON_1_velo = (velocity_list[2], date_list[2])
-    conti_ON_1_velo = (velocity_list[6], date_list[6])
-
-    # greater
-    beta_OFF_2_velo = (velocity_list[1], date_list[1])
-    conti_OFF_2_velo = (velocity_list[5], date_list[5])
-
-    beta_ON_2_velo =(velocity_list[3], date_list[3])
-    conti_ON_2_velo = (velocity_list[7], date_list[7])
-
-    # DEFAULT
-    plot_one_setting(
-        axs[0],
-        "Settings : beta=1mW, conti=0.5mW",
-        beta_OFF_1_velo,
-        conti_OFF_1_velo,
-        beta_ON_1_velo,
-        conti_ON_1_velo,
-    )
-
-    # GREATER
-    plot_one_setting(
-        axs[1],
-        "Settings : beta=2.5mW, conti=0.75mW",
-        beta_OFF_2_velo,
-        conti_OFF_2_velo,
-        beta_ON_2_velo,
-        conti_ON_2_velo,
+    g.map_dataframe(
+        sns.violinplot,
+        x="condition",
+        y="value",
+        data=data_trimmed,
+        hue_order=data["condition"].unique(),
+        split=True,
+        gap= .1,
+        inner="quart",
+        order=["NOstim", "Conti", "Beta"],
     )
     
-    return fig
+    
+
+    counts = (
+        data_trimmed
+        .groupby(["laser_state", "condition", "laser_intensity"])
+        .size()
+        .reset_index(name="N")
+    )
+
+    order = ["NOstim", "Conti", "Beta"]
+    intensities = data_trimmed["laser_intensity"].unique()
+
+    for ax, laser_state in zip(g.axes.flatten(), ["On", "Off"]):
+        subset = counts[counts["laser_state"] == laser_state]
+        y_max = data_trimmed["value"].max()
+        y_offset = 0.05 * y_max
+
+        for _, row in subset.iterrows():
+            x = order.index(row["condition"])
+
+            # dodge offset (adjust depending on how many intensities you have)
+            if row["laser_intensity"] == intensities[0]:
+                x -= 0.2
+            else:
+                x += 0.2
+
+            ax.text(
+                x,
+                y_max + y_offset,
+                f"{row['N']}",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                fontweight="bold"
+            )
+    g.add_legend(title="Laser intensity")
+
+    return g
+
+
+
+def plot_violin_distribution_velocity() : 
+    pass
+
+def plot_violin_distribution_tortuosity() : 
+    pass
+
+def plot_violin_distribution_peak() : 
+    pass
+
+
+
+
+
+
+
+########################################### velocity accross trials ###############################################
+
+
 
 
 
 
 def plot_velocity_over_cliptime(data) : 
 
+    data_trimmed = _trim_extremes_iqr(data,
+                                      value_col="velocity",
+                                      group_cols=["condition", "date"],
+                                      k=1.5)
+    print(f"\nNumber of removed outliers : {len(data) - len(data_trimmed)}")
+
     g = sns.FacetGrid(
-        data=data,
+        data=data_trimmed,
         row="condition",
         col="date",
         height=2,
         aspect=2,
         margin_titles=True,
         palette="pastel",
-        legend_out=True,
+        sharex=False,
     )
 
     g.map_dataframe(
@@ -498,10 +382,11 @@ def plot_velocity_over_cliptime(data) :
             x="clip",
             y="velocity",
             hue="condition",
-            data=data,
+            data=data_trimmed,
             alpha=0.7,
+            estimator=None,
             style="condition",
-            hue_order=["Conti_Off", 'Beta_Off', "Conti_On", "Beta_On"],
+            hue_order=data["condition"].unique(),
             markers=True
         )
             

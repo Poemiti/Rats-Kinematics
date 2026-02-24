@@ -29,13 +29,13 @@ for i, metrics_path in enumerate(filenames) :
     output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.stem
 
     print(f"\n[{i+1}/{len(filenames)}]")
-    print(f"Making figures of {metrics_path.parent.stem}\n")
+    print(f"Making figures of {metrics_path.stem}\n")
 
     metrics = load_metrics(metrics_path)
 
     for t, trial in enumerate(metrics) : 
 
-        print(f"\n[{t}/{len(metrics)}]")
+        print(f"\n[{t+1}/{len(metrics)}]")
 
         if not check_trial_success(trial) : 
             continue
@@ -50,14 +50,11 @@ for i, metrics_path in enumerate(filenames) :
             
             print("Making single figures ...")
 
-            xy = trial["xy_raw"]
+            xy = trial["xy_filtered"]
 
             if trial["laser_on"] is not None:
                 frame_laser_on = xy.index[xy["t"] >= trial["laser_on"]][0]
-                print(
-                    f"trial laser on: {trial['laser_on']},\n"
-                    f"frame laser on: {frame_laser_on}"
-                )
+                print(f"frame laser on: {frame_laser_on}, {trial['laser_on']}")
             else:
                 frame_laser_on = None
 
@@ -66,6 +63,7 @@ for i, metrics_path in enumerate(filenames) :
                 cm_per_pixel=cfg.cm_per_pixel,
                 frame_laser_on=frame_laser_on,
                 color="blue",
+                marker=".",
                 transparancy=0.5,
                 rat_background=False
             )
@@ -82,9 +80,9 @@ for i, metrics_path in enumerate(filenames) :
 
             ax.set_xlabel("x (cm)")
             ax.set_ylabel("y (cm)")
-            ax.set_title(f"Trajectories of \n{trial_name}")
+            ax.set_title(f"Trajectories of \n{trial_name[0 : len(trial_name)//2]}\n{trial_name[len(trial_name)//2 : ]}")
 
-            ax.invert_xaxis()
+            # ax.invert_xaxis()
             # ax.invert_yaxis()
         
             # ax.set_xlim(0, 512)
@@ -120,6 +118,7 @@ for i, metrics_path in enumerate(filenames) :
         if plot_choice["plot_metric_time"]:
 
             print(f"Plotting velocity, acceleration and position over time...")
+            print(trial["pad_off"])
 
             # plotting
             fig, axs = plt.subplots(1, 3, figsize=(15, 5)) 
@@ -131,6 +130,7 @@ for i, metrics_path in enumerate(filenames) :
             axs[0].set_title("Velocity over time of a trial", color="red")
             axs[0].set_xlabel("Time (s)")
             axs[0].set_ylabel("Velocity (cm.s$^{-1}$)")
+            axs[0].set_xlim(trial["pad_off"]-0.015, trial["pad_off"] +  0.4)
             
             plot_metric_time(metric=trial["acceleration"]['acceleration'], 
                             time=trial["acceleration"]['t'],
@@ -140,6 +140,7 @@ for i, metrics_path in enumerate(filenames) :
             axs[1].set_title("Acceleration over time of a trial", color="green")
             axs[1].set_xlabel("Time (s)")
             axs[1].set_ylabel("Acceleration (cm.s$^{-2}$)")
+            axs[1].set_xlim(trial["pad_off"]-0.015, trial["pad_off"] +  0.4)
 
             plot_metric_time(metric=trial["xy_filtered"]["y"], 
                             time=trial["xy_filtered"]['t'],

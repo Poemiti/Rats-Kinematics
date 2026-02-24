@@ -306,8 +306,8 @@ def plot_single_bodypart_trajectories(
 
     if frame_laser_on:
         ax.plot(
-            x[0: frame_laser_on+int(0.5*125)],
-            y[0: frame_laser_on+int(0.5*125)],
+            x[0: frame_laser_on+int(0.3*125)],
+            y[0: frame_laser_on+int(0.3*125)],
             marker=marker,
             color=color,
             linestyle="-",
