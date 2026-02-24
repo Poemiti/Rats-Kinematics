@@ -7,7 +7,7 @@ import numpy as np
 
 from rats_kinematics_utils.file_management import make_name_by_condition, verify_exist, open_clean_csv, get_clip_number
 from rats_kinematics_utils.trajectory_metrics import Trajectory, crop_xy
-from rats_kinematics_utils.led_detection import get_time_led_on, get_time_led_off
+from rats_kinematics_utils.led_detection import get_time_led_state
 
 from rats_kinematics_utils.config import load_config
 from rats_kinematics_utils.pipeline_maker import load_database, init_metrics, to_yaml, check_lost_coords, check_non_empty, check_times, check_reward, print_analysis_info
@@ -75,9 +75,9 @@ for i, coords_path in enumerate(filenames) :
                                         clip_path)
     
 
-    time_pad_off = get_time_led_off(luminosity_path, cfg.task_pad, in_sec=True) # in sec
-    time_laser_on = get_time_led_on(luminosity_path, "LED_4", in_sec=True) # in sec
-    time_reward = get_time_led_on(luminosity_path, "LED_5", in_sec=True)
+    time_pad_off = get_time_led_state(luminosity_path, cfg.task_pad, "OFF", min_duration=10,  in_sec=True)
+    time_laser_on = get_time_led_state(luminosity_path, "LED_4", "ON", in_sec=True)
+    time_reward = get_time_led_state(luminosity_path, "LED_5", "ON", in_sec=True)
 
     # get coords + filtration
     coords = open_clean_csv(coords_path)
@@ -127,6 +127,7 @@ for i, coords_path in enumerate(filenames) :
     # print("  success")
     # compute metrics
     Traj_pad_off = Trajectory(xy_pad_off, cm_per_pixel=cfg.cm_per_pixel)
+    Traj_filtered = Trajectory(xy_filtered, cm_per_pixel=cfg.cm_per_pixel)
     
     # final saving
     TRIAL_METRICS["trial_success"] = True
@@ -139,8 +140,8 @@ for i, coords_path in enumerate(filenames) :
     TRIAL_METRICS["peak_velocity"] = Traj_pad_off.peak_speed()
     TRIAL_METRICS["tortuosity"] = Traj_pad_off.tortuosity()
 
-    TRIAL_METRICS["instant_velocity"] = Traj_pad_off.instant_velocity()
-    TRIAL_METRICS["acceleration"] = Traj_pad_off.acceleration()
+    TRIAL_METRICS["instant_velocity"] = Traj_filtered.instant_velocity()
+    TRIAL_METRICS["acceleration"] = Traj_filtered.acceleration()
 
     TRIAL_METRICS["xy_raw"] = xy
     TRIAL_METRICS["xy_filtered"] = xy_filtered
