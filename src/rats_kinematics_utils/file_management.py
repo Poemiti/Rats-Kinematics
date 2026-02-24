@@ -5,7 +5,7 @@ import re
 import seaborn as sns
 from pathlib import Path
 
-# ----------------------------------- function for classifiaction of file based on their name --------------------------------------
+# ----------------------------------- basic utility --------------------------------------
 
 def open_clean_csv(csv_path : Path) -> pd.DataFrame : 
     """
@@ -35,31 +35,6 @@ def open_clean_csv(csv_path : Path) -> pd.DataFrame :
     clean_df = df.iloc[1:].reset_index(drop=True)
 
     return clean_df
-
-
-def is_left_view(filename : str) -> bool : 
-    """
-    Determine whether a video corresponds to the left camera view.
-    H001 : left view
-    H002 : right view
-
-    Parameters
-    ----------
-    filename : str
-        Name of the file to analyze.
-
-    Returns
-    -------
-    bool
-        True if the view identifier is ``H001`` (left view), False otherwise.
-    """
-
-    view  = extract_type(filename, r"H\d+")
-    print(f"view for {filename} : {view}")
-    if view == "H001" : 
-        return True
-    return False
-
 
 def is_video(filename : str) -> bool : 
     """
@@ -95,228 +70,185 @@ def is_csv(filename : str) -> bool :
     """
     return filename.lower().endswith(".csv")
 
-def sort_componants(components : list[str]) -> pd.DataFrame :
+
+# ----------------------------------- function for classifiaction of file based on their name --------------------------------------
+
+
+PATTERNS = {
+    "rat_name": r"^#\d{3}",
+    "rat_type": r"(CTRL|CHR)",
+    "condition": r"(Conti|NOstim|Beta)",
+    "stim_location": r"(LeftHemi|RightHemi|Ipsi|ipsi|Bilateral|Contra)",
+    "handedness": r"(Ambidexter|LeftHanded|RightHanded)",
+    "session": r"S\d+",
+    "view": r"H\d+",
+    "laser_on": r"(LaserOn|LaserOff)",
+    "laser_intensity": r"\d,\d*mW|\d+mW",
+    "date": r"(\d{4}20\d{2}|20\d{6})",
+    "clip": r"clip_(\d+)",
+}
+
+TASKS = ["onlyL1LeftHand", "onlyL2", "onlyL1", "onlyL2RightHand", "CueL2RightHand", 
+        "L1", "L2", "L1L2", "L1L26040", "L1L25050", "L1-60", "L2-40",
+        "NoCue", "CueL1", "CueL2"]
+
+
+def parse_filename(name: str) -> dict:
     """
-    Components are classified into numeric, alphabetic,
-    alphanumeric, or mixed categories and returned as a DataFrame.
-    Note : used to check how files are named
+    Extract all metadata from filename once.
+    """
+
+    result = {key: "Unknown" for key in PATTERNS.keys()}
+    result["task"] = None
+
+    # First pass: regex extraction
+    for key, regex in PATTERNS.items():
+
+        if result[key] == "Unknown"  :
+            match = re.search(regex, name)
+            if match:
+                if key == "clip" : 
+                    result[key] = match.group(1)
+                    continue
+                result[key] = match.group(0)
+
+    # Task handling (not regex)
+    for t in TASKS:
+        if t in name.split("_"):
+            result["task"] = t
+            break
+
+    # Second pass: derived defaults (safe now)
+    if result["laser_intensity"] == "Unknown" :
+
+        if result["condition"] == "Beta":
+            result["laser_intensity"] = "1mW"
+        elif result["condition"] == "Conti":
+            result["laser_intensity"] = "0,5mW"
+        elif result["condition"] == "NOstim":
+            result["laser_intensity"] = "NOstim"
+
+    return result
+
+
+
+def classify_file(file_path: Path, videos: list) -> None:
+    """
+    Parse a video file_path and extract experimental metadata.
+
+    The function decomposes the file_path into tokens that are then
+    used to classify the file in certain categories.
+    The extracted metadata is appended as a dictionary to `videos`.
 
     Parameters
     ----------
-    components : list of str
-        List of string components to categorize.
+    file_path : pathlib.Path
+        Full path or name of the video file.
+    videos : list
+        List to which the extracted metadata dictionary is appended.
 
     Returns
     -------
-    pandas.DataFrame
-        DataFrame with columns corresponding to component categories.
+    None"""
+    
+    metadata = parse_filename(file_path.stem)
+    metadata.pop("clip", None)
+
+    videos.append({
+        "filename": str(file_path),
+        **metadata
+    })
+
+
+    
+
+def make_name_by_condition(name : str) : 
     """
-        
-    categorized = {
-        "number": [],
-        "alpha": [],
-        "alphanumeric": [],
-        "special": [],
-        "mixed": []
-    }
+    Generate a name by extracting metadata tokens from a filename or a directory name.
+    Note : This function is used when doing the analysis of multiple clips that
+    come from seperate video, but have the same experimental setting. Especially
+    regarding the cue 
 
-    for comp in components:
+    Parameters
+    ----------
+    name : str
+        The filename/dir from which metadata will be extracted.
 
-        if comp.isdigit():
-            categorized["number"].append(comp)
-
-        elif comp.isalpha():
-            categorized["alpha"].append(comp)
-
-        elif comp.isalnum():
-            categorized["alphanumeric"].append(comp)
-
-        else:
-            categorized["mixed"].append(comp)
-
-    df = dict_to_df(categorized)
-
-    return df
-
-
-
-def decompose_filename(filename : str) -> list[str] : 
+    Returns
+    -------
+    str
+        A name composed of the extracted metadata fields.
     """
-    Decompose a video filename into underscore-separated components.
-    The file extension is removed before splitting.
+    meta = parse_filename(name)
+    keys = ["rat_name", "rat_type", "condition", "stim_location", 
+            "cue_type", "view", "laser_on", "laser_intensity"]
+    new_name = [meta[k] for k in keys if meta.get(k) not in ("Unknown", None)]
+    return "_".join(new_name)
+
+
+
+
+def get_date(name: str):
+    from datetime import datetime
+    
+    date_str = parse_filename(name)["date"]
+
+    if not date_str:
+        return None
+
+    if date_str.startswith("20"):
+        return datetime.strptime(date_str, "%Y%m%d")
+    else:
+        return datetime.strptime(date_str, "%d%m%Y")
+
+
+def get_condition(name: str):
+    meta = parse_filename(name)
+    return f"{meta['condition']}_{meta['laser_on']}"
+
+
+def get_clip_number(name: str):
+    clip = parse_filename(name)["clip"]
+    return clip if clip else None
+
+
+def get_session(name: str):
+    return parse_filename(name)["session"]
+
+
+def get_laser_intensity(name: str) : 
+    return parse_filename(name)["laser_intensity"]
+
+
+
+
+def is_left_view(filename : str) -> bool : 
+    """
+    Determine whether a video corresponds to the left camera view.
+    H001 : left view
+    H002 : right view
 
     Parameters
     ----------
     filename : str
-        Video filename (with extension).
+        Name of the file to analyze.
 
     Returns
     -------
-    list of str
-        List of components extracted from the filename.
+    bool
+        True if the view identifier is ``H001`` (left view), False otherwise.
     """
 
-    # remove the format of the name (.avi, .mp4 ...)
-    name, format = os.path.splitext(filename)
-    componants = name.split("_")
-    
-    return componants
+    view  = parse_filename(filename)["view"]
+    print(f"view for {filename} : {view}")
+    if view == "H001" : 
+        return True
+    return False
 
-
-def dict_to_df(dict : dict) -> pd.DataFrame : 
-    """
-    Convert a dictionary of lists into a pandas DataFrame.
-    Lists are padded with empty strings so that all columns
-    have the same length.
-
-    Parameters
-    ----------
-    dict : dict
-        Dictionary mapping column names to lists of values.
-
-    Returns
-    -------
-    pandas.DataFrame
-        DataFrame constructed from the dictionary.
-    """
         
-     # Find the maximum length of the columns
-    max_len = max(len(lst) for lst in dict.values())
-
-    for key in dict:
-        while len(dict[key]) < max_len:
-            dict[key].append("") ## empty slots to match all columns size
-
-    return pd.DataFrame(dict)
-
-
-def display_count_per_rat_condition(df : pd.DataFrame, 
-                                    fig_output_path: Path, 
-                                    condition : str, 
-                                    show: bool = False) -> None :
-    """
-    Plot the number of videos per rat type and experimental condition.
-
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        DataFrame containing video metadata.
-    fig_output_path : pathlib.Path
-        Path where the figure will be saved.
-    condition : str
-        Column name representing the experimental condition.
-    show : bool, optional
-        Whether to display the figure interactively.
-
-    Returns
-    -------
-    None
-    """
-
-    counts = (
-        df.groupby(["rat_type", condition])
-        .size()
-        .reset_index(name="count")
-    )
-
-
-    sns.set_theme(style="whitegrid")
-
-    plt.figure(figsize=(8, 5))
-    ax = sns.barplot(
-        data=counts,
-        x="rat_type",
-        y="count",
-        hue=condition
-    )
-    
-    for container in ax.containers:
-        ax.bar_label(container)
-
-    plt.xlabel("Rat type")
-    plt.ylabel("Number of videos")
-    plt.title(f"Video count by rat type and {condition}")
-    plt.tight_layout()
-
-    if fig_output_path :
-        plt.savefig(fig_output_path)
-
-    if show:
-        plt.show()
-
-
-def display_images(
-                images_list: list[str],
-                titles_list: list[str] | None,
-                fig_output_path: Path,
-                figsize: tuple[float, float] = (12, 4),
-                images_per_row: int = 3,
-                show: bool = True
-            ) -> None:
-    """
-    Display a list of images in a grid layout.
-
-    Parameters
-    ----------
-    images_list : list of str
-        Paths to image files.
-    titles_list : list of str or None
-        Optional list of titles for each image.
-    fig_output_path : pathlib.Path
-        Path where the figure will be saved.
-    figsize : tuple of float, optional
-        Size of the figure in inches.
-    images_per_row : int, optional
-        Number of images per row.
-    show : bool, optional
-        Whether to display the figure interactively.
-
-    Returns
-    -------
-    None
-    """
-
-    import math
-
-    n = len(images_list)
-    if n == 0:
-        raise ValueError("The image list is empty.")
-
-    rows = math.ceil(n / images_per_row)
-
-    fig, axes = plt.subplots(
-        rows,
-        images_per_row,
-        figsize=(figsize[0], figsize[1])
-    )
-
-    # Normalize axes to a flat list
-    axes = axes.flatten() if n > 1 else [axes]
-
-    for i, ax in enumerate(axes):
-        if i < n:
-            img = plt.imread(images_list[i])
-            ax.imshow(img, cmap="gray")
-            ax.axis("off")
-
-            if titles_list and i < len(titles_list):
-                ax.set_title(titles_list[i])
-        else:
-            ax.axis("off")  # Hide unused axes
-
-    #  vertical spacing between rows
-    plt.subplots_adjust(
-        hspace=0.15,  
-        wspace=0.05
-    )
-
-    plt.tight_layout()
-
-    if fig_output_path :
-        plt.savefig(fig_output_path)
-
-    if show:
-        plt.show()
+def verify_exist(path) : 
+    if not path.exists() : 
+        raise FileExistsError(f'This file does not exist : {path}')    
 
 
 
@@ -347,385 +279,8 @@ def make_database(root_dir : Path, satisfy_condition):
     return pd.DataFrame(sorted_videos)
 
 
-def extract_type(input : str, regex : str) -> str : 
-    """
-    Extract a substring from a string using a regular expression.
-
-    Parameters
-    ----------
-    input : str
-        Input string to search.
-    regex : str
-        Regular expression pattern.
-
-    Returns
-    -------
-    str or None
-        The matched substring if found, otherwise None.
-    """
-
-    match = re.search(regex, input)
-
-    if match : 
-        return match.group(0)
-    
-    return None
-
-
-def classify_file(file_path: Path, videos: list) -> None:
-    """
-    Parse a video file_path and extract experimental metadata.
-
-    The function decomposes the file_path into tokens that are then
-    used to classify the file in certain categories.
-    The extracted metadata is appended as a dictionary to `videos`.
-
-    Parameters
-    ----------
-    file_path : pathlib.Path
-        Full path or name of the video file.
-    videos : list
-        List to which the extracted metadata dictionary is appended.
-
-    Returns
-    -------
-    None"""
-    
-    name_comp = decompose_filename(file_path.stem)
-
-    result = {
-        "rat_name": "Unknown",
-        "rat_type": "Unknown",
-        "condition": "Unknown",
-        "stim_location": "Unknown",
-        "task": "Unknown",
-        "handedness": "Unknown",
-        "session": "Unknown",
-        "view": "Unknown",
-        "laser_intensity": "Unknown",
-        "laser_on" : "Unknown",
-        "date" : "Unknown"
-    }
-
-    for token in name_comp:
-
-        if result["rat_name"] == "Unknown" :
-            match = extract_type(token, r"^#(\d\d\d)")
-            if match:
-                result["rat_name"] = match
-
-        if result["rat_type"] == "Unknown":
-            match = extract_type(token, r"(CTRL|CHR)")
-            if match:
-                result["rat_type"] = match
-
-        if result["condition"] == "Unknown":
-            match = extract_type(token, r"(Conti|NOstim|Beta)")
-            if match:
-                result["condition"] = match
-
-        if result["stim_location"] == "Unknown":
-            match = extract_type(token, r"(LeftHemi|RightHemi|Ipsi|ipsi|Bilateral|Contra)")
-            if match:
-                result["stim_location"] = match
-
-        if result["handedness"] == "Unknown":
-            match = extract_type(token, r"(Ambidexter|LeftHanded|RightHanded)")
-            if match:
-                result["handedness"] = match
-
-        if result["session"] == "Unknown":
-            match = extract_type(token, r"S\d+")
-            if match:
-                result["session"] = match
-
-        if result["view"] == "Unknown":
-            match = extract_type(token, r"H\d+")
-            if match:
-                result["view"] = match
-
-        if result["task"] == "Unknown" and token in [
-            "onlyL1LeftHand", "onlyL2", "onlyL1", "onlyL2RightHand"
-            "L1", "L2", "L1L2", "L1L26040", "L1L25050", "L1-60", "L2-40",
-
-            "CueL2RightHand", "NoCue",
-            "CueL1", "CueL2" # those 2 are for renamed clip (led_detection.py) that tell exactly which cue is on
-        ]:
-            result["task"] = token
-
-            # if "CueL1" in name_comp or "CueL2" in name_comp : 
-            #     print(name_comp)
-            #     print(result["task"], token)
-
-        if result["laser_intensity"] == "Unknown":
-            match = extract_type(token, r"\d,\d*(mW)|\d*(mW)")
-            if match:
-                result["laser_intensity"] = match
-
-        # this will work only for the renamed clips (led_detection.py)
-        if result["laser_on"] == "Unknown" :
-            match = extract_type(token, r'(LaserOn|LaserOff)')
-            if match : 
-                result["laser_on"] = match
-
-        if result["date"] == "Unknown" : 
-            match = extract_type(token, r'(\d{4}20\d{2}|20\d{6})')
-            if match : 
-                result["date"] = match
-
-    videos.append({
-        "filename": str(file_path),
-        **result
-    })
-
-
-    
-
-def make_name_by_condition(name : str) : 
-    """
-    Generate a directory name by extracting metadata tokens from a filename or a directory name.
-    Note : This function is used when doing the analysis of multiple clips that
-    come from seperate video, but have the same experimental setting. Especially
-    regarding the cue 
-
-    The function parses the name using regular expressions to extract:
-        - rat identifier (e.g. '#517')
-        - rat type (CTRL or CHR)
-        - stimulation location (LeftHemi, RightHemi, Ipsi, Bilateral, Contra)
-        - laser stim type (Conti, NOstim, Beta)
-        - cue type (CueL1, CueL2, NoCue)
-        - view identifier ('H001', 'H002')
-        - laser state (LaserOn or LaserOff)
-
-    Extracted components are concatenated using underscores ('_').
-    Any empty or missing components are omitted.
-
-    Parameters
-    ----------
-    name : str
-        The filename/dir from which metadata will be extracted.
-
-    Returns
-    -------
-    str
-        A directory name composed of the extracted metadata fields.
-    """
-    name_comp = name.split("_")
-
-    result = {
-        "rat_name": "Unknown",
-        "rat_type": "Unknown",
-        "condition": "Unknown",
-        "stim_location": "Unknown",
-        "cue_type": "Unknown",
-        "view": "Unknown",
-        "laser_on" : "Unknown",
-        "laser_intensity": "Unknown"
-    }
-
-    for token in name_comp:
-
-        if result["rat_name"] == "Unknown" :
-            match = extract_type(token, r"^#(\d\d\d)")
-            if match:
-                result["rat_name"] = match
-
-        if result["rat_type"] == "Unknown":
-            match = extract_type(token, r"(CTRL|CHR)")
-            if match:
-                result["rat_type"] = match
-
-        if result["condition"] == "Unknown":
-            match = extract_type(token, r"(Conti|NOstim|Beta)")
-            if match:
-                result["condition"] = match
-
-        if result["stim_location"] == "Unknown":
-            match = extract_type(token, r"(LeftHemi|RightHemi|Ipsi|ipsi|Bilateral|Contra)")
-            if match:
-                result["stim_location"] = match
-
-        if result["view"] == "Unknown":
-            match = extract_type(token, r"H\d+")
-            if match:
-                result["view"] = match
-
-        if result["cue_type"] == "Unknown" :
-            match = extract_type(token, r"(CueL1|CueL2)")
-            if match:
-                result["cue_type"] = match
-
-        if result["laser_intensity"] == "Unknown":
-            match = extract_type(token, r"\d,\d*(mW)|\d*(mW)")
-            if match:
-                result["laser_intensity"] = match
-
-        # this will work only for the renamed clips (led_detection.py)
-        if result["laser_on"] == "Unknown" :
-            match = extract_type(token, r'(LaserOn|LaserOff)')
-            if match : 
-                result["laser_on"] = match
-
-    new_name = [val for val in result.values() if val != "Unknown"]
-
-    return "_".join(new_name)
-
-
-
-
-def get_date(name : str) : 
-    def parse_mixed_date(date_str):
-        from datetime import datetime
-        if date_str[4:].startswith("20"):  
-            return datetime.strptime(date_str, "%d%m%Y")
-        else:
-            return datetime.strptime(date_str, "%Y%m%d")
-        
-    name_comp = name.split("_")
-
-    for token in name_comp:
-        match = extract_type(token, r'(\d{4}20\d{2}|20\d{6})')
-        if match : 
-            return parse_mixed_date(match)
-        
-
-
-
-def get_condition(name: str) :
-    name_comp = name.split("_")
-
-    condition = ""
-    state = ""
-
-    for token in name_comp:
-        match = extract_type(token, r"(Conti|NOstim|Beta)")
-        if match : 
-            condition += match
-    
-        match = extract_type(token, r"On|Off")
-        if match : 
-            state += match
-
-    return condition + "_" + state
-
-
-
-def get_clip_number(name: str):
-
-    match = re.search(r"clip_(\d+)", name)
-    if match:
-        return int(match.group(1))  # return the number as int
-    return None  # if no clip number found
-
-
-def get_session(name : str) : 
-
-    match = re.search(r"S\d+", name)
-    if match: 
-        return match.group(0)
-    return None
-    
-
-
-def get_laser_intensity(name: str) : 
-
-    condition = extract_type(name, r"(Conti|NOstim|Beta)")
-    laser_intensity = extract_type(name, r"\d,\d*(mW)")
-
-    if laser_intensity and condition:
-        return laser_intensity
-    
-    if not laser_intensity and condition == "Beta" : 
-        return "1mW"    
-    elif not laser_intensity and condition == "Conti" : 
-        return "0,5mW"
-    elif not laser_intensity and condition == "NOstim" : 
-        return "NOstim"
-    
-    print("No laser intensity found")
-    return None
-
-        
-def verify_exist(path) : 
-    if not path.exists() : 
-        raise FileExistsError(f'This file does not exist : {path}')    
-
 
 
 if __name__ == "__main__" :
 
-    # ---------------------------------------------- setup path -------------------------------------------------
-
-    GENERATED_DATA_DIR = Path("../exploration/data") # root
-    RAW_VIDEO_DIR = Path("/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024")
-
-    DATABASE_DIR = GENERATED_DATA_DIR / "database" 
-    DATABASE_DIR.mkdir(parents=True, exist_ok=True)
-
-    # ---------------------------------------------- show all componants -------------------------------------------------
-
-
-    all_componants = set()
-
-    for root, dirs, files in os.walk(RAW_VIDEO_DIR):
-        for name in files : 
-            if is_video(name) :
-                comp = decompose_filename(name)
-                all_componants.update(comp)
-
-
-    sorted_componants = sort_componants(all_componants)
-    print(sorted_componants)
-
-
-    # ----------------------------------------------  classify Video by condition -------------------------------------------------
-
-    df = make_database(RAW_VIDEO_DIR, is_video)
-
-    print(f"Number of video in database : {len(df)}")
-    print(f"Database : \n{df}")
-
-    # filtration of the KO rat
-    no_KO_rats_df = df[df["rat_type"] != "Unknown"]
-    no_KO_rats_df.to_csv(DATABASE_DIR / "no_KO_video_list.csv")
-
-    print(f"Number of video after KO filtration : {len(no_KO_rats_df)}")
-
-    display_count_per_rat_condition(no_KO_rats_df, 
-                                    DATABASE_DIR /"video_count_per_rats.png",
-                                    "rat_name")
-    display_count_per_rat_condition(no_KO_rats_df, 
-                                    DATABASE_DIR / "video_count_per_condition.png",
-                                    "condition")
-    display_count_per_rat_condition(no_KO_rats_df, 
-                                    DATABASE_DIR / "video_count_per_task.png",
-                                     "task")
-    display_count_per_rat_condition(no_KO_rats_df, 
-                                    DATABASE_DIR / "video_count_per_stim_location.png",
-                                    "stim_location")
-    display_count_per_rat_condition(no_KO_rats_df, 
-                                    DATABASE_DIR / "video_count_per_handedness.png",
-                                    "handedness")
-    display_count_per_rat_condition(no_KO_rats_df, 
-                                    DATABASE_DIR / "video_count_per_session.png",
-                                    "session")
-    display_count_per_rat_condition(no_KO_rats_df, 
-                                    DATABASE_DIR / "video_count_per_view.png",
-                                    "view")
-
-
-    img_list = [
-        DATABASE_DIR / "video_count_per_condition.png",
-        DATABASE_DIR / "video_count_per_task.png", 
-        DATABASE_DIR / "video_count_per_stim_location.png", 
-        DATABASE_DIR / "video_count_per_handedness.png", 
-        DATABASE_DIR / "video_count_per_session.png",  
-        DATABASE_DIR / "video_count_per_rats.png" 
-    ]
-
-
-    display_images(images_list= img_list, 
-                   titles_list=None,
-                   fig_output_path= DATABASE_DIR / "Overall_database.png",
-                   figsize=(15, 8), show=False)
-
+    print("no main")

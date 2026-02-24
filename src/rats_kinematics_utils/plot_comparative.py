@@ -263,7 +263,7 @@ def _plot_violin_distribution(cfg, data) :
 
     g = sns.FacetGrid(data_trimmed, 
                       col='laser_state',
-                      col_order=["On", "Off"],
+                      col_order=["LaserOn", "LaserOff"],
                       hue="laser_intensity",    
                        
                       palette="pastel", 

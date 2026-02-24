@@ -159,7 +159,7 @@ def _make_violin(cfg, data, metric) :
     
     ax.set_ylabels(metric)
     ax.set_titles(col_template="{col_name}", row_template="{row_name}")
-    ax.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "violin_distribution", f"violin_{metric}_all_CHR_L2.png"))
+    ax.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "violin_distribution", f"violin_{metric}_all_CHR_L1.png"))
 
     if SHOW : 
         plt.show()
