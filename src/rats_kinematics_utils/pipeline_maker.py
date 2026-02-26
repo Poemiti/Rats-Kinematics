@@ -177,3 +177,22 @@ def print_analysis_info(cfg, analysis) :
     print(f"  task : {cfg.task} -> {cfg.task_pad}")
     print(f"  cm per pixel : {cfg.cm_per_pixel}")
     print(f"============================================\n")
+
+
+def print_interRat_analysis_info(filenames: list[Path], available_functions: dict) : 
+    print("Available rats: ")
+    rats = [file.parent.stem for file in filenames]
+    seen = []
+    for r in rats : 
+        if not r in seen : 
+            seen.append(r)
+            print("  ", r)
+
+    print("\nAvailable files:")
+    for file in filenames : 
+        print(f"  {file.parent.name}/{file.stem}" )
+
+    print("\nAvailable functions")
+    for function_name in available_functions.keys() : 
+        print("  ", function_name)
+    print("==============================================\n")

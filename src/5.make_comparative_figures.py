@@ -6,9 +6,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from rats_kinematics_utils.file_management import verify_exist, get_session
-from rats_kinematics_utils.plot_comparative import plot_stacked_velocity, plot_stacked_Yposition, _plot_violin_distribution, plot_stacked_trajectories, plot_velocity_over_cliptime
+from rats_kinematics_utils.plot_comparative import plot_stacked_velocity, plot_stacked_Yposition, _plot_violin_distribution, plot_stacked_trajectories, plot_velocity_over_cliptime, _plot_displot
 from rats_kinematics_utils.config import load_config
 from rats_kinematics_utils.pipeline_maker import load_metrics, load_figure_maker, make_output_path, check_analysis_choice, print_analysis_info
+from rats_kinematics_utils.statistics import ANOVA
+
 
 # ------------------------------------ setup ---------------------------------------
 
@@ -127,6 +129,8 @@ if plot_choice["plot_stacked_trajectories"] :
 
 
 
+############### violin ########################
+
 
 
 def _preprocess_violin(METRIC: str) -> pd.DataFrame : 
@@ -142,12 +146,19 @@ def _preprocess_violin(METRIC: str) -> pd.DataFrame :
 
             name = trial["filename_clips"].as_posix()
             condition, laser_state = trial["condition"].split('_', 1)
+            reward = "yes" if trial["reward"] else "no"
+
+            
+            if trial["laser_intensity"] == "0,5mW" or trial["laser_intensity"] == "1mW" : laser_intensity = "low" 
+            elif trial["laser_intensity"] == "NOstim" : laser_intensity = "NOstim" 
+            else : laser_intensity = "high"
 
             df = pd.DataFrame({
                 "value": [trial[METRIC]],
                 "condition": [condition],
                 "laser_state": [laser_state],
-                "laser_intensity": [trial["laser_intensity"]]
+                "laser_intensity": [laser_intensity],
+                "reward" : [reward]
             })
             data = pd.concat([data, df])
 
@@ -155,11 +166,11 @@ def _preprocess_violin(METRIC: str) -> pd.DataFrame :
 
 
 def _make_violin(cfg, data, metric) : 
-    ax = _plot_violin_distribution(cfg, data)
+    g = _plot_violin_distribution(cfg, data)
     
-    ax.set_ylabels(metric)
-    ax.set_titles(col_template="{col_name}", row_template="{row_name}")
-    ax.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "violin_distribution", f"violin_{metric}_all_CHR_L1.png"))
+    g.set_ylabels(metric)
+    g.set_titles(col_template="{col_name}", row_template="{row_name}")
+    g.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "violin_distribution", f"violin_{metric}_left_CHR_L1.png"))
 
     if SHOW : 
         plt.show()
@@ -168,17 +179,56 @@ def _make_violin(cfg, data, metric) :
 
 if plot_choice["plot_violin_distribution_tortuosity"] : 
     violin_data = _preprocess_violin(METRIC= "tortuosity")
-    _make_violin(cfg, violin_data, "tortuosity")
+    _make_violin(cfg, violin_data, "tortuosity (true path over shortest path)")
 
 if plot_choice["plot_violin_distribution_velocity"] : 
     violin_data = _preprocess_violin(METRIC= "average_velocity")
-    print(violin_data)
-    _make_violin(cfg, violin_data, "average_velocity")
+
+    ANOVA(violin_data, "value ~ condition * laser_state * laser_intensity")
+
+    # _make_violin(cfg, violin_data, "average velocity (cm.s$^{-1}$)")
     
 if plot_choice["plot_violin_distribution_peak"] : 
     violin_data = _preprocess_violin(METRIC= "peak_velocity")
-    print(violin_data)
-    _make_violin(cfg, violin_data, "peak_velocity")
+    _make_violin(cfg, violin_data, "peak velocity (cm.s$^{-1}$)")
+
+
+
+
+
+
+################ displot #####################""
+
+
+
+
+
+
+def _make_displot(cfg, data, metric) : 
+    g = _plot_displot(data)
+    
+    g.figure.suptitle(f'Distribution of {metric} depending on condition', ha='center')
+    g.figure.subplots_adjust(top=0.88)
+    g.set_axis_labels(metric, "Density (KDE)")
+    g.set_titles(col_template="{col_name}", row_template="{row_name}")
+    g.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "violin_distribution", f"displot_{metric}_left_CHR_L2.png"))
+
+    if SHOW : 
+        plt.show()
+    plt.close()
+
+
+if plot_choice["plot_displot_tortuosity"] : 
+    displot_data = _preprocess_violin(METRIC= "tortuosity")
+    _make_displot(cfg, displot_data, "tortuosity")
+
+if plot_choice["plot_displot_velocity"] : 
+    displot_data = _preprocess_violin(METRIC= "average_velocity")
+    _make_displot(cfg, displot_data, "average velocity")
+    
+if plot_choice["plot_displot_peak"] : 
+    displot_data = _preprocess_violin(METRIC= "peak_velocity")
+    _make_displot(cfg, displot_data, "peak velocity")
 
 
 

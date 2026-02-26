@@ -1,9 +1,9 @@
 
 # parameter
 rat_name: "#517"
-bodypart: left_hand 
-view: left          
-task: L1   
+bodypart: right_hand 
+view: right          
+task: L2   
 
 # rat_name: "#521"
 # bodypart: right_hand 

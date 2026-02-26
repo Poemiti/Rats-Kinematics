@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import seaborn as sns
 from datetime import datetime
 import time
@@ -254,86 +255,144 @@ def _trim_extremes_iqr(df, value_col="value", group_cols=("condition", "laser_in
     )
 
 
+def _add_text(ax, x, y, text, color) :
+    ax.text(
+        x, y, text,
+        ha="center", va="bottom", fontsize=8,
+        fontweight="bold", color=color, alpha=0.7)
+
+
+def _display_counts(g, data, data_trimmed, order) : 
+    counts_trimmed = (
+        data_trimmed
+        .groupby(["laser_state", "condition", "laser_intensity", "reward"])
+        .size()
+        .reset_index(name="N_trim")
+    )
+
+    counts_initial = (
+        data
+        .groupby(["laser_state", "condition", "laser_intensity"])
+        .size()
+        .reset_index(name="N_initial")
+    )
+
+    l_states = data_trimmed["laser_state"].unique()
+    l_intensities = data_trimmed["laser_intensity"].unique()
+
+    for ax, laser_state in zip(g.axes.flatten(), l_states):
+
+        subset_trim = counts_trimmed[counts_trimmed["laser_state"] == laser_state]
+        subset_init = counts_initial[counts_initial["laser_state"] == laser_state]
+
+        y_max = data_trimmed["value"].max()
+        y_offset = 0.05 * y_max
+
+        _add_text(ax, -0.4, y_max + y_offset*3, "tot:", "blue")
+        _add_text(ax, -0.4, y_max + y_offset*2, "yes:", "green")
+        _add_text(ax, -0.4, y_max + y_offset, "no:", "black")
+
+        for condition in order:
+            for intensity in l_intensities:
+
+                # --- X position with dodge ---
+                x = order.index(condition)
+                hue_index = list(l_intensities).index(intensity)
+                total_hue = len(l_intensities)
+
+                dodge_amount = 0.6
+                x_offset = (hue_index - (total_hue - 1) / 2) * dodge_amount / total_hue
+                x_pos = x + x_offset
+
+                # --- Get counts ---
+                init_row = subset_init[
+                    (subset_init["condition"] == condition) &
+                    (subset_init["laser_intensity"] == intensity)
+                ]
+
+                yes_row = subset_trim[
+                    (subset_trim["condition"] == condition) &
+                    (subset_trim["laser_intensity"] == intensity) &
+                    (subset_trim["reward"] == "yes")
+                ]
+
+                no_row = subset_trim[
+                    (subset_trim["condition"] == condition) &
+                    (subset_trim["laser_intensity"] == intensity) &
+                    (subset_trim["reward"] == "no")
+                ]
+
+                if init_row.empty:
+                    continue
+
+                N_initial = int(init_row["N_initial"].values[0])
+                N_yes = int(yes_row["N_trim"].values[0]) if not yes_row.empty else 0
+                N_no = int(no_row["N_trim"].values[0]) if not no_row.empty else 0
+
+                _add_text(ax, x_pos, y_max + y_offset*3, N_initial, "blue")
+                _add_text(ax, x_pos, y_max + y_offset*2, N_yes, "green")
+                _add_text(ax, x_pos, y_max + y_offset, N_no, "black")
+
 
 def _plot_violin_distribution(cfg, data) : 
 
     data_trimmed = _trim_extremes_iqr(data, k=1.5)
     print(f"\nNumber of removed outliers : {len(data) - len(data_trimmed)}")
-    # print(data_trimmed)
+    if len(data_trimmed[data_trimmed["condition"]=="NOstim"]) == 0 : 
+        data_trimmed = data_trimmed[data_trimmed["condition"]!="NOstim"]
+        order = ["Conti", "Beta"]
+    else : 
+        order = ["NOstim", "Conti", "Beta"]
 
-    g = sns.FacetGrid(data_trimmed, 
-                      col='laser_state',
-                      col_order=["LaserOn", "LaserOff"],
-                      hue="laser_intensity",    
-                       
-                      palette="pastel", 
-                      margin_titles=True,
-                    #   sharey=False,
-                      height=4, aspect=0.8)
-    g.map_dataframe(
-        sns.stripplot,
-        x="condition",
-        y="value",
+    print(data_trimmed)
+    
+    reward_palette = {"no": "black",
+                      "yes": "green"}
+    laser_intensity_palette = {"low" : "lightblue",
+                               "high" : "salmon",
+                               "NOstim" : "gray"}
+
+    g = sns.FacetGrid(
         data=data_trimmed,
-        dodge=True,
-        color="black",
-        size=2.5,
-        alpha=0.5,
-        order=["NOstim", "Conti", "Beta"],
-        legend=False, 
+        col="laser_state",
+        margin_titles=True,
+        height=4,
+        aspect=1
     )
 
+    # VIOLIN
     g.map_dataframe(
         sns.violinplot,
         x="condition",
         y="value",
-        data=data_trimmed,
-        hue_order=data["condition"].unique(),
+        hue="laser_intensity",
         split=True,
-        gap= .1,
         inner="quart",
-        order=["NOstim", "Conti", "Beta"],
-    )
-    
-    
-
-    counts = (
-        data_trimmed
-        .groupby(["laser_state", "condition", "laser_intensity"])
-        .size()
-        .reset_index(name="N")
+        order=order,
+        gap= .1,
+        palette=laser_intensity_palette,
+        legend=True,
     )
 
-    order = ["NOstim", "Conti", "Beta"]
-    intensities = data_trimmed["laser_intensity"].unique()
+    # STRIP
+    g.map_dataframe(
+        sns.stripplot,
+        x="condition",
+        y="value",
+        hue="reward",
+        palette=reward_palette,
+        marker="X",
+        size=3,
+        alpha=0.7,
+        legend=True,
+    )
+    g.add_legend(title="Laser intensity        Rewarded trial", ncol=2)
 
-    for ax, laser_state in zip(g.axes.flatten(), ["On", "Off"]):
-        subset = counts[counts["laser_state"] == laser_state]
-        y_max = data_trimmed["value"].max()
-        y_offset = 0.05 * y_max
+    # --------------------------- display counting --------------------------
 
-        for _, row in subset.iterrows():
-            x = order.index(row["condition"])
-
-            # dodge offset (adjust depending on how many intensities you have)
-            if row["laser_intensity"] == intensities[0]:
-                x -= 0.2
-            else:
-                x += 0.2
-
-            ax.text(
-                x,
-                y_max + y_offset,
-                f"{row['N']}",
-                ha="center",
-                va="bottom",
-                fontsize=8,
-                fontweight="bold"
-            )
-    g.add_legend(title="Laser intensity")
+    _display_counts(g, data, data_trimmed, order)
 
     return g
-
 
 
 def plot_violin_distribution_velocity() : 
@@ -348,6 +407,58 @@ def plot_violin_distribution_peak() :
 
 
 
+
+
+
+########################################### displot ###############################################
+
+
+def _plot_displot(data):
+
+    data_trimmed = _trim_extremes_iqr(data, k=1.5)
+    print(f"\nNumber of removed outliers: {len(data) - len(data_trimmed)}")
+
+    if (data_trimmed["condition"] == "NOstim").sum() == 0:
+        data_trimmed = data_trimmed[data_trimmed["condition"] != "NOstim"]
+        row_order = ["Conti", "Beta"]
+    else:
+        row_order = ["NOstim", "Conti", "Beta"]
+
+    laser_intensity_palette = {"low" : "lightblue",
+                               "high" : "salmon",
+                               "NOstim" : "gray"}
+
+    # Remove empty combinations to avoid KDE crash
+    data_trimmed = data_trimmed.dropna(subset=["value"])
+
+    g = sns.displot(
+        data=data_trimmed,
+        x="value",
+        col="laser_state",
+        row="condition",
+        hue="laser_intensity",
+        kind="kde",
+        height=2,
+        aspect=2,
+        fill=True,
+        palette=laser_intensity_palette,
+        row_order=row_order,
+        facet_kws=dict(margin_titles=True),
+        common_norm=False  # prevents normalization issues across subsets
+    )
+
+    g.add_legend()
+
+    return g
+
+def plot_displot_velocity(data) : 
+    pass
+
+def plot_displot_peak(data) : 
+    pass
+
+def plot_displot_tortuosity(data) : 
+    pass
 
 
 
