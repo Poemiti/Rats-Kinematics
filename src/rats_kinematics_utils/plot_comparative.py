@@ -6,6 +6,8 @@ import matplotlib as mpl
 import seaborn as sns
 from datetime import datetime
 import time
+import starbars
+from statannotations.Annotator import Annotator
 
 from rats_kinematics_utils.trajectory_metrics import crop_xy
 
@@ -250,7 +252,7 @@ def _trim_extremes_iqr(df, value_col="value", group_cols=("condition", "laser_in
     return (
         df
         .groupby(list(group_cols), group_keys=False)
-        .apply(_trim)
+        .apply(_trim, include_groups=True)
         .reset_index(drop=True)
     )
 
@@ -334,17 +336,16 @@ def _display_counts(g, data, data_trimmed, order) :
                 _add_text(ax, x_pos, y_max + y_offset, N_no, "black")
 
 
-def _plot_violin_distribution(cfg, data) : 
+def _plot_violin_distribution(cfg, data: pd.DataFrame, statistics: pd.DataFrame = None) : 
 
     data_trimmed = _trim_extremes_iqr(data, k=1.5)
     print(f"\nNumber of removed outliers : {len(data) - len(data_trimmed)}")
+
     if len(data_trimmed[data_trimmed["condition"]=="NOstim"]) == 0 : 
-        data_trimmed = data_trimmed[data_trimmed["condition"]!="NOstim"]
+        data_trimmed = data_trimmed.loc[data_trimmed["condition"]!="NOstim"]
         order = ["Conti", "Beta"]
     else : 
         order = ["NOstim", "Conti", "Beta"]
-
-    print(data_trimmed)
     
     reward_palette = {"no": "black",
                       "yes": "green"}
@@ -407,7 +408,146 @@ def plot_violin_distribution_peak() :
 
 
 
+######################################## statistics violin ######################################
 
+
+
+def parse_group(g):
+    cond, intensity = g.split(".")
+    return (cond, intensity)
+
+def _add_stat_annotations(ax, data, statistics, order):
+
+    # Filter stats for this facet (adapt if needed)
+    stats_subset = statistics.copy()
+
+    # Build pairs list
+    pairs = [
+        (parse_group(row["group1"]),
+        parse_group(row["group2"]))
+        for _, row in stats_subset.iterrows()
+    ]
+
+    if len(pairs) == 0:
+        return
+
+    annotator = Annotator(
+            ax,
+            pairs,
+            data=data,
+            x="condition",
+            y="value",
+            hue="laser_intensity",
+            order=order,
+            hue_order=["low", "high"]
+        )
+
+    # We already computed p-values → no test
+    annotator.configure(
+        test=None,
+        text_format="star",   # or "simple"
+        loc="inside",
+        verbose=0
+    )
+
+    # Use adjusted p-values
+    pvalues = stats_subset["p_value"].values
+
+    annotator.set_pvalues(pvalues)
+    annotator.annotate()
+
+
+
+def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = None, strip: bool = True) : 
+
+    data_trimmed = _trim_extremes_iqr(data, k=1.5)
+    print(f"\nNumber of removed outliers : {len(data) - len(data_trimmed)}")
+
+    if data_trimmed["condition"].str.contains("NOstim").any():
+        data_trimmed = data_trimmed.loc[~data_trimmed["condition"].str.contains("NOstim")]
+        data = data.loc[~data["condition"].str.contains("NOstim")]
+
+
+    order = ["Conti_LaserOff", "Beta_LaserOff", "Conti_LaserOn", "Beta_LaserOn"]
+    reward_palette = {"no": "black",
+                      "yes": "green"}
+    laser_intensity_palette = {"low" : "lightblue",
+                               "high" : "salmon",
+                               "NOstim" : "gray"}
+
+    fig, ax = plt.subplots()
+
+    # VIOLIN
+    sns.violinplot(
+        data=data_trimmed,
+        x="condition",
+        y="value",
+        hue="laser_intensity",
+        split=True,
+        inner="quart",
+        order=order,
+        gap= .1,
+        palette=laser_intensity_palette,
+        legend=True,
+    )
+
+    # STRIP
+    if strip : 
+        sns.stripplot(
+            data=data_trimmed,
+            x="condition",
+            y="value",
+            hue="reward",
+            palette=reward_palette,
+            marker="X",
+            size=3,
+            alpha=0.7,
+            legend=True,
+        )
+
+    # --------------------------- display counting --------------------------
+
+    count = (data
+            .groupby(["condition", "laser_intensity"])
+            .size()
+            .reset_index(name="N")
+            )
+    
+    # Get category positions
+    x_positions = {cond: i for i, cond in enumerate(order)}
+
+    # Small horizontal offset for split violins
+    offset = 0.15
+    ymin = data["value"].min()
+
+    for _, row in count.iterrows():
+        cond = row["condition"]
+        intensity = row["laser_intensity"]
+        N = row["N"]
+
+        x = x_positions[cond]
+
+        # Shift left/right depending on hue level
+        if intensity == data["laser_intensity"].unique()[0]:
+            x_shifted = x - offset
+        else:
+            x_shifted = x + offset
+
+        ax.text(
+            x_shifted,
+            ymin,
+            f"{N}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+            fontweight="bold"
+        )
+
+    _add_stat_annotations(ax, data_trimmed, statistics, order)
+
+    ax.legend(loc="upper right")
+
+    return fig
 
 
 ########################################### displot ###############################################
