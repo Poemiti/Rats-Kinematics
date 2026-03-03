@@ -6,10 +6,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from rats_kinematics_utils.file_management import verify_exist, get_session
-from rats_kinematics_utils.plot_comparative import plot_stacked_velocity, plot_stacked_Yposition, _plot_violin_distribution, plot_stacked_trajectories, plot_velocity_over_cliptime, _plot_displot
+from rats_kinematics_utils.plot_comparative import plot_stacked_velocity, plot_stacked_Yposition, _plot_violin_distribution, plot_stacked_trajectories, plot_velocity_over_cliptime, _plot_displot, _plot_violin_statistic
 from rats_kinematics_utils.config import load_config
 from rats_kinematics_utils.pipeline_maker import load_metrics, load_figure_maker, make_output_path, check_analysis_choice, print_analysis_info
-from rats_kinematics_utils.statistics import ANOVA
+from rats_kinematics_utils.statistics import compute_statistics, save_stat_results
 
 
 # ------------------------------------ setup ---------------------------------------
@@ -133,7 +133,7 @@ if plot_choice["plot_stacked_trajectories"] :
 
 
 
-def _preprocess_violin(METRIC: str) -> pd.DataFrame : 
+def _preprocess_violin(METRIC: str, split_condition: bool = False) -> pd.DataFrame : 
     data = pd.DataFrame()
 
     for i, metrics_path in enumerate(filenames) :
@@ -144,8 +144,13 @@ def _preprocess_violin(METRIC: str) -> pd.DataFrame :
             if not trial["trial_success"] : 
                 continue
 
-            name = trial["filename_clips"].as_posix()
-            condition, laser_state = trial["condition"].split('_', 1)
+            name = trial["filename_clips"].stem
+            rat = name[4:8]
+            # condition = trial["condition"]
+            if split_condition : 
+                condition, laser_state = trial["condition"].split("_")
+            else : 
+                condition = trial["condition"]
             reward = "yes" if trial["reward"] else "no"
 
             
@@ -155,14 +160,16 @@ def _preprocess_violin(METRIC: str) -> pd.DataFrame :
 
             df = pd.DataFrame({
                 "value": [trial[METRIC]],
+                "rat": [rat],
                 "condition": [condition],
-                "laser_state": [laser_state],
+                "laser_state": [laser_state if split_condition else None],  
                 "laser_intensity": [laser_intensity],
                 "reward" : [reward]
             })
             data = pd.concat([data, df])
 
     return data.sort_values(by="condition")
+
 
 
 def _make_violin(cfg, data, metric) : 
@@ -177,20 +184,63 @@ def _make_violin(cfg, data, metric) :
     plt.close()
 
 
+
 if plot_choice["plot_violin_distribution_tortuosity"] : 
-    violin_data = _preprocess_violin(METRIC= "tortuosity")
+    violin_data = _preprocess_violin(METRIC= "tortuosity", split_condition=True)
     _make_violin(cfg, violin_data, "tortuosity (true path over shortest path)")
 
 if plot_choice["plot_violin_distribution_velocity"] : 
-    violin_data = _preprocess_violin(METRIC= "average_velocity")
+    violin_data = _preprocess_violin(METRIC= "average_velocity", split_condition=True)
 
-    ANOVA(violin_data, "value ~ condition * laser_state * laser_intensity")
+    # ANOVA(violin_data, "value ~ condition * laser_state * laser_intensity")
 
-    # _make_violin(cfg, violin_data, "average velocity (cm.s$^{-1}$)")
+    _make_violin(cfg, violin_data, "average velocity (cm.s$^{-1}$)")
     
 if plot_choice["plot_violin_distribution_peak"] : 
-    violin_data = _preprocess_violin(METRIC= "peak_velocity")
+    violin_data = _preprocess_violin(METRIC= "peak_velocity", split_condition=True)
     _make_violin(cfg, violin_data, "peak velocity (cm.s$^{-1}$)")
+
+
+
+
+
+######################## violin statistics #################################
+
+
+
+
+def _make_violin_stat(data, metric, formula) : 
+    stats_res = compute_statistics(data, formula)
+    
+    # save statistics results has joblib: dict of dataframe for each statistical test
+    save_stat_results(stats_res, cfg.paths.metrics / "statistics" / RAT_NAME / f"{metric}.joblib")
+
+    if "mann_whitney" in stats_res.keys() :
+        pairwise_results = stats_res["mann_whitney"] 
+        significant_pair = pairwise_results[pairwise_results["p_value"] < 0.05]
+
+        fig = _plot_violin_statistic(cfg, data, significant_pair, strip=len(significant_pair) == 0)
+        fig.suptitle(f"{metric} distribution for rat {RAT_NAME}")
+        fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "violin_distribution",  f"stat_violin_{metric}_{RAT_NAME}.png"))
+
+        if SHOW : 
+                plt.show()
+        plt.close()
+
+
+
+if plot_choice["plot_violin_stat_velocity"] : 
+    metric = "average_velocity"
+    data = _preprocess_violin(METRIC= metric)
+    _make_violin_stat(data, metric, "value ~ condition * laser_intensity")
+
+
+
+if plot_choice["plot_violin_stat_tortuosity"] : 
+    metric = "tortuosity"
+    data = _preprocess_violin(METRIC= metric)
+    _make_violin_stat(data, metric, "value ~ condition * laser_intensity")
+
 
 
 
@@ -198,6 +248,7 @@ if plot_choice["plot_violin_distribution_peak"] :
 
 
 ################ displot #####################""
+
 
 
 

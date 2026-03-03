@@ -529,9 +529,9 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
 
         # Shift left/right depending on hue level
         if intensity == data["laser_intensity"].unique()[0]:
-            x_shifted = x - offset
-        else:
             x_shifted = x + offset
+        else:
+            x_shifted = x - offset
 
         ax.text(
             x_shifted,
@@ -539,6 +539,7 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
             f"{N}",
             ha="center",
             va="bottom",
+            color="lightblue" if intensity=="low" else "salmon",
             fontsize=9,
             fontweight="bold"
         )
@@ -548,6 +549,16 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
     ax.legend(loc="upper right")
 
     return fig
+
+
+
+
+def plot_violin_stat_velocity() : 
+    pass
+
+def plot_violin_stat_tortuosity() : 
+    pass
+
 
 
 ########################################### displot ###############################################
