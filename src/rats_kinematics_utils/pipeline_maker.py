@@ -196,3 +196,50 @@ def print_interRat_analysis_info(filenames: list[Path], available_functions: dic
     for function_name in available_functions.keys() : 
         print("  ", function_name)
     print("==============================================\n")
+
+
+
+def dataframe_report(df: pd.DataFrame, include_na=False, sort=True):
+    """
+    Analyze categorical columns in a DataFrame.
+    
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        Input dataframe
+    include_na : bool (default=False)
+        Whether to include NaN values in counts
+    sort : bool (default=True)
+        Whether to sort categories by frequency (descending)
+        
+    Returns:
+    --------
+    dict
+        Dictionary where keys are column names and values are
+        DataFrames containing counts and percentages per category.
+    """
+    
+    results = {}
+    
+    # Select categorical and object columns
+    categorical_cols = df.select_dtypes(include=['object', 'category']).columns
+    
+    for col in categorical_cols:
+        counts = df[col].value_counts(dropna=not include_na)
+        percentages = df[col].value_counts(normalize=True, dropna=not include_na) * 100
+        
+        summary = pd.DataFrame({
+            'count': counts,
+            'percentage (%)': percentages.round(2)
+        })
+        
+        if sort:
+            summary = summary.sort_values(by='count', ascending=False)
+        
+        results[col] = {
+            'summary': summary,
+            'total_non_null': df[col].count(),
+            'num_unique_categories': df[col].nunique(dropna=not include_na)
+        }
+    
+    return results

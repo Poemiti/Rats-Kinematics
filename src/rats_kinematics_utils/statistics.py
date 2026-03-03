@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import joblib
 
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
@@ -85,8 +86,36 @@ def shapiro_test(group):
     })
 
 
+def mann_whitney(data: pd.DataFrame, comparisons: list) : 
+    results = []
+
+    for g1, g2 in comparisons:
+        x = data.loc[data["group"] == g1, "value"]
+        y = data.loc[data["group"] == g2, "value"]
+        
+        if len(x) > 0 and len(y) > 0:
+            stat, p = stats.mannwhitneyu(x, y, alternative="two-sided")
+        else:
+            stat, p = None, None
+        
+        results.append({
+            "group1": g1,
+            "group2": g2,
+            "n1": len(x),
+            "n2": len(y),
+            "U_stat": stat,
+            "p_value": p
+        })
+
+
+    pairwise_results = pd.DataFrame(results)
+    pairwise_results["p_adj"] = multipletests(pairwise_results["p_value"], method="fdr_bh")[1]
+    
+    return pairwise_results
+
 
 def compute_statistics(data: pd.DataFrame, formula: str) : 
+    stat_res = {}
 
     # 1. check normality
     print("\n1. Checking normality: ")
@@ -103,11 +132,20 @@ def compute_statistics(data: pd.DataFrame, formula: str) :
     print("\nNOT NORMAL: ")
     print(data_normality[data_normality["p_value"] < 0.05])
 
+    stat_res["shapiro"] = data_normality
+
     # 2. Kruskal test
     print("\n2. Making Kruskal Wallis test: ")
     data_kruskal = kruskal_test(data)
-    print("SIGNIFICANT" if data_kruskal["p_value"] < 0.05 else "NOT SIGNIFICANT")
     print(data_kruskal)
+
+    stat_res["kruskal"] = data_kruskal
+
+    if data_kruskal["p_value"] > 0.05 : 
+        print(f"\nNOT SIGNIFICANT")
+        return stat_res
+
+    print("\nSIGNIFICANT")
 
     data["group"] = (data["condition"] + "." + data["laser_intensity"])
 
@@ -131,31 +169,8 @@ def compute_statistics(data: pd.DataFrame, formula: str) :
                     ("Conti_LaserOn.low",   "Conti_LaserOn.high"),
                 ]
 
-    results = []
-
-    print(data)
-    for g1, g2 in comparisons:
-        x = data.loc[data["group"] == g1, "value"]
-        y = data.loc[data["group"] == g2, "value"]
-        
-        if len(x) > 0 and len(y) > 0:
-            stat, p = stats.mannwhitneyu(x, y, alternative="two-sided")
-        else:
-            stat, p = None, None
-        
-        results.append({
-            "group1": g1,
-            "group2": g2,
-            "n1": len(x),
-            "n2": len(y),
-            "U_stat": stat,
-            "p_value": p
-        })
-
-
     print("\n3. Mann Whitney pairwise comparaison:")
-    pairwise_results = pd.DataFrame(results)
-    pairwise_results["p_adj"] = multipletests(pairwise_results["p_value"], method="fdr_bh")[1]
+    pairwise_results = mann_whitney(data, comparisons)
     
     print(pairwise_results)
     print("\nSIGNIFICANT: ")
@@ -163,11 +178,128 @@ def compute_statistics(data: pd.DataFrame, formula: str) :
     print("\nNOT SIGNIFICANT: ")
     print(pairwise_results[pairwise_results["p_value"] > 0.05])
 
-    return pairwise_results[pairwise_results["p_value"] < 0.05]
+    stat_res["mann_whitney"] = pairwise_results
+
+    return stat_res
+
+
+def save_stat_results(data: dict, path: Path) : 
+    path.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(data, path)
+
+
+
+def LMM(data, formula): 
+    data["rat"] = data["rat"].astype("category")
+
+    model = smf.mixedlm(
+        formula,
+        data=data,
+        groups=data["rat"],
+        # re_formula="~condition"
+    )
+
+    result = model.fit(method="lbfgs")
+    residuals = model.resid
+
+    plt.hist(residuals, bins=30)
+    plt.show()
+
+    s, p_val = stats.shapiro(residuals)
+    print(f"Shapiro on residues : {p_val}")
+
+    return result
+
+
+
+############ permutation ##################
+
+
+def cohens_d_rat_level(effects):
+    return np.mean(effects) / np.std(effects, ddof=1)
+
+
+def compute_rat_effects(df: pd.DataFrame,
+                        value_col="value",
+                        rat_col="rat",
+                        laser_col="laser_state",
+                        on_label="LaserOn",
+                        off_label="LaserOff") -> pd.DataFrame :
+    """
+    Compute mean(ON) - mean(OFF) per rat.
+    Returns dataframe of rat-level effects.
+    """
+    
+    effects = []
+    
+    for rat, subdf in df.groupby([rat_col]):
+        
+        on_values = subdf[subdf[laser_col] == on_label][value_col]
+        off_values = subdf[subdf[laser_col] == off_label][value_col]
+        
+        # Skip rats missing one condition
+        if len(on_values) == 0 or len(off_values) == 0:
+            continue
+        
+        effect = on_values.mean() - off_values.mean()
+        effects.append({
+            "rat" : rat,
+            "effect" : effect
+        })
+    
+    return pd.DataFrame(effects)
 
 
 
 
 
+def rat_level_permutation(effects, n_perm=10000, two_tailed=True):
+    """
+    Sign-flip permutation test at rat level.
+    """
+    
+    observed_mean = np.mean(effects)
+    perm_means = []
+    
+    for _ in range(n_perm):
+        signs = np.random.choice([-1, 1], size=len(effects))
+        perm_means.append(np.mean(effects * signs))
+    
+    perm_means = np.array(perm_means)
+    
+    if two_tailed:
+        p_value = np.mean(np.abs(perm_means) >= np.abs(observed_mean))
+    else:
+        p_value = np.mean(perm_means >= observed_mean)
+    
+    return observed_mean, p_value, perm_means
 
 
+
+
+
+def compute_permutation_effect_size(data: pd.DataFrame) -> dict : 
+
+    effects = compute_rat_effects(data)
+    
+    print("\nRat-level effects:\n", effects)
+    print("Mean effect:", np.mean(effects["effect"]))
+    
+    observed, p_value, perm_dist = rat_level_permutation(effects["effect"])
+    
+    print("\nPermutation results")
+    print("Observed mean effect:", observed)
+    print("Permutation p-value:", p_value)
+    
+    if len(effects) > 1:
+        d = cohens_d_rat_level(effects["effect"])
+        print("Cohen's d (rat level):", d)
+    else:
+        print("Not enough rats for effect size.")
+    
+    return {
+        "effects": effects,
+        "observed_mean": observed,
+        "p_value": p_value,
+        "perm_distribution": perm_dist
+    }
