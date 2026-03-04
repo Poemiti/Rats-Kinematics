@@ -5,6 +5,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import joblib
+from itertools import permutations
+import pingouin as pg
 
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
@@ -212,94 +214,96 @@ def LMM(data, formula):
 
 
 
+
+
+
+
+
+
+
+
 ############ permutation ##################
 
 
-def cohens_d_rat_level(effects):
-    return np.mean(effects) / np.std(effects, ddof=1)
 
 
-def compute_rat_effects(df: pd.DataFrame,
-                        value_col="value",
-                        rat_col="rat",
-                        laser_col="laser_state",
-                        on_label="LaserOn",
-                        off_label="LaserOff") -> pd.DataFrame :
-    """
-    Compute mean(ON) - mean(OFF) per rat.
-    Returns dataframe of rat-level effects.
-    """
+
+def permutation(group1, group2, n_perm=10000):
+    values1 = group1["value"].to_numpy()
+    values2 = group2["value"].to_numpy()
     
-    effects = []
+    n1 = len(values1)
+    n2 = len(values2)
+    print(n1, n2)
+    combined = np.concatenate([values1, values2])
     
-    for rat, subdf in df.groupby([rat_col]):
-        
-        on_values = subdf[subdf[laser_col] == on_label][value_col]
-        off_values = subdf[subdf[laser_col] == off_label][value_col]
-        
-        # Skip rats missing one condition
-        if len(on_values) == 0 or len(off_values) == 0:
-            continue
-        
-        effect = on_values.mean() - off_values.mean()
-        effects.append({
-            "rat" : rat,
-            "effect" : effect
-        })
+    # observed difference
+    observed_diff = np.abs(values1.mean() - values2.mean())
     
-    return pd.DataFrame(effects)
+    perm_diff = np.zeros(n_perm)
+    for i in range(n_perm):
+        shuffled = np.random.permutation(combined)
+        perm_diff[i] = np.abs(shuffled[:n1].mean() - shuffled[n1:n1+n2].mean())
+    
+    # two-tailed p-value
+    p_value = np.mean(perm_diff >= observed_diff)
+    
+    return observed_diff, perm_diff, p_value
 
 
 
 
+def compute_permutation_effect_size(data: pd.DataFrame, n_perm: int) -> dict : 
+    
+    beta_on = data[
+        (data["condition"] == "Beta") &
+        (data["laser_state"] == "LaserOn")
+    ]
+    beta_off = data[data["laser_state"] == "LaserOff"]
 
-def rat_level_permutation(effects, n_perm=10000, two_tailed=True):
-    """
-    Sign-flip permutation test at rat level.
-    """
-    
-    observed_mean = np.mean(effects)
-    perm_means = []
-    
-    for _ in range(n_perm):
-        signs = np.random.choice([-1, 1], size=len(effects))
-        perm_means.append(np.mean(effects * signs))
-    
-    perm_means = np.array(perm_means)
-    
-    if two_tailed:
-        p_value = np.mean(np.abs(perm_means) >= np.abs(observed_mean))
-    else:
-        p_value = np.mean(perm_means >= observed_mean)
-    
-    return observed_mean, p_value, perm_means
+    conti_on = data[
+        (data["condition"] == "Conti") &
+        (data["laser_state"] == "LaserOn")
+    ]
+    conti_off = data[data["laser_state"] == "LaserOff"]
 
+    # --- Permutation test ---
+    b_observed_diff, b_perm_diff, b_pval = permutation(beta_on, beta_off, n_perm)
+    c_observed_diff, c_perm_diff, c_pval = permutation(conti_on, conti_off, n_perm)
+    bc_observed_diff, bc_perm_diff, bc_pval = permutation(conti_on, beta_on, n_perm)
 
+    bc_cohen = pg.compute_effsize(b_perm_diff, c_perm_diff)
+    b_cohen = pg.compute_effsize(b_perm_diff, bc_perm_diff)
+    c_cohen = pg.compute_effsize(c_perm_diff, bc_perm_diff)
 
+    results = [
+        {
+            "Condition" : "Beta vs NOstim",
+            "observed mean difference" : b_observed_diff,
+            "permutation differences" : b_perm_diff,
+            "p-value" : b_pval,
+            "cohen" : b_cohen
+        },
+        {
+            "Condition" : "Conti vs NOstim",
+            "observed mean difference" : c_observed_diff,
+            "permutation differences" : c_perm_diff,
+            "p-value" : c_pval,
+            "cohen" : c_cohen
+        },
+        {
+            "Condition" : "Beta vs Conti",
+            "observed mean difference" : bc_observed_diff,
+            "permutation differences" : bc_perm_diff,
+            "p-value" : bc_pval,
+            "cohen" : bc_cohen
+        }
+    ]
 
+    res = pd.DataFrame(results)
+    df = res.set_index("Condition")
+    print(df[["observed mean difference", "p-value", "cohen"]].T)
 
-def compute_permutation_effect_size(data: pd.DataFrame) -> dict : 
+    return results
 
-    effects = compute_rat_effects(data)
     
-    print("\nRat-level effects:\n", effects)
-    print("Mean effect:", np.mean(effects["effect"]))
-    
-    observed, p_value, perm_dist = rat_level_permutation(effects["effect"])
-    
-    print("\nPermutation results")
-    print("Observed mean effect:", observed)
-    print("Permutation p-value:", p_value)
-    
-    if len(effects) > 1:
-        d = cohens_d_rat_level(effects["effect"])
-        print("Cohen's d (rat level):", d)
-    else:
-        print("Not enough rats for effect size.")
-    
-    return {
-        "effects": effects,
-        "observed_mean": observed,
-        "p_value": p_value,
-        "perm_distribution": perm_dist
-    }

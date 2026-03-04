@@ -1,14 +1,14 @@
 
 # parameter
-rat_name: "#517"
-bodypart: right_hand 
-view: right          
-task: L2   
-
-# rat_name: "#521"
+# rat_name: "#525"
 # bodypart: right_hand 
-# view: right           # camera view
-# task: L2            # L1: left lever, L2: right lever
+# view: right          
+# task: L2   
+
+rat_name: "#521"
+bodypart: right_hand 
+view: right           # camera view
+task: L2            # L1: left lever, L2: right lever
 
 # hyper parameters
 threshold: 0.5

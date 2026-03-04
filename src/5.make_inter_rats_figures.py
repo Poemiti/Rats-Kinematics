@@ -8,7 +8,7 @@ import inspect
 import re
 
 import rats_kinematics_utils.plot_comparative as plot
-from rats_kinematics_utils.plot_comparative import plot_stacked_velocity, plot_stacked_Yposition, _plot_violin_statistic
+from rats_kinematics_utils.plot_comparative import _plot_violin_statistic, _displot_stat
 from rats_kinematics_utils.config import load_config
 from rats_kinematics_utils.pipeline_maker import load_metrics, make_output_path, check_analysis_choice, print_analysis_info, print_interRat_analysis_info, dataframe_report
 from rats_kinematics_utils.statistics import compute_statistics, save_stat_results, LMM, compute_permutation_effect_size
@@ -122,34 +122,93 @@ def plot_statistics(metric) :
 
 
 
+def plot_permutation(raw_data, metric, intensity, n_perm) : 
+    data = raw_data[raw_data["laser_intensity"] == intensity]
+    res = compute_permutation_effect_size(data, n_perm)
+    ax = _displot_stat(res)
+    ax.set_title(f"Effect size Distributions of {metric} (n_perm={n_perm})\n({intensity} intensity)")
+    ax.set_xlabel("Mean Difference")
+    ax.set_ylabel("Density")
+
+    fig = ax.figure
+    fig.savefig(make_output_path(cfg.paths.figures / "inter_rat", f"permutation_displot_{metric}_{intensity}Intensities.png"))
+    plt.show()
+    plt.close()
+
+
+
+
 # --------------------------------------- main -------------------------------------------
 
 
-plot_statistics("average_velocity")
-plot_statistics("tortuosity")
+################## setup
+
+metric = "tortuosity"
+data = _preprocess(filenames, metric, split_condition=True)
+print(data.head(5))
+info = dataframe_report(data)
+
+for col, info in info.items():
+    print(f"\nColumn: {col}")
+    print(info['summary'].T)
+
+print("\nlow")
+print("n beta off", len(data[(data["condition"] == "Beta") &
+                            (data["laser_state"] == "LaserOff") &
+                            (data["laser_intensity"] == "low")]))
+
+print("n beta on", len(data[(data["condition"] == "Beta") &
+                            (data["laser_state"] == "LaserOn") &
+                            (data["laser_intensity"] == "low")]))
+
+print("n conti off", len(data[(data["condition"] == "Conti") &
+                            (data["laser_state"] == "LaserOff") &
+                            (data["laser_intensity"] == "low")]))
+
+print("n conti on", len(data[(data["condition"] == "Conti") &
+                            (data["laser_state"] == "LaserOn") &
+                            (data["laser_intensity"] == "low")]))
+
+print("\nhigh")
+print("n beta off", len(data[(data["condition"] == "Beta") &
+                            (data["laser_state"] == "LaserOff") &
+                            (data["laser_intensity"] == "high")]))
+
+print("n beta on", len(data[(data["condition"] == "Beta") &
+                            (data["laser_state"] == "LaserOn") &
+                            (data["laser_intensity"] == "high")]))
+
+print("n conti off", len(data[(data["condition"] == "Conti") &
+                            (data["laser_state"] == "LaserOff") &
+                            (data["laser_intensity"] == "high")]))
+
+print("n conti on", len(data[(data["condition"] == "Conti") &
+                            (data["laser_state"] == "LaserOn") &
+                            (data["laser_intensity"] == "high")]))
+
+################## normal statistics
+
+# plot_statistics("average_velocity")
+# plot_statistics("tortuosity")
 
 
-# data = _preprocess(filenames, "average_velocity", split_condition=True)
+
+################## linear model try
+
 
 # result = LMM(data, "value ~ condition * laser_state * laser_intensity")
 # print(result.summary())
 
 
-# results = dataframe_report(data)
 
-# for col, info in results.items():
-#     print(f"\nColumn: {col}")
-#     print(info['summary'])
+################### permutation
 
+n_perm = 500000
 
-# low_data = data[data["laser_intensity"] == "low"]
-# high_data = data[data["laser_intensity"] == "high"]
+print("="*60)
+print(f"\nSize effect of LOW laser intensity, metric={metric} :")
+plot_permutation(data, metric, "low", n_perm)
 
-# print("="*60)
-# print("\nSize effect of LOW laser intensity")
-# low_res = compute_permutation_effect_size(low_data)
-
-
-# print("="*60)
-# print("\nSize effect of HIGH laser intensity")
-# high_res = compute_permutation_effect_size(high_data)
+print("="*60)
+print(f"\nSize effect of HIGH laser intensity, metric={metric} :")
+plot_permutation(data, metric, "high", n_perm)

@@ -420,6 +420,7 @@ def _add_stat_annotations(ax, data, statistics, order):
 
     # Filter stats for this facet (adapt if needed)
     stats_subset = statistics.copy()
+    l_intensities = data["laser_intensity"].unique()
 
     # Build pairs list
     pairs = [
@@ -439,7 +440,7 @@ def _add_stat_annotations(ax, data, statistics, order):
             y="value",
             hue="laser_intensity",
             order=order,
-            hue_order=["low", "high"]
+            hue_order=["low", "high"] if len(l_intensities) > 1 else None
         )
 
     # We already computed p-values → no test
@@ -467,10 +468,11 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
         data_trimmed = data_trimmed.loc[~data_trimmed["condition"].str.contains("NOstim")]
         data = data.loc[~data["condition"].str.contains("NOstim")]
 
-
+    l_intensities = data["laser_intensity"].unique()
     order = ["Conti_LaserOff", "Beta_LaserOff", "Conti_LaserOn", "Beta_LaserOn"]
     reward_palette = {"no": "black",
                       "yes": "green"}
+    
     laser_intensity_palette = {"low" : "lightblue",
                                "high" : "salmon",
                                "NOstim" : "gray"}
@@ -483,7 +485,7 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
         x="condition",
         y="value",
         hue="laser_intensity",
-        split=True,
+        split=len(l_intensities) > 1,
         inner="quart",
         order=order,
         gap= .1,
@@ -559,6 +561,76 @@ def plot_violin_stat_velocity() :
 def plot_violin_stat_tortuosity() : 
     pass
 
+
+
+
+
+
+def _displot_stat(perm_data) : 
+    custom_params = {"axes.spines.right": False, "axes.spines.top": False}
+    sns.set_theme(style="ticks", rc=custom_params)
+
+    rows = []
+    for cond in perm_data:
+        diffs = np.array(cond["permutation differences"])
+
+        # Mirror the permutation distribution
+        mirrored_diffs = np.concatenate([-diffs, diffs])
+        
+        for diff in mirrored_diffs:
+            rows.append({
+                "Condition": cond["Condition"],
+                "permutation difference": diff
+            })
+    df = pd.DataFrame(rows)
+
+    order = ["Beta vs Conti",
+             "Conti vs NOstim", 
+             "Beta vs NOstim", ]
+    
+    # Plot
+    fig, ax = plt.subplots(figsize=(6,4))
+    sns.histplot(
+        data=df,
+        x="permutation difference",
+        hue="Condition",
+        ax=ax,
+        hue_order=order,
+        common_norm=False,  # keeps separate densities normalized
+        alpha=0.5,
+        kde=True
+    )
+
+    kde_lines = [line for line in ax.lines]
+    print(f"n kde lines {len(kde_lines)}")
+    y_offset = 0.005 * (ax.get_ylim()[1] - ax.get_ylim()[0])
+
+    for i, line in enumerate(kde_lines):
+        x_data = line.get_xdata()
+        y_data = line.get_ydata()
+        
+        # Find peak of this KDE
+        max_idx = np.argmax(y_data)
+        x_peak = x_data[max_idx]
+        y_peak = y_data[max_idx]
+        
+        ax.text(
+            x_peak + 1,
+            y_peak + y_offset,
+            f"d={perm_data[i]['cohen']:.2f}",
+            color=line.get_color(),
+            ha="center",
+            va="bottom",
+            fontsize=10,
+            fontweight="bold"
+        )
+
+        ax.axvline(perm_data[i]["observed mean difference"], 
+                   color=line.get_color(), 
+                   lw=1, ls='--', label="conti observed")
+
+
+    return ax
 
 
 ########################################### displot ###############################################
