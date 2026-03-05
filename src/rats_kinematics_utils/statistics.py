@@ -216,7 +216,10 @@ def LMM(data, formula):
 
 
 
-
+def transform_data(data) : 
+    # transformed  =  stats.zscore(data)
+    transformed  =  np.log(data)
+    return transformed
 
 
 
@@ -232,6 +235,10 @@ def permutation(group1, group2, n_perm=10000):
     values1 = group1["value"].to_numpy()
     values2 = group2["value"].to_numpy()
     
+    # transform value to normalise
+    # values1 = transform_data(values1)
+    # values2 = transform_data(values2)
+
     n1 = len(values1)
     n2 = len(values2)
     print(n1, n2)
@@ -255,26 +262,41 @@ def permutation(group1, group2, n_perm=10000):
 
 def compute_permutation_effect_size(data: pd.DataFrame, n_perm: int) -> dict : 
     
+    # beta_on = data[
+    #     (data["condition"] == "Beta") &
+    #     (data["laser_state"] == "LaserOn")
+    # ]
+    # beta_off = data[data["laser_state"] == "LaserOff"]
+
+    # conti_on = data[
+    #     (data["condition"] == "Conti") &
+    #     (data["laser_state"] == "LaserOn")
+    # ]
+    # conti_off = data[data["laser_state"] == "LaserOff"]
+
     beta_on = data[
         (data["condition"] == "Beta") &
         (data["laser_state"] == "LaserOn")
     ]
-    beta_off = data[data["laser_state"] == "LaserOff"]
+    beta_off = data[
+        (data["condition"] == "Beta") &
+        (data["laser_state"] == "LaserOff")
+    ]
 
     conti_on = data[
         (data["condition"] == "Conti") &
         (data["laser_state"] == "LaserOn")
     ]
-    conti_off = data[data["laser_state"] == "LaserOff"]
+    conti_off = data[
+        (data["condition"] == "Conti") &
+        (data["laser_state"] == "LaserOff")
+    ]
+
 
     # --- Permutation test ---
     b_observed_diff, b_perm_diff, b_pval = permutation(beta_on, beta_off, n_perm)
     c_observed_diff, c_perm_diff, c_pval = permutation(conti_on, conti_off, n_perm)
     bc_observed_diff, bc_perm_diff, bc_pval = permutation(conti_on, beta_on, n_perm)
-
-    bc_cohen = pg.compute_effsize(b_perm_diff, c_perm_diff)
-    b_cohen = pg.compute_effsize(b_perm_diff, bc_perm_diff)
-    c_cohen = pg.compute_effsize(c_perm_diff, bc_perm_diff)
 
     results = [
         {
@@ -282,27 +304,24 @@ def compute_permutation_effect_size(data: pd.DataFrame, n_perm: int) -> dict :
             "observed mean difference" : b_observed_diff,
             "permutation differences" : b_perm_diff,
             "p-value" : b_pval,
-            "cohen" : b_cohen
         },
         {
             "Condition" : "Conti vs NOstim",
             "observed mean difference" : c_observed_diff,
             "permutation differences" : c_perm_diff,
             "p-value" : c_pval,
-            "cohen" : c_cohen
         },
         {
             "Condition" : "Beta vs Conti",
             "observed mean difference" : bc_observed_diff,
             "permutation differences" : bc_perm_diff,
             "p-value" : bc_pval,
-            "cohen" : bc_cohen
         }
     ]
 
     res = pd.DataFrame(results)
     df = res.set_index("Condition")
-    print(df[["observed mean difference", "p-value", "cohen"]].T)
+    print(df[["observed mean difference", "p-value"]].T)
 
     return results
 

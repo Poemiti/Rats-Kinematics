@@ -11,7 +11,7 @@ import rats_kinematics_utils.plot_comparative as plot
 from rats_kinematics_utils.plot_comparative import _plot_violin_statistic, _displot_stat
 from rats_kinematics_utils.config import load_config
 from rats_kinematics_utils.pipeline_maker import load_metrics, make_output_path, check_analysis_choice, print_analysis_info, print_interRat_analysis_info, dataframe_report
-from rats_kinematics_utils.statistics import compute_statistics, save_stat_results, LMM, compute_permutation_effect_size
+from rats_kinematics_utils.statistics import compute_statistics, save_stat_results, LMM, compute_permutation_effect_size, transform_data
 
 
 # ------------------------------------ setup ---------------------------------------
@@ -82,8 +82,10 @@ def _preprocess(filenames, METRIC: str, split_condition: bool = False) -> pd.Dat
             elif trial["laser_intensity"] == "NOstim" : laser_intensity = "NOstim" 
             else : laser_intensity = "high"
 
+            value = trial[METRIC]
+
             df = pd.DataFrame({
-                "value": [trial[METRIC]],
+                "value": [value],
                 "rat": [rat],
                 "condition": [condition],
                 "laser_state": [laser_state if split_condition else None],  
@@ -131,7 +133,7 @@ def plot_permutation(raw_data, metric, intensity, n_perm) :
     ax.set_ylabel("Density")
 
     fig = ax.figure
-    fig.savefig(make_output_path(cfg.paths.figures / "inter_rat", f"permutation_displot_{metric}_{intensity}Intensities.png"))
+    fig.savefig(make_output_path(cfg.paths.figures / "inter_rat", f"NostimePerCondition_notransform_{metric}_{intensity}Intensities_{n_perm}.png"))
     plt.show()
     plt.close()
 
@@ -141,7 +143,7 @@ def plot_permutation(raw_data, metric, intensity, n_perm) :
 # --------------------------------------- main -------------------------------------------
 
 
-################## setup
+################## setup + print d'info
 
 metric = "tortuosity"
 data = _preprocess(filenames, metric, split_condition=True)
@@ -152,39 +154,19 @@ for col, info in info.items():
     print(f"\nColumn: {col}")
     print(info['summary'].T)
 
-print("\nlow")
-print("n beta off", len(data[(data["condition"] == "Beta") &
-                            (data["laser_state"] == "LaserOff") &
-                            (data["laser_intensity"] == "low")]))
 
-print("n beta on", len(data[(data["condition"] == "Beta") &
-                            (data["laser_state"] == "LaserOn") &
-                            (data["laser_intensity"] == "low")]))
+condition = ["Beta", "Conti"]
+l_state = data["laser_state"].unique()
+l_intensity = ["low", "high"]
 
-print("n conti off", len(data[(data["condition"] == "Conti") &
-                            (data["laser_state"] == "LaserOff") &
-                            (data["laser_intensity"] == "low")]))
-
-print("n conti on", len(data[(data["condition"] == "Conti") &
-                            (data["laser_state"] == "LaserOn") &
-                            (data["laser_intensity"] == "low")]))
-
-print("\nhigh")
-print("n beta off", len(data[(data["condition"] == "Beta") &
-                            (data["laser_state"] == "LaserOff") &
-                            (data["laser_intensity"] == "high")]))
-
-print("n beta on", len(data[(data["condition"] == "Beta") &
-                            (data["laser_state"] == "LaserOn") &
-                            (data["laser_intensity"] == "high")]))
-
-print("n conti off", len(data[(data["condition"] == "Conti") &
-                            (data["laser_state"] == "LaserOff") &
-                            (data["laser_intensity"] == "high")]))
-
-print("n conti on", len(data[(data["condition"] == "Conti") &
-                            (data["laser_state"] == "LaserOn") &
-                            (data["laser_intensity"] == "high")]))
+for intensity in l_intensity :  
+    print(f"\n{intensity} :")
+    for state in l_state : 
+        for c in condition : 
+            size = len(data[(data["condition"] == c) &
+                            (data["laser_state"] == state) &
+                            (data["laser_intensity"] == intensity)])
+            print(f"  n {c} {state} : {size}")
 
 ################## normal statistics
 
@@ -209,6 +191,6 @@ print("="*60)
 print(f"\nSize effect of LOW laser intensity, metric={metric} :")
 plot_permutation(data, metric, "low", n_perm)
 
-print("="*60)
-print(f"\nSize effect of HIGH laser intensity, metric={metric} :")
-plot_permutation(data, metric, "high", n_perm)
+# print("="*60)
+# print(f"\nSize effect of HIGH laser intensity, metric={metric} :")
+# plot_permutation(data, metric, "high", n_perm)

@@ -11,7 +11,6 @@ from statannotations.Annotator import Annotator
 
 from rats_kinematics_utils.trajectory_metrics import crop_xy
 
-
 # ==================================== Plots for comparative analysis ===========================================
 
 
@@ -617,7 +616,7 @@ def _displot_stat(perm_data) :
         ax.text(
             x_peak + 1,
             y_peak + y_offset,
-            f"d={perm_data[i]['cohen']:.2f}",
+            f"{perm_data[i]['observed mean difference']:.2f}",
             color=line.get_color(),
             ha="center",
             va="bottom",
@@ -637,8 +636,18 @@ def _displot_stat(perm_data) :
 
 
 def _plot_displot(data):
+    from rats_kinematics_utils.statistics import transform_data
 
+    print(f"data size before trim = {len(data)}")
+    # log_val = np.log(data["value"])
+    # data["value"] = log_val
+
+    transformed_val = transform_data(data["value"])
+    data["value"] = transformed_val
+
+    # data_trimmed = data
     data_trimmed = _trim_extremes_iqr(data, k=1.5)
+
     print(f"\nNumber of removed outliers: {len(data) - len(data_trimmed)}")
 
     if (data_trimmed["condition"] == "NOstim").sum() == 0:
@@ -674,14 +683,17 @@ def _plot_displot(data):
 
     return g
 
-def plot_displot_velocity(data) : 
-    pass
+def plot_displot_velocity(data) :
+    g = _plot_displot(data) 
+    return g
 
 def plot_displot_peak(data) : 
-    pass
+    g = _plot_displot(data) 
+    return g
 
 def plot_displot_tortuosity(data) : 
-    pass
+    g = _plot_displot(data) 
+    return g
 
 
 

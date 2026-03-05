@@ -196,11 +196,6 @@ if plot_choice["plot_violin_distribution_velocity"] :
 
     _make_violin(cfg, violin_data, "average velocity (cm.s$^{-1}$)")
     
-if plot_choice["plot_violin_distribution_peak"] : 
-    violin_data = _preprocess_violin(METRIC= "peak_velocity", split_condition=True)
-    _make_violin(cfg, violin_data, "peak velocity (cm.s$^{-1}$)")
-
-
 
 
 
@@ -262,7 +257,7 @@ def _make_displot(cfg, data, metric) :
     g.figure.subplots_adjust(top=0.88)
     g.set_axis_labels(metric, "Density (KDE)")
     g.set_titles(col_template="{col_name}", row_template="{row_name}")
-    g.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "violin_distribution", f"displot_{metric}_left_CHR_L2.png"))
+    # g.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "violin_distribution", f"displot_{metric}_left_CHR_L2.png"))
 
     if SHOW : 
         plt.show()
@@ -270,18 +265,13 @@ def _make_displot(cfg, data, metric) :
 
 
 if plot_choice["plot_displot_tortuosity"] : 
-    displot_data = _preprocess_violin(METRIC= "tortuosity")
+    displot_data = _preprocess_violin(METRIC= "tortuosity", split_condition=True)
     _make_displot(cfg, displot_data, "tortuosity")
 
 if plot_choice["plot_displot_velocity"] : 
-    displot_data = _preprocess_violin(METRIC= "average_velocity")
+    displot_data = _preprocess_violin(METRIC= "average_velocity", split_condition=True)
     _make_displot(cfg, displot_data, "average velocity")
     
-if plot_choice["plot_displot_peak"] : 
-    displot_data = _preprocess_violin(METRIC= "peak_velocity")
-    _make_displot(cfg, displot_data, "peak velocity")
-
-
 
 
 
