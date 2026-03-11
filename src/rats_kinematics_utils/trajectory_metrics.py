@@ -247,22 +247,14 @@ def _remove_consecutiv_outliers(mask, max_len=2):
 
 
 
-def filter_outliers(coords: pd.DataFrame, 
-                    stat_method: str = 'mad',
-                    mad_threshold: float = 3.5,
-                    iqr_multiplier: float = 1.5,
-                    std_threshold: float = 3.0,
-                    percentile: float = None) -> pd.DataFrame : 
+def filter_outliers(coords: pd.DataFrame, stat_method: str = 'mad') -> pd.DataFrame : 
     """
     Detect outliers in coordinates and put them to NaN
 
     :param coords: coordinates (must contain x, y columns)
     :param stat_method:
-      - 'mad': modified Z-score > mad_threshold
-      - 'iqr': classical IQR fences: [Q1 - m*IQR, Q3 + m*IQR]
-      - 'adj_iqr': skew-adjusted IQR (Hubert & Vandervieren) using medcouple
-      - 'std': Z-score > std_threshold based on mean and standard deviation
-      - 'percentile': remove any value > percentile-th percentile
+      - 'regression': dists distance to computed polynomial regression < threshold
+      - 'eucli': euclidian distance between 2 consecutive points > threshold
     """
     filtered_coords = coords.copy()
 
@@ -271,37 +263,12 @@ def filter_outliers(coords: pd.DataFrame,
     y = coords["y"].to_numpy(dtype=float)
 
 
-    if stat_method == "rolling_mad" : 
-        time = coords["t"].to_numpy()
-        dx = np.diff(x, prepend=x[0])
-        dy = np.diff(y, prepend=y[0])
-        speed = np.sqrt(dx**2 + dy**2)
-        # speed_smooth = pd.Series(speed).rolling(3, center=True, min_periods=1).median()
-
-        # detect peaks in speed
-        peaks, props = find_peaks(speed, height=30)   # 30 px threshold
-        print("Spike frames:", peaks)
-
-        # remove them
-        coords_clean = coords.copy()
-        coords_clean.loc[peaks, ["x","y"]] = np.nan
-        return coords_clean, peaks, speed
-
-
-
-    elif stat_method == "regression" : 
-        import matplotlib.pyplot as plt 
-
+    if stat_method == "regression" : 
         s_factor=3.0
         k=2
         s=1000
 
-        t = coords["t"].to_numpy()
-        x = coords["x"].to_numpy()
-        y = coords["y"].to_numpy()
-
-
-        # --- Fit splines ---
+        # Fit splines 
         tck_x = make_splrep(t, x, k=k, s=s)
         tck_y = make_splrep(t, y, k=k, s=s)
 
@@ -309,119 +276,33 @@ def filter_outliers(coords: pd.DataFrame,
         x_pred = splev(t, tck_x)
         y_pred = splev(t, tck_y)
 
-        # Compute residual distance
-        residual = np.sqrt((x - x_pred)**2 + (y - y_pred)**2)
-        thresh = np.nanmean(residual) + s_factor * np.nanstd(residual)
-        mask_regression = residual < thresh
+        # Compute dists distance
+        dists = np.sqrt((x - x_pred)**2 + (y - y_pred)**2)
+        thresh = np.nanmean(dists) + s_factor * np.nanstd(dists)
+        mask = dists < thresh
 
-        computed_thresh = define_likelihood_threshold(coords, 0.3)
-        print(f"\nthreshold set to: {computed_thresh}")
-        mask_likelihood = coords["likelihood"] > computed_thresh
-
-        # add mask
-        print(mask_likelihood)
-        print(mask_regression)
-        mask = mask_regression
-        print(mask)
-
-        # --- Plotting ---
-        fig, axes = plt.subplots(3, 1, figsize=(10,6), sharex=True)
-
-        # x(t)
-        axes[0].plot(t, x, 'o', label='observed', alpha=0.5)
-        axes[0].plot(t, x_pred, '-', label='regression', color='black')
-        axes[0].scatter(t[~mask], x[~mask], marker="x", color='red', label='outliers')
-        axes[0].set_ylabel("x")
-        axes[0].legend()
-        axes[0].set_title("Trajectory Regression with Outlier Detection")
-
-        # y(t)
-        axes[1].plot(t, y, 'o', label='observed', alpha=0.5)
-        axes[1].plot(t, y_pred, '-', label='regression', color='black')
-        axes[1].scatter(t[~mask], y[~mask], marker="x",  color='red', label='outliers')
-        axes[1].set_ylabel("y")
-        axes[1].legend()
-
-        # Residuals
-        axes[2].plot(t, residual, 'o-', label='residual', alpha=0.7)
-        axes[2].axhline(thresh, color='red', linestyle='--', label='threshold')
-        axes[2].set_ylabel("Residual distance")
-        axes[2].set_xlabel("time (s)")
-        axes[2].legend()
-
-        plt.tight_layout()
-        plt.gca().set_xlim(0,0.5)
-        plt.show()
-        plt.close()
+        params = (dists, thresh, mask)
 
 
     if stat_method == "eucli" : 
-        import matplotlib.pyplot as plt 
+        threshold = 40 # pixel
 
-        t = coords["t"].to_numpy()
-        x = coords["x"].to_numpy()
-        y = coords["y"].to_numpy()
-
+        # compute displacement
         diffs = coords[["x","y"]].diff()
         dists = np.sqrt((diffs**2).sum(axis=1))
 
-        window = 15   # frames
-
-        rolling_med = dists.rolling(window, center=True).median()
-        rolling_mad = (dists - rolling_med).abs().rolling(window, center=True).median()
-
-        # convert MAD → std-equivalent
-        rolling_sigma = 1.4826 * rolling_mad
-
-        k = 5
-        # threshold = rolling_med + k * rolling_sigma
-        # threshold = threshold.bfill().ffill()
-        threshold = 40 # pixel
-
+        # remove consecutive outliers
         mask = dists < threshold
         mask = _remove_consecutiv_outliers(mask, max_len=3)
-        
-        # from scipy.ndimage import binary_dilation
+        mask = ~mask
 
-        # bad = ~mask
-        # bad = binary_dilation(bad, iterations=2)
-
-        # mask = ~bad
-
-        
-
-        # --- Plotting ---
-        fig, axes = plt.subplots(3,1, figsize=(10,6), sharex=True)
-
-        # x(t)
-        axes[0].plot(t, x, 'o', alpha=0.5)
-        axes[0].scatter(t[~mask], x[~mask], marker="x", color='red')
-        axes[0].set_ylabel("x")
-
-        # y(t)
-        axes[1].plot(t, y, 'o', alpha=0.5)
-        axes[1].scatter(t[~mask], y[~mask], marker="x", color='red')
-        axes[1].set_ylabel("y")
-
-        # distances
-        axes[2].plot(t, dists, 'o-', label="distance", alpha=0.7)
-        # axes[2].plot(t, threshold, color="red", linestyle="--", label="rolling threshold")
-        axes[2].axhline(threshold, color="red", linestyle="--", label="threshold")
-        axes[2].set_ylabel("distance")
-        axes[2].set_xlabel("time (s)")
-        axes[2].legend()
-
-        plt.tight_layout()
-        plt.gca().set_xlim(0,0.5)
-        plt.show()
-        plt.close()
+        params = (dists, threshold, mask)
 
     else:
         raise ValueError(f"Unknown stat_method '{stat_method}'")
     
-    filtered_coords.loc[~mask, ["x", "y"]] = np.nan
-
-    return filtered_coords
+    filtered_coords.loc[mask, ["x", "y"]] = np.nan
+    return filtered_coords, params
 
 
 

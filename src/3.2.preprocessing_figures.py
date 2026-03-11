@@ -17,7 +17,7 @@ from rats_kinematics_utils.pipeline_maker import load_database, print_analysis_i
 # ------------------------------------ plot choice ---------------------------------
 
 FILTRATION = True
-DISTRI = False
+DISTRI = True
 
 
 # ------------------------------------ setup ---------------------------------------
@@ -61,25 +61,16 @@ if FILTRATION :
         raw_coords = raw_coords[cfg.bodypart].copy()
         raw_coords = raw_coords.assign(t=np.arange(len(raw_coords)) / 125)
         print(f"\nraw : {len(raw_coords)}")
-        print(raw_coords.head(5))
         
-        
-
         # outlier_filtered_coords, peaks, speed = filter_outliers(raw_coords, stat_method='rolling_mad')
-        outlier_filtered_coords = filter_outliers(raw_coords, stat_method='eucli')
-        outlier_filtered_coords.to_csv("outlier_filtered.csv")
+        outlier_filtered_coords, params = filter_outliers(raw_coords, stat_method='eucli')
         print(f"\nafter outlier filtration : {outlier_filtered_coords['x'].count().sum()}")
-        print(outlier_filtered_coords.head(5))
 
         likelihood_filtered_coords = filter_likelihood(outlier_filtered_coords, cfg.threshold, percentile=0.95)
-        likelihood_filtered_coords.to_csv("likelihood_filtered.csv")
         print(f"after likelihood filtration : {likelihood_filtered_coords['x'].count().sum()}")
-        print(likelihood_filtered_coords.head(5))
 
-        interpolated_coords = interpolate_data(outlier_filtered_coords, method="spline", max_gap=5)
-        interpolated_coords.to_csv("interpolated_filtered.csv")
+        interpolated_coords = interpolate_data(likelihood_filtered_coords, method="spline", max_gap=5)
         print(f"\nafter interpolation : {interpolated_coords['x'].count().sum()}")
-        print(interpolated_coords.head(5))
 
 
         def plot_traj(coord, offset, label, color, ax: plt.axes = None, marker: str = None):
@@ -98,7 +89,7 @@ if FILTRATION :
 
         offset = 10
 
-        def plot_xy(axes, coords, offset, color,  marker, label) :
+        def plot_xy(axes, coords, offset, color,  marker, label) -> None :
             
             t = coords["t"]
             x = coords["x"] + offset
@@ -106,6 +97,41 @@ if FILTRATION :
 
             axes[0].plot(t, x, marker=marker, color=color, label=label)
             axes[1].plot(t, y, marker=marker, color=color)
+
+
+        def plot_outliers(axes, coords, params) -> None : 
+
+            t = coords["t"]
+            x = coords["x"] 
+            y = coords["y"] 
+
+            dists, threshold, mask = params
+
+            axes[0].plot(t, x, marker='|', color="#74a9cf", alpha=0.5 )
+            axes[0].scatter(t[mask], x[mask], marker="x", color='red')
+            axes[0].set_ylabel("x")
+            axes[0].set_title("Outlier detection based on euclidian distance")
+
+            # y(t)
+            axes[1].plot(t, y, marker='|', color="#74a9cf", label="raw points", alpha=0.5)
+            axes[1].scatter(t[mask], y[mask], marker="x", color='red', label="outliers")
+            axes[1].set_ylabel("y")
+            axes[1].invert_yaxis()
+            axes[1].legend()
+
+            # distances
+            axes[2].plot(t, dists, marker='o', color="#0570b0", label="distance")
+            axes[2].axhline(threshold, color="#fb6a4a", linestyle="--", linewidth=1 ,label="threshold")
+            axes[2].set_ylabel("Euclidean distance (pixel)")
+            axes[2].set_xlabel("time (s)")
+            axes[2].legend()
+
+            for ax in axes:
+                ax.set_xticks([])
+                ax.set_yticks([])
+
+            axes[2].set_xticks([0, 0.5])
+            axes[2].set_yticks([threshold])
 
         
         fig = plt.figure(figsize=(10,6))
@@ -116,14 +142,12 @@ if FILTRATION :
         ax_traj = fig.add_subplot(gs[:,1])    # trajectory spans both rows
         # ax_speed = fig.add_subplot(gs[2, 0])
 
-        plot_xy([ax_xt, ax_yt], raw_coords, 0*offset, "#d1cbdc","|", "0.raw")
-        plot_xy([ax_xt, ax_yt], outlier_filtered_coords, 1*offset, "#bdc9e1","|", "1.outlier")
-        plot_xy([ax_xt, ax_yt], likelihood_filtered_coords, 2*offset,"#74a9cf", "|", "2.likelihood")
         plot_xy([ax_xt, ax_yt], interpolated_coords, 3*offset,"#0570b0", "|", "3.interpolate")
-
+        plot_xy([ax_xt, ax_yt], likelihood_filtered_coords, 2*offset,"#74a9cf", "|", "2.likelihood")
+        plot_xy([ax_xt, ax_yt], outlier_filtered_coords, 1*offset, "#bdc9e1","|", "1.outlier")
+        plot_xy([ax_xt, ax_yt], raw_coords, 0*offset, "#d1cbdc","|", "0.raw")
+        
         plot_traj(raw_coords[:63], 0*offset, "raw", "#d1cbdc", ax_traj)
-        # plot_traj(outlier_filtered_coords, 1*offset, "outlier", ax_traj)
-        # plot_traj(likelihood_filtered_coords, 2*offset, "likelihood", ax_traj)
         plot_traj(interpolated_coords[:63], 0*offset, "interpolate", "#0570b0" ,ax_traj, "|")
 
         # ax_speed.plot(raw_coords["t"], speed, label="speed", marker="|")
@@ -146,7 +170,6 @@ if FILTRATION :
         ax_traj.legend()
         ax_traj.set_aspect("equal")
         
-
         # ax_speed.set_ylabel("time")
         # ax_speed.set_xlabel("time (s)")
         # ax_speed.set_xlim(0, 0.5)
@@ -158,9 +181,15 @@ if FILTRATION :
 
         ax_yt.set_xticks([0, 0.5])
 
-        fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "preprocessing", f"{trial_name}_interpolation.png"))
         plt.tight_layout()
-        plt.show()
+        fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "preprocessing", f"{trial_name}_interpolation.png"))
+        plt.close()
+
+        fig, axes = plt.subplots(3,1, figsize=(8,6), sharex=True)
+        plot_outliers(axes, raw_coords, params)
+        plt.tight_layout()
+        plt.gca().set_xlim(0,0.5)
+        fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "preprocessing", f"{trial_name}_outliers.png"))
         plt.close()
 
     
@@ -176,11 +205,9 @@ if DISTRI :
 
     for i, coords_path in enumerate(filenames[6:]):
 
+        # loading
         coords_path = Path(coords_path)
-
-        # load DLC results
         raw_coords = open_DLC_results(coords_path)
-
         bodyparts = raw_coords.columns.get_level_values(0).unique()
 
         for bp in bodyparts[1:]:
@@ -194,7 +221,6 @@ if DISTRI :
 
     data = pd.DataFrame(likelihood_distri)
 
-    print(data.head())
 
     fig, ax = plt.subplots()
 
@@ -202,7 +228,6 @@ if DISTRI :
         data=data,
         x="bodypart",
         y="likelihood",
-        palette="pastel",
         inner="quart",
         ax=ax
     )
@@ -213,5 +238,7 @@ if DISTRI :
 
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.show()
+    fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME, f"bodypart_likelihood_distribution.png"))
     plt.close()
+
+

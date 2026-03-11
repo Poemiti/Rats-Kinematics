@@ -5,7 +5,7 @@
 # view: right          
 # task: L2   
 
-rat_name: "#525"
+rat_name: "#517"
 bodypart: left_hand 
 view: left           # camera view
 task: L1            # L1: left lever, L2: right lever
