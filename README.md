@@ -25,20 +25,6 @@
 | Rat_#517Ambidexter_20240624_BetaMT300_RightHemiCHR_L1L25050_C001H001      | 1814        | ....       |
 
 
-## Perfomance prediction
-
-**some numbers :**  
-Total number of raw video (Raphael ones, without KO rats) : 644  
-Average number of clips/raw video                         : 43  
-Expected Total number of clips                            :  27692  
-
-
-| task              | time (only 1)           | total time (all raw video) | python function         |
-| ----              | ----                    | ----                       | ----                    |
-| splitting         | 37.32 sec (1 raw video) | 6.68 h                     | split_video             |
-| point prediction  | 30.74 sec (1 clip)      | 236.47 h                   | dlc_predict_Julien      |
-| video annotation  | 0.79 sec  (1 clip)      | 6.05 h                     | annotate_video_from_csv 
-
 
 ## Folder sytem
 

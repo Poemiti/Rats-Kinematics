@@ -1,13 +1,10 @@
-import os
 import pandas as pd
-import matplotlib.pyplot as plt
 import re
-import seaborn as sns
 from pathlib import Path
 
 # ----------------------------------- basic utility --------------------------------------
 
-def open_clean_csv(csv_path : Path) -> pd.DataFrame : 
+def open_DLC_results(csv_path : Path) -> pd.DataFrame : 
     """
     Load and clean a DeepLabCut CSV file.
 

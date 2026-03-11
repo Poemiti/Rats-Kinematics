@@ -37,8 +37,8 @@ for i, metrics_path in enumerate(filenames) :
 
         print(f"\n[{t+1}/{len(metrics)}]")
 
-        if not check_trial_success(trial) : 
-            continue
+        # if not check_trial_success(trial) : 
+        #     continue
 
         trial_name = trial['filename_clips'].stem
         print(f"Making figures of {trial_name}")
@@ -50,7 +50,7 @@ for i, metrics_path in enumerate(filenames) :
             
             print("Making single figures ...")
 
-            xy = trial["xy_filtered"]
+            xy = trial["xy_raw"]
 
             if trial["laser_on"] is not None:
                 frame_laser_on = xy.index[xy["t"] >= trial["laser_on"]][0]
@@ -82,7 +82,7 @@ for i, metrics_path in enumerate(filenames) :
             ax.set_ylabel("y (cm)")
             ax.set_title(f"Trajectories of \n{trial_name[0 : len(trial_name)//2]}\n{trial_name[len(trial_name)//2 : ]}")
 
-            # ax.invert_xaxis()
+            ax.invert_xaxis()
             # ax.invert_yaxis()
         
             # ax.set_xlim(0, 512)

@@ -2,11 +2,7 @@ import pandas as pd
 import numpy as np
 
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 import seaborn as sns
-from datetime import datetime
-import time
-import starbars
 from statannotations.Annotator import Annotator
 
 from rats_kinematics_utils.trajectory_metrics import crop_xy
