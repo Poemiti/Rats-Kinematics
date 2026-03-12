@@ -217,20 +217,24 @@ def plot_annotated_video(video_path: Path,
     circle_coords = circle_offsets(radius)
 
     @numba.njit
-    def stamp_circle(frame, cx, cy, prob, coords, color, threshold):
+    def stamp_circle(frame, cx, cy, prob, coords, threshold):
         if prob < threshold or cx < 0 or cy < 0:
             return
 
         h, w, _ = frame.shape
+
+        r = int(255 * (1 - prob))
+        g = int(255 * prob)
+        b = 0
 
         for k in range(coords.shape[0]):
             xi = cx + coords[k, 0]
             yi = cy + coords[k, 1]
 
             if 0 <= xi < w and 0 <= yi < h:
-                frame[yi, xi, 0] = color[0]
-                frame[yi, xi, 1] = color[1]
-                frame[yi, xi, 2] = color[2]
+                frame[yi, xi, 0] = b
+                frame[yi, xi, 1] = g
+                frame[yi, xi, 2] = r
 
     # Main loop
     for i in range(num_frames):
@@ -245,7 +249,6 @@ def plot_annotated_video(video_path: Path,
             y[i],
             p[i],
             circle_coords,
-            color,
             likelihood_threshold,
         )
 

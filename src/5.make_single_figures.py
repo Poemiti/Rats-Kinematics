@@ -108,7 +108,7 @@ for i, metrics_path in enumerate(filenames) :
                                     output_path=make_output_path(output_fig_dir / "annotated_clips", f"anot_{trial_name}.mp4"),
                                     bodypart_name=cfg.bodypart,
                                     radius=5,
-                                    likelihood_threshold=0.1)
+                                    likelihood_threshold=0.0001)
             
 
 

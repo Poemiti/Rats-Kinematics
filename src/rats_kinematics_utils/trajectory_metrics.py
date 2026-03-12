@@ -338,7 +338,7 @@ def interpolate_data(coords: pd.DataFrame, method: str, max_gap: int, displaceme
         'spline': 4
     }
 
-    for col in coords.columns:
+    for col in ["x", "y"]:
         series = coords[col]
         before_nans = series.isna().sum()
         valid = series.dropna()
