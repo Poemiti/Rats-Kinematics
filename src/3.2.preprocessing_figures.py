@@ -10,7 +10,7 @@ import seaborn as sns
 
 from rats_kinematics_utils.file_management import make_name_by_condition, open_DLC_results
 from rats_kinematics_utils.trajectory_metrics import Trajectory, crop_xy, filter_likelihood, filter_outliers, interpolate_data
-from rats_kinematics_utils.plot_preprocess import make_interpolation_figures, make_outlier_figures
+from rats_kinematics_utils.plot_preprocess import make_interpolation_figures, make_outlier_figures, _outlier_proportion
 from rats_kinematics_utils.config import load_config
 from rats_kinematics_utils.pipeline_maker import load_database, print_analysis_info, make_output_path
 
@@ -165,7 +165,7 @@ if FILTRATION :
             color="black"
         )
 
-        props = outlier_proportion(data)
+        props = _outlier_proportion(data)
         y_max = data["n"].max()
 
         for i, step in enumerate(props.keys()):
@@ -213,7 +213,7 @@ if FILTRATION :
         color="black"
     )
 
-    props = outlier_proportion(all_data)
+    props = _outlier_proportion(all_data)
     y_max = all_data["n"].max()
 
     for i, step in enumerate(props.keys()):
