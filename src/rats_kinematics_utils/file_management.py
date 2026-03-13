@@ -72,7 +72,7 @@ def is_csv(filename : str) -> bool :
 
 
 PATTERNS = {
-    "rat_name": r"^#\d{3}",
+    "rat_name": r"#\d{3}",
     "rat_type": r"(CTRL|CHR)",
     "condition": r"(Conti|NOstim|Beta)",
     "stim_location": r"(LeftHemi|RightHemi|Ipsi|ipsi|Bilateral|Contra)",
@@ -115,7 +115,7 @@ def parse_filename(name: str) -> dict:
             result["task"] = t
             break
 
-    # Second pass: derived defaults (safe now)
+    # Second pass: derived defaults 
     if result["laser_intensity"] == "Unknown" :
 
         if result["condition"] == "Beta":

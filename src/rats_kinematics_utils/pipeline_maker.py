@@ -10,6 +10,7 @@ import sys
 from rats_kinematics_utils.file_management import make_database, is_csv, is_video, get_date, get_condition, get_clip_number, get_laser_intensity
 import rats_kinematics_utils.database_filter as db
 import rats_kinematics_utils.figures_maker as fg
+import rats_kinematics_utils.preprocess_validator as pv
 
 # ------------------------------------ make database out of directory ---------------------------------------
 
@@ -56,11 +57,25 @@ def load_figure_maker(dir, single_plot: bool) :
 
 
 
+def load_preprocess_validator(dir) : 
+    model = pv.Model(dir) 
+    view = pv.View()
+    controller = pv.Controller(model, view)
+    view.bind_keys(controller)
+    view.mainloop()
+
+    if view.stop_requested : 
+        return
+
+    return model.validation
+
+
 # ------------------------------------------ store metrics ------------------------------------
 
 
-def init_metrics(coords: Path, lum: Path, clip: Path) : 
+def init_metadata(coords: Path, lum: Path, clip: Path) : 
     return {
+            "name" : clip.stem,
             "filename_coords" : coords,
             "filename_luminosity" : lum,
             "filename_clips" : clip,
@@ -95,12 +110,12 @@ def check_lost_coords(xy_filtered, coords, max_lost=10):
     return True
 
 
-def check_times(time_pad_off, time_laser_on, n_frames, laser_duration):
+def check_times(time_pad_off, time_laser_on, laser_duration):
     if time_pad_off is None:
         print("  ! Pad off time is None")
         return False
 
-    if time_laser_on is not None and time_laser_on + laser_duration > n_frames - 1:
+    if time_laser_on is not None and time_laser_on + laser_duration > 3:
         print(f"  ! Laser window out of bounds (laser_on={time_laser_on})")
         return False
 

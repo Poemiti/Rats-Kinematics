@@ -199,7 +199,7 @@ def filter_likelihood(coords: pd.DataFrame, thresh: float, percentile: float = N
     Low confidance point will be set to NaN
     """
     computed_thresh = define_likelihood_threshold(coords, thresh, percentile)
-    print(f"\nthreshold set to: {computed_thresh}")
+    # print(f"\nthreshold set to: {computed_thresh}")
     mask = coords["likelihood"] > computed_thresh
     filtered_coords = coords.copy()
     filtered_coords.loc[~mask, ["x", "y"]] = np.nan
@@ -369,7 +369,7 @@ def interpolate_data(coords: pd.DataFrame, method: str, max_gap: int, displaceme
         interp_series = interp_series.ffill(limit=max_gap)
 
         after_nans = interp_series.isna().sum()
-        print(f"Number of NaNs before interpolation : {before_nans}, after : {after_nans}")
+        # print(f"Number of NaNs before interpolation : {before_nans}, after : {after_nans}")
 
         coords_interpolated[col] = interp_series
 
