@@ -40,7 +40,7 @@ if plot_choice["plot_stacked_velocity"] :
         title = (
             "Average velocity of the left paw, across trials with settings:\n"
             f"{output_fig_dir.name}\n"
-            f"Number of trials: {sum(1 for m in metrics if m.get('trial_success'))}"
+            f"Number of trials: {sum(1 for m in metrics if m[cfg.bodypart].get('trial_success'))}"
             )
 
         ax.set_title(title, color="blue")
@@ -48,6 +48,7 @@ if plot_choice["plot_stacked_velocity"] :
         ax.set_ylabel("Velocity (cm.s$^{-1}$)") 
 
         ax.set_xlim(-0.1, 0.5)
+        ax.set_ylim(-10, 150)
 
         fig = ax.figure
         fig.savefig(make_output_path(output_fig_dir, f"stacked_velocity.png"))
@@ -73,7 +74,7 @@ if plot_choice["plot_stacked_Yposition"] :
         title = (
             "Average y position of the left paw, across trials with settings:\n"
             f"{output_fig_dir.name}\n"
-            f"Number of trials: {sum(1 for m in metrics if m.get('trial_success'))}"
+            f"Number of trials: {sum(1 for m in metrics if m[cfg.bodypart].get('trial_success'))}"
             )
 
         ax.invert_yaxis()
@@ -141,12 +142,12 @@ def _preprocess_violin(METRIC: str, split_condition: bool = False) -> pd.DataFra
 
         for trial in metrics : 
 
-            if not trial["trial_success"] : 
+            if not trial[cfg.bodypart]["trial_success"] : 
                 continue
 
             name = trial["filename_clips"].stem
             rat = name[4:8]
-            # condition = trial["condition"]
+            
             if split_condition : 
                 condition, laser_state = trial["condition"].split("_")
             else : 
@@ -159,7 +160,7 @@ def _preprocess_violin(METRIC: str, split_condition: bool = False) -> pd.DataFra
             else : laser_intensity = "high"
 
             df = pd.DataFrame({
-                "value": [trial[METRIC]],
+                "value": [trial[cfg.bodypart][METRIC]],
                 "rat": [rat],
                 "condition": [condition],
                 "laser_state": [laser_state if split_condition else None],  
@@ -288,17 +289,19 @@ if plot_choice['plot_velocity_over_cliptime'] :
 
         for trial in metrics : 
 
-            if not trial["trial_success"] : 
+            if not trial[cfg.bodypart]["trial_success"] : 
                 continue
 
             name = trial["filename_clips"].as_posix()
             session = get_session(name)
+            condition, laser_state = trial["condition"].split("_")
 
             df = pd.DataFrame({
                 "date": [trial["date"]],
-                "velocity": [trial["average_velocity"]],
-                "condition": [trial["condition"]],
-                "clip" : [trial["nb_clip"]],
+                "velocity": [trial[cfg.bodypart]["average_velocity"]],
+                "condition": condition,
+                "laser_state" : laser_state,
+                "clip" : [int(trial["nb_clip"])],
                 "session" : [session]
             })
 
@@ -306,14 +309,14 @@ if plot_choice['plot_velocity_over_cliptime'] :
             data = pd.concat([data, df])
 
     final_data: pd.DataFrame = data.sort_values(
-                by=["date", "condition",  "clip", "session"],
+                by=["date", "condition", "clip", "session"],
                 ascending=[True, True, True, True], 
             )
     final_data["date"] = pd.to_datetime(final_data["date"]).dt.date
-    final_data.to_csv(cfg.paths.figures / RAT_NAME / "metrics_by_sessions" / f"data.csv")
+    final_data.to_csv(make_output_path(cfg.paths.figures / RAT_NAME / "metrics_by_sessions", f"data.csv"))
 
     fig = plot_velocity_over_cliptime(final_data)
-    fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "metrics_by_sessions", f"velocity_overclip_LeftHemi_CHR_L2.png"))
+    fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "metrics_by_sessions", f"velocity_overclip_LeftHemi_CHR_L1.png"))
 
     if SHOW : 
         plt.show()

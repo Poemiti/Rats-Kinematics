@@ -37,8 +37,8 @@ for i, metrics_path in enumerate(filenames) :
 
         print(f"\n[{t+1}/{len(metrics)}]")
 
-        # if not check_trial_success(trial) : 
-        #     continue
+        if not check_trial_success(cfg, trial) : 
+            continue
 
         trial_name = trial['filename_clips'].stem
         print(f"Making figures of {trial_name}")
@@ -50,7 +50,7 @@ for i, metrics_path in enumerate(filenames) :
             
             print("Making single figures ...")
 
-            xy = trial["xy_raw"]
+            xy = trial[cfg.bodypart]["xy_raw"]
 
             if trial["laser_on"] is not None:
                 frame_laser_on = xy.index[xy["t"] >= trial["laser_on"]][0]
@@ -122,8 +122,8 @@ for i, metrics_path in enumerate(filenames) :
 
             # plotting
             fig, axs = plt.subplots(1, 3, figsize=(15, 5)) 
-            plot_metric_time(metric=trial["instant_velocity"]["velocity"],
-                            time=trial["instant_velocity"]['t'],
+            plot_metric_time(metric=trial[cfg.bodypart]["instant_velocity"]["velocity"],
+                            time=trial[cfg.bodypart]["instant_velocity"]['t'],
                             ax = axs[0], 
                             laser_on=trial["laser_on"],
                             color="red")
@@ -132,8 +132,8 @@ for i, metrics_path in enumerate(filenames) :
             axs[0].set_ylabel("Velocity (cm.s$^{-1}$)")
             axs[0].set_xlim(trial["pad_off"]-0.015, trial["pad_off"] +  0.4)
             
-            plot_metric_time(metric=trial["acceleration"]['acceleration'], 
-                            time=trial["acceleration"]['t'],
+            plot_metric_time(metric=trial[cfg.bodypart]["acceleration"]['acceleration'], 
+                            time=trial[cfg.bodypart]["acceleration"]['t'],
                             ax = axs[1],
                             laser_on=trial["laser_on"],
                             color="green")
@@ -142,8 +142,8 @@ for i, metrics_path in enumerate(filenames) :
             axs[1].set_ylabel("Acceleration (cm.s$^{-2}$)")
             axs[1].set_xlim(trial["pad_off"]-0.015, trial["pad_off"] +  0.4)
 
-            plot_metric_time(metric=trial["xy_filtered"]["y"], 
-                            time=trial["xy_filtered"]['t'],
+            plot_metric_time(metric=trial[cfg.bodypart]["xy_raw"]["y"], 
+                            time=trial[cfg.bodypart]["xy_raw"]['t'],
                             ax = axs[2],
                             laser_on=trial["laser_on"],
                             color="blue")
@@ -164,8 +164,8 @@ for i, metrics_path in enumerate(filenames) :
 
             print(f"Plotting 3D trajectory over time")
 
-            ax = plot_3D_traj(coords=trial["xy_filtered"],
-                            time=trial["xy_filtered"]["t"],
+            ax = plot_3D_traj(coords=trial[cfg.bodypart]["xy_raw"],
+                            time=trial[cfg.bodypart]["xy_raw"]["t"],
                             laser_on= trial["laser_on"] + 0.025,
                             ax= None,
                             color="blue",
@@ -201,8 +201,8 @@ for i, metrics_path in enumerate(filenames) :
             # ----------------------------- animate plot --------------------------
 
             fig, ax = plt.subplots(figsize=(12, 6))
-            anim = plot_animation(data=trial["instant_velocity"]["velocity"],
-                                time=trial["instant_velocity"]['t'],
+            anim = plot_animation(data=trial[cfg.bodypart]["instant_velocity"]["velocity"],
+                                time=trial[cfg.bodypart]["instant_velocity"]['t'],
                                 laser_on=trial["laser_on"],
                                 ax=ax)
             

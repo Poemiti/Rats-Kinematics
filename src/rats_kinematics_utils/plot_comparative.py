@@ -46,11 +46,11 @@ def plot_stacked_velocity(cfg, metrics: dict) :
     aligned_trials = []
 
     for trial in metrics:
-        if not check_trial_success(trial):
+        if not check_trial_success(cfg, trial):
             continue
 
         trial_name = trial["filename_clips"].stem
-        velo = trial["instant_velocity"]
+        velo = trial[cfg.bodypart]["instant_velocity"]
         relative_time = velo["t"] - trial["pad_off"]
 
         _relative_metric(velo["velocity"],
@@ -107,11 +107,11 @@ def plot_stacked_Yposition(cfg, metrics: dict) :
 
         # print(f"\n[{t}/{len(metrics)}]")
 
-        if not check_trial_success(trial) : 
+        if not check_trial_success(cfg, trial) : 
             continue 
 
         trial_name = trial["filename_clips"].stem
-        y_pos = trial["xy_filtered"]
+        y_pos = trial[cfg.bodypart]["xy_raw"]
         relative_time = y_pos["t"] - trial["pad_off"]
 
         _relative_metric(metric_list=y_pos["y"] * cfg.cm_per_pixel,
@@ -165,13 +165,13 @@ def plot_stacked_trajectories(cfg, metrics, ax: plt.axes = None) :
 
     for t, trial in enumerate(metrics) : 
 
-        if not check_trial_success(trial) : 
+        if not check_trial_success(cfg, trial) : 
             continue
 
         trial_name = trial['filename_clips'].stem
         print(f"\nMaking figures of {trial_name}")
 
-        coords = trial["xy_pad_off"] 
+        coords = trial[cfg.bodypart]["xy_pad_off"] 
 
         if trial["laser_on"] is not None:
             frame_laser_on = coords.index[coords["t"] >= trial["laser_on"]][0]
@@ -704,7 +704,7 @@ def plot_velocity_over_cliptime(data) :
 
     data_trimmed = _trim_extremes_iqr(data,
                                       value_col="velocity",
-                                      group_cols=["condition", "date"],
+                                      group_cols=["condition", "laser_state", "date"],
                                       k=1.5)
     print(f"\nNumber of removed outliers : {len(data) - len(data_trimmed)}")
 
@@ -721,17 +721,23 @@ def plot_velocity_over_cliptime(data) :
 
     g.map_dataframe(
         sns.lineplot,
-            x="clip",
-            y="velocity",
-            hue="condition",
-            data=data_trimmed,
-            alpha=0.7,
-            estimator=None,
-            style="condition",
-            hue_order=data["condition"].unique(),
-            markers=True
-        )
+        x="clip",
+        y="velocity",
+        color="grey",
+        estimator=None,
+        alpha=0.5,
+        sort=True
+    )
+
+    g.map_dataframe(
+        sns.scatterplot,
+        x="clip",
+        y="velocity",
+        hue="laser_state",
+        # sort=True,
+    )
             
+    g.add_legend()
     g.set_titles(col_template="{col_name}", row_template="{row_name}")
     g.set_axis_labels("Trial order", "Velocity (cm.s$^{-1}$)")
     g.tight_layout()

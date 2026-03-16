@@ -273,7 +273,7 @@ def plot_true_clustered_traj(cfg, trajectories, true_labels, pred_labels) :
 
 
 
-def extract_trajectories(filenames: list[Path], coords: str) -> list[pd.DataFrame] : 
+def extract_trajectories(cfg, filenames: list[Path], coords: str) -> list[pd.DataFrame] : 
     all_traj = []
     true_labels = []
     for i, metrics_path in enumerate(filenames) :
@@ -286,13 +286,13 @@ def extract_trajectories(filenames: list[Path], coords: str) -> list[pd.DataFram
             #     all_traj.append(xy)
             #     continue
 
-            if not trial["trial_success"] : 
+            if not trial[cfg.bodypart]["trial_success"] : 
                 continue
 
             # if not trial["reward"] : 
             #     continue
 
-            xy = trial[coords]
+            xy = trial[cfg.bodypart][coords]
             xy = xy[["x", "y"]].to_numpy()
 
             label = trial['condition'] + "_" + trial["laser_intensity"]

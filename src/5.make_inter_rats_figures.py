@@ -64,8 +64,8 @@ def _preprocess(filenames, METRIC: str, split_condition: bool = False) -> pd.Dat
         metrics = load_metrics(Path(metrics_path))
 
         for trial in metrics : 
-
-            if not trial["trial_success"] : 
+            print(trial.keys())
+            if not trial[cfg.bodypart]["trial_success"] : 
                 continue
 
             name = trial["filename_clips"].stem
@@ -82,7 +82,7 @@ def _preprocess(filenames, METRIC: str, split_condition: bool = False) -> pd.Dat
             elif trial["laser_intensity"] == "NOstim" : laser_intensity = "NOstim" 
             else : laser_intensity = "high"
 
-            value = trial[METRIC]
+            value = trial[cfg.bodypart][METRIC]
 
             df = pd.DataFrame({
                 "value": [value],
@@ -168,18 +168,18 @@ for intensity in l_intensity :
                             (data["laser_intensity"] == intensity)])
             print(f"  n {c} {state} : {size}")
 
-################## normal statistics
+################# normal statistics
 
-# plot_statistics("average_velocity")
-# plot_statistics("tortuosity")
-
-
-
-################## linear model try
+plot_statistics("average_velocity")
+plot_statistics("tortuosity")
 
 
-# result = LMM(data, "value ~ condition * laser_state * laser_intensity")
-# print(result.summary())
+
+################# linear model try
+
+
+result = LMM(data, "value ~ condition * laser_state * laser_intensity")
+print(result.summary())
 
 
 
@@ -191,6 +191,6 @@ print("="*60)
 print(f"\nSize effect of LOW laser intensity, metric={metric} :")
 plot_permutation(data, metric, "low", n_perm)
 
-# print("="*60)
-# print(f"\nSize effect of HIGH laser intensity, metric={metric} :")
-# plot_permutation(data, metric, "high", n_perm)
+print("="*60)
+print(f"\nSize effect of HIGH laser intensity, metric={metric} :")
+plot_permutation(data, metric, "high", n_perm)

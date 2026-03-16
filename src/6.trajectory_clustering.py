@@ -18,7 +18,7 @@ from sklearn.preprocessing import LabelEncoder
 
 # ---------------------------- setup ----------------------------------
 
-SHOW = False
+SHOW = True
 NORMALIZE = False
 cfg = load_config()
 print_analysis_info(cfg, "Trajectory Clustering")
@@ -42,7 +42,7 @@ for file in filenames:
 # ------------------------------- get the trajectories -------------------------------------
 
 
-all_traj, true_labels = extract_trajectories(filenames, coords="xy_raw")
+all_traj, true_labels = extract_trajectories(cfg, filenames, coords="xy_raw")
 print("Number of trajectories:", len(all_traj))
 
 
@@ -60,7 +60,7 @@ plt.close()
 # # ------------------------------- compute or load distance matrix -------------------------------------
 
 
-if not MATRIX.exists() : 
+if MATRIX.exists() : 
     start = time.perf_counter()
     dist_matrix = make_distance_matrix(all_traj)
 

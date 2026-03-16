@@ -23,7 +23,6 @@ sns.set_theme(
 
 
 def trial_report(trials: list[dict]) -> dict:
-    from collections import defaultdict
 
     def new_block(intensities):
         return {
@@ -36,8 +35,8 @@ def trial_report(trials: list[dict]) -> dict:
         return {
             "Total": 0,
             "Successful": new_block(intensities),
+            "Rejected": new_block(intensities),
             "No reward": new_block(intensities),
-            "Too much lost coords": new_block(intensities),
             "No pad off": new_block(intensities),
         }
 
@@ -71,22 +70,18 @@ def trial_report(trials: list[dict]) -> dict:
         laser_state = "Laser ON" if "On" in condition else "Laser OFF"
 
         # Successful
-        if t["trial_success"]:
-            try : 
-                update(group, "Successful", laser_state, intensity)
-            except :
-                raise KeyError(f"{condition} {laser_state} {intensity}")
+        if t[cfg.bodypart]["trial_success"]:
+            update(group, "Successful", laser_state, intensity)
+        else : 
+            update(group, "Rejected", laser_state, intensity)
+        
         # No pad off
-        elif not t["pad_off"]:
+        if not t["pad_off"]:
             update(group, "No pad off", laser_state, intensity)
 
         # No reward
-        elif not t["reward"]:
+        if not t["reward"]:
             update(group, "No reward", laser_state, intensity)
-
-        # No coords
-        elif not t["lost_coords"]:
-            update(group, "Too much lost coords", laser_state, intensity)
 
     return report
 
@@ -159,7 +154,7 @@ def plot_trial_report(yaml_file: Path, output_path: Path) :
     g.set_xticklabels(rotation=45, fontsize=9)
     g.set_titles(col_template="{col_name}", row_template="{row_name}")
     g.set_axis_labels("", "Count")
-    g.set_xticklabels(["Successful", "No reward", "Lost coords", "No pad off"])
+    g.set_xticklabels(["Successful", "Rejected", "No reward", "No pad off"])
 
     g.savefig(output_path)
     plt.show()
@@ -178,27 +173,28 @@ RAT_NAME = cfg.rat_name
 filenames = list((cfg.paths.metrics / RAT_NAME).glob("*.joblib"))
 output_dir = cfg.paths.report / RAT_NAME
 output_dir.mkdir(parents=True, exist_ok=True)
-report_path = output_dir / "trial_report.yaml"
+report_path = output_dir / "trial_report_2.yaml"
 
-if report_path.exists() : 
-    print("Making trial report ...")
-    all_trials = []
-    for i, metrics_path in enumerate(filenames) :
-        metrics_path = Path(metrics_path) 
-        metrics = load_metrics(metrics_path)
-        for trial in metrics : 
-            all_trials.append(trial)
+# if not report_path.exists() : 
+print("Making trial report ...")
+all_trials = []
+for i, metrics_path in enumerate(filenames) :
+    metrics_path = Path(metrics_path) 
+    print(metrics_path.stem)
+    metrics = load_metrics(metrics_path)
+    for trial in metrics : 
+        all_trials.append(trial)
 
-    print("True number of trials :", len(all_trials))
-    report = trial_report(all_trials)
-    print(report.keys())
-    # save report
-    with open(output_dir / "trial_report.yaml", "w") as file :
-        yaml.dump(report, file, default_flow_style=False, indent=4, sort_keys=False)
+print("True number of trials :", len(all_trials))
+report = trial_report(all_trials)
+
+# save report
+with open(output_dir / report_path, "w") as file :
+    yaml.dump(report, file, default_flow_style=False, indent=4, sort_keys=False)
 
 
 # plot report
 print(f"Loading {report_path} and plotting")
-plot_trial_report(output_dir / "trial_report.yaml",
+plot_trial_report(output_dir / report_path,
                   output_dir / "trial_report.png")
 

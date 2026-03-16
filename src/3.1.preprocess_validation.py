@@ -1,17 +1,11 @@
 #!/usr/bin/env python
 
-from pathlib import Path
-import pandas as pd
 import joblib
-import numpy as np
-
-from rats_kinematics_utils.file_management import make_name_by_condition, verify_exist, open_DLC_results
-from rats_kinematics_utils.led_detection import get_time_led_state
+import sys
 
 from rats_kinematics_utils.config import load_config
-from rats_kinematics_utils.pipeline_maker import load_database, init_metadata, print_analysis_info, make_output_path, load_preprocess_validator
-from rats_kinematics_utils.trajectory_metrics import filter_outliers, filter_likelihood, interpolate_data
-from rats_kinematics_utils.plot_preprocess import make_interpolation_figures
+from rats_kinematics_utils.pipeline_maker import print_analysis_info, load_preprocess_validator
+
 
 # ------------------------------------ setup ---------------------------------------
 
@@ -33,7 +27,7 @@ filenames = list((cfg.paths.metrics / RAT_NAME).glob("*.joblib"))
 file_to_validate = []
 
 print("Does validation already exist?\n")
-
+nb = 0
 for file in filenames:
 
     metadata = joblib.load(file)
@@ -49,16 +43,24 @@ for file in filenames:
 
         if res == "y":
             file_to_validate.append(file)
+            nb += len(metadata)
 
     else:
         print(f"{file.stem}: no")
         file_to_validate.append(file)
+        nb += len(metadata)
 
 # ----------------------- launch validation -----------------------------
 
-print("\nLaunching of the validation for the following files :")
+if len(file_to_validate) == 0 :
+    print("\nNo file no validate, stop !")
+    sys.exit()
+
+
+print("\nLaunching of the validation for the following files :\n")
 for f in file_to_validate : 
-    print(f.stem)
+    print("  -",f.stem)
+print(f"Total number of trial to validate : {nb}")
 
 validation_data = {}
 
@@ -74,6 +76,7 @@ print(f"\n.joblib files Outputs :")
 for i, file in enumerate(file_to_validate): 
 
     filename = file.stem
+    print(filename)
     metadata = joblib.load(file)
 
     if filename in validation_data :

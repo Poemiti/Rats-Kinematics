@@ -149,9 +149,9 @@ def check_analysis_choice(files, choice) :
 
 
 
-def check_trial_success(trial, may_restriction: bool = False) : 
-    if not trial["trial_success"] :
-        print("Trial success : ", trial["trial_success"])
+def check_trial_success(cfg, trial, may_restriction: bool = False) : 
+    if not trial[cfg.bodypart]["trial_success"] :
+        print("Trial success : ", trial[cfg.bodypart]["trial_success"])
         return False 
     if may_restriction : 
         if "202405" in  trial["filename_clips"].as_posix() or \
