@@ -4,7 +4,7 @@ src/utils/__pycache__
 utils/__pycache__/file_management.cpython-310.pyc
 *__*__*
 
-data/
+data*/
 exploration/
 Nicolas_Figures/
 src/rats_kinematics_utils.egg-info/
