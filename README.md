@@ -16,7 +16,8 @@ The reaching movement is tracked using [DeepLabCut](https://github.com/DeepLabCu
 Makes the trajectory prediction using a pretrained model :  
 - select videos from the *raw_video* folder
 - cut those video into clips to separate each trial (3sec each)
-- run deeplabcut prediction using a pretrained model (see [Reaching-DLC-model](https://github.com/Poemiti/Reaching-DLC-model))
+- run deeplabcut prediction using a pretrained model (see [Reaching-DLC-model](https://github.com/Poemiti/Reaching-DLC-model))  
+
 output : 
 - mp4 clips in *data/clips* and   
 - csv trajectory prediction in *data/csv*
@@ -33,7 +34,8 @@ Analyse the luminosity of the leds on the trials clips :
 - depending on the view of the clip (see [Annotation signification](##Label-studio-annotation-signification))
 - for each frame of the clip measure the luminosity intensity of each Led
 - define which cue was on and if the optogenetic stimulation was on (see [Led signification](##Led-signification))
-- depending on which cue was on, and the opto stimulation, it will rename the mp4 clip and the corresponding csv trajectory file.   
+- depending on which cue was on, and the opto stimulation, it will rename the mp4 clip and the corresponding csv trajectory file.    
+
 exemple: 
 *Rat_#517Ambidexter_20240523_ContiMT300_LeftHemi_L1L2_C001H001*   
 if it has a cue for the left lever (LED 1), and the opto laser was ON (LED 4), it will be renamed :   *Rat_#517Ambidexter_20240523_ContiMT300_LeftHemi_CueL1_C001H001_LaserOn*   
@@ -70,7 +72,8 @@ output:
 In order to see if the trial is successful, a validator has been made. It open a window showing the trajetory figures made previously and let the user choose :   
 - to keep the raw trajectory points,  
 - to keep the interpolated trajectory 
-- to rejected both. In this case this trial success will be set to false and will not be use in the future analysis
+- to rejected both. In this case this trial success will be set to false and will not be use in the future analysis  
+
 output :   
 It update the metadata.joblib file with the trial_success  
 
