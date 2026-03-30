@@ -3,9 +3,10 @@
 
 ### 1. `make_prediction`
 
-    - select videos from the *raw_video* folder
-    - cut those video into clips to separate each trial (3sec each)
-    - run deeplabcut prediction using a pretrained model (see [Reaching-DLC-model](https://github.com/Poemiti/Reaching-DLC-model))
+Makes the trajectory prediction using a pretrained model :  
+- select videos from the *raw_video* folder
+- cut those video into clips to separate each trial (3sec each)
+- run deeplabcut prediction using a pretrained model (see [Reaching-DLC-model](https://github.com/Poemiti/Reaching-DLC-model))
 output : 
 - mp4 clips in *data/clips* and   
 - csv trajectory prediction in *data/csv*
@@ -17,11 +18,12 @@ Rename clips (and associated CSV files) if naming is inconsistent or incorrect
 
 ### 3. `read_led`  
 
-    - select the clips you want to analyse from the *data/clips* folder
-    - depending on the view of the clip (see [Annotation signification](###Label-studio-annotation-signification))
-    - for each frame of the clip measure the luminosity intensity of each Led
-    - define which cue was on and if the optogenetic stimulation was on (see [Led signification](###Led-signification))
-    - depending on which cue was on, and the opto stimulation, it will rename the mp4 clip and the corresponding csv trajectory file.   
+Analyse the luminosity of the leds on the trials clips :  
+- select the clips you want to analyse from the *data/clips* folder
+- depending on the view of the clip (see [Annotation signification](###Label-studio-annotation-signification))
+- for each frame of the clip measure the luminosity intensity of each Led
+- define which cue was on and if the optogenetic stimulation was on (see [Led signification](###Led-signification))
+- depending on which cue was on, and the opto stimulation, it will rename the mp4 clip and the corresponding csv trajectory file.   
 exemple: 
 *Rat_#517Ambidexter_20240523_ContiMT300_LeftHemi_L1L2_C001H001*   
 if it has a cue for the left lever (LED 1), and the opto laser was ON (LED 4), it will be renamed :   *Rat_#517Ambidexter_20240523_ContiMT300_LeftHemi_CueL1_C001H001_LaserOn*   
@@ -29,9 +31,11 @@ if it has a cue for the left lever (LED 1), and the opto laser was ON (LED 4), i
 
 ### 4. `preprocessing`  
 
-    - select the trajectory you want to preprocess  
-    - make a joblib file with the metadata of this trial and the bodypart setup in the config
-    - plot the raw trajectory and the interpolated one (will be used for the validation)
+Preprocess the trajectory :   
+- select the trajectory you want to preprocess  
+- make a joblib file with the metadata of this trial and the bodypart setup in the config
+- plot the raw trajectory and the interpolated one (will be used for the validation)   
+
 output:   
 - trajectory figures in *data/figures_results*,   
 - metadata in *data/metrics_results* : 
@@ -69,11 +73,12 @@ This script is here to analyse the interpolation process, and make distribution 
 
 ### 7. `compute_metrics`  
 
-     - open the metadata files
-     - verify if the validation has been made, if not it will tell the user and stop
-     - then it will compute several kinematics metrics that will be stored in the metadata file of the specific bodyparts. Only the successful trials will be used  
+Computes kinematics metrics using the predicted points : 
+- open the metadata files
+- verify if the validation has been made, if not it will tell the user and stop
+- then it will compute several kinematics metrics that will be stored in the metadata file of the specific bodyparts. Only the successful trials will be used    
 
-output metadata (updated) : 
+output metadata : 
 - average_velocity : computed from the pad off to the end of the laser
 - peak_velocity : computed from the pad off to the end of the laser
 - tortuosity : computed from the pad off to the end of the laser
@@ -86,7 +91,7 @@ output metadata (updated) :
 
 ### 8. `trial_report`
 
-This script makes a figures with the distribution of : 
+This script generates summary figures showing the proportion of :   
 - successful trial
 - rejected trial, and inside those rejected trial see the proportion for each reason :   
     - No reward
