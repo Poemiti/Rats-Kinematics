@@ -4,10 +4,10 @@ The reaching movement is tracked using [DeepLabCut](https://github.com/DeepLabCu
 
 ## Table of Content
 
-1. [Pipeline](##Pipeline)
-2. [Led signification](##Led-signification)
-3. [Annotation signification](##Label-studio-annotation-signification)
-4. [Folder system](##Folder-sytem)
+1. [Pipeline](#Pipeline)
+2. [Led signification](#Led-signification)
+3. [Annotation signification](#Label-studio-annotation-signification)
+4. [Folder system](#Folder-sytem)
 
 ## Pipeline 
 
