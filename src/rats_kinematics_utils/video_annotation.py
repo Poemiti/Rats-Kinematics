@@ -5,7 +5,8 @@ import cv2
 import numpy as np
 import matplotlib
 import numba
-
+from skimage.draw import line_aa
+import yaml
 
 
 def annotate_video_from_xr(video_path: Path, output_path: Path, pose: xr.DataArray, radius=5, likelihood_threshold: int = 0.5):
@@ -132,7 +133,20 @@ def annotate_video_from_xr(video_path: Path, output_path: Path, pose: xr.DataArr
 
 
 
-def annotate_video_from_csv(video_path: Path, csv_path: Path, output_path: Path, radius=5, likelihood_threshold=0.8, ):
+
+def _get_skeleton(path: Path) -> list[list] : 
+    """
+    Open a yaml config file with the bodyparts pairs
+    """
+
+    with open(path, "r") as f:
+        cfg = yaml.safe_load(f)
+
+    return cfg.get("skeleton", [])
+
+
+
+def annotate_video_from_csv(video_path: Path, csv_path: Path, output_path: Path, radius=5, likelihood_threshold=0.8, draw_skeleton: bool = False):
     """
     Annotate a video with pose estimation data stored in csv.
 
@@ -240,9 +254,30 @@ def annotate_video_from_csv(video_path: Path, csv_path: Path, output_path: Path,
                 yi = cy + coords[k, 1]
 
                 if 0 <= xi < frame_w and 0 <= yi < frame_h:
-                    frame[yi, xi, 0] = color[0]
-                    frame[yi, xi, 1] = color[1]
-                    frame[yi, xi, 2] = color[2]
+                    frame[yi, xi, 0] = color[0]     # red
+                    frame[yi, xi, 1] = color[1]     # green
+                    frame[yi, xi, 2] = color[2]     # blue
+
+
+    def stamp_skeleton(frame, xs, ys, ps, skeleton, bodypart_to_idx, threshold):
+        for bp1, bp2 in skeleton:
+
+            i1 = bodypart_to_idx[bp1]
+            i2 = bodypart_to_idx[bp2]
+
+            # Check likelihood
+            if ps[i1] < threshold or ps[i2] < threshold:
+                continue
+
+            x1, y1 = xs[i1], ys[i1]
+            x2, y2 = xs[i2], ys[i2]
+
+            if x1 < 0 or y1 < 0 or x2 < 0 or y2 < 0:
+                continue
+
+            # Draw line (BGR: black)
+            cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 0), 1)
+
 
     # Main loop
     for i in range(num_frames):
@@ -252,6 +287,17 @@ def annotate_video_from_csv(video_path: Path, csv_path: Path, output_path: Path,
 
         stamp_circles(frame, x[i], y[i], p[i], 
                       circle_coords, colors, likelihood_threshold)
+        
+        if draw_skeleton :
+            skeleton = _get_skeleton("./info_skeleton.yaml")
+            bodypart_to_idx = {bp: i for i, bp in enumerate(bodyparts)}
+
+            stamp_skeleton(
+                frame, x[i], y[i], p[i],
+                skeleton,
+                bodypart_to_idx,
+                likelihood_threshold
+            )
 
         out.write(frame)
 

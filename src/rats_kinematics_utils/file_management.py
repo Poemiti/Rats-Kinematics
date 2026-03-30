@@ -96,7 +96,7 @@ def parse_filename(name: str) -> dict:
     """
 
     result = {key: "Unknown" for key in PATTERNS.keys()}
-    result["task"] = None
+    result["task"] = "Unknown"
 
     # First pass: regex extraction
     for key, regex in PATTERNS.items():
@@ -149,7 +149,12 @@ def classify_file(file_path: Path, videos: list) -> None:
     None"""
     
     metadata = parse_filename(file_path.stem)
+
+    if metadata["rat_type"] == "Unknown" : 
+        metadata = parse_filename(file_path.parent.stem)
+
     metadata.pop("clip", None)
+    metadata.pop("date", None)
 
     videos.append({
         "filename": str(file_path),

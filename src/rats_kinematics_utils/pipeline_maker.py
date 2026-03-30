@@ -8,25 +8,28 @@ import joblib
 import sys
 
 from rats_kinematics_utils.file_management import make_database, is_csv, is_video, get_date, get_condition, get_clip_number, get_laser_intensity
-import rats_kinematics_utils.database_filter as db
-import rats_kinematics_utils.figures_maker as fg
-import rats_kinematics_utils.preprocess_validator as pv
 
 # ------------------------------------ make database out of directory ---------------------------------------
 
 
 def load_database(files_path, database_path, source: str): 
+    import rats_kinematics_utils.database_filter as db
+
     if source == "video" :
         raw_database = make_database(files_path, is_video)
     elif source == "csv" : 
         raw_database = make_database(files_path, is_csv)
     else : 
-        raise ValueError("Invalid source. Available source are :\n\tcsv \n\tvideo \nChange source type in 'config.yaml'")
+        raise ValueError("Invalid source. Available source are :\n\tcsv \n\tvideo \nChange source type in 'config.yaml'")    
 
     model = db.Model(raw_database, database_path)
     view = db.View()
     controller = db.Controller(model, view)
     view.mainloop()
+
+    if controller.filtered_dataset is None: 
+        print("No database seletected, stop !")
+        sys.exit()
 
     database = controller.filtered_dataset.reset_index(drop=True)
     print(database)
@@ -44,6 +47,7 @@ def load_database(files_path, database_path, source: str):
 
 
 def load_figure_maker(dir, single_plot: bool) : 
+    import rats_kinematics_utils.figures_maker as fg
 
     model = fg.Model(dir, single_plot)
     view = fg.View()
@@ -58,6 +62,8 @@ def load_figure_maker(dir, single_plot: bool) :
 
 
 def load_preprocess_validator(dir) : 
+    import rats_kinematics_utils.preprocess_validator as pv
+
     model = pv.Model(dir) 
     view = pv.View()
     controller = pv.Controller(model, view)
