@@ -1,7 +1,7 @@
 
 ## Pipeline : 
 
-1. `make_prediction` :   
+### 1. `make_prediction` :     
     - select videos from the *raw_video* folder
     - cut those video into clips to separate each trial (3sec each)
     - run deeplabcut prediction using a pretrained model (see [Reaching-DLC-model](https://github.com/Poemiti/Reaching-DLC-model))
@@ -9,24 +9,27 @@ output :
 - mp4 clips in *data/clips* and   
 - csv trajectory prediction in *data/csv*
 
-2. `rename_files` :   
-Rename clips (and associated CSV files) if naming is inconsistent or incorrect
 
-3. `read_led` :  
+### 2. `rename_files` :     
+Rename clips (and associated CSV files) if naming is inconsistent or incorrect   
+
+
+### 3. `read_led` :    
     - select the clips you want to analyse from the *data/clips* folder
     - depending on the view of the clip (see [Annotation signification](###Label-studio-annotation-signification))
     - for each frame of the clip measure the luminosity intensity of each Led
     - define which cue was on and if the optogenetic stimulation was on (see [Led signification](###Led-signification))
-    - depending on which cue was on, and the opto stimulation, it will rename the mp4 clip and the corresponding csv trajectory file.
+    - depending on which cue was on, and the opto stimulation, it will rename the mp4 clip and the corresponding csv trajectory file.   
 exemple: 
 *Rat_#517Ambidexter_20240523_ContiMT300_LeftHemi_L1L2_C001H001*   
 if it has a cue for the left lever (LED 1), and the opto laser was ON (LED 4), it will be renamed :   *Rat_#517Ambidexter_20240523_ContiMT300_LeftHemi_CueL1_C001H001_LaserOn*   
 
-4. `preprocessing` : 
+
+### 4. `preprocessing` :   
     - select the trajectory you want to preprocess  
     - make a joblib file with the metadata of this trial and the bodypart setup in the config
     - plot the raw trajectory and the interpolated one (will be used for the validation)
-output:
+output:   
 - trajectory figures in *data/figures_results*,   
 - metadata in *data/metrics_results* : 
     - filename_coords : path of the csv with the trajectory points
@@ -44,22 +47,26 @@ output:
         - xy_after : interpolated trajectory points 
         - trial_success : success of the trial for this particular bodypart
 
-5. `preprocessing_validation` : 
-In order to see if the trial is successful, a validator has been made. It open a window showing the trajetory figures made previously and let the user choose : 
+
+### 5. `preprocessing_validation` :   
+In order to see if the trial is successful, a validator has been made. It open a window showing the trajetory figures made previously and let the user choose :   
 - to keep the raw trajectory points,  
 - to keep the interpolated trajectory 
 - to rejected both. In this case this trial success will be set to false and will not be use in the future analysis
 output :   
 It update the metadata.joblib file with the trial_success  
 
-6. `preprocessing_figure` : 
+
+### 6. `preprocessing_figure` :   
 This script is here to analyse the interpolation process, and make distribution figures
 
 
-7. `compute_metrics`: 
+
+### 7. `compute_metrics`:   
      - open the metadata files
      - verify if the validation has been made, if not it will tell the user and stop
-     - then it will compute several kinematics metrics that will be stored in the metadata file of the specific bodyparts. Only the successful trials will be used
+     - then it will compute several kinematics metrics that will be stored in the metadata file of the specific bodyparts. Only the successful trials will be used  
+
 output metadata (updated) : 
 - average_velocity : computed from the pad off to the end of the laser
 - peak_velocity : computed from the pad off to the end of the laser
@@ -70,7 +77,8 @@ output metadata (updated) :
 - xy_laser_off : points from the beginning of the laser to it's end (can be None if no Laser)
 - xy_reward : points from the beginning of the trial to the reward time (can be None if no Reward observed)
 
-8. `trial_report` : 
+
+### 8. `trial_report` : 
 This script makes a figures with the distribution of : 
 - successful trial
 - rejected trial, and inside those rejected trial see the proportion for each reason :   
@@ -80,23 +88,27 @@ This script makes a figures with the distribution of :
 All for each experimental condition
 
 
-9. `make_comparative_figures` : 
+
+### 9. `make_comparative_figures` : 
 Make figures in order to compare each condition
 The availables plotting function can in found in `rat_kinematics_utils/plot_comparative`
 
-9. `make_inter_rats_figures` : 
+
+### 9. `make_inter_rats_figures` : 
 Make figure in order to compare rats
 The availables plotting function can in found in `rat_kinematics_utils/plot_comparative`
 
-9. `make_single_figures` : 
+
+### 9. `make_single_figures` : 
 Make figures of each trials  
 The availables plotting function can in found in `rat_kinematics_utils/plot`
 
-9. `trajectory_clustering` : 
+
+### 10. `trajectory_clustering` : 
 Script that experiment on clustering the trajectories based on distance calculations. This calcul is based on the shape and the spacio-temporal properties of the trajectory
 
 
-### Led signification
+## Led signification
 
 - LED 1 : Cue type, auditive stimulus (1 pulse = Left lever, 2 pulses = Right lever),  
 - LED 2 : Right Pad (lightned = paw is on the pad),
@@ -104,7 +116,7 @@ Script that experiment on clustering the trajectories based on distance calculat
 - LED 4 : Activation of the optogenetic laser 
 - LED 5 : Reward given to the rat  
 
-### Label studio annotation signification
+## Label studio annotation signification
 
 | Rat name                                                                  | H001 - Left       | H002  - Right     |
 | --------                                                                  | -------     | -------    |
