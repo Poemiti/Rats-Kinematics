@@ -1,3 +1,9 @@
+# Rat kinematics
+This repository contains a pipeline to anaylse videos of rat doing a reaching task.  
+The reaching movement is tracked using [DeepLabCut](https://github.com/DeepLabCut) package for *animal pose estimation*.
+
+## Table of Content
+
 
 ## Pipeline : 
 
@@ -20,9 +26,9 @@ Rename clips (and associated CSV files) if naming is inconsistent or incorrect
 
 Analyse the luminosity of the leds on the trials clips :  
 - select the clips you want to analyse from the *data/clips* folder
-- depending on the view of the clip (see [Annotation signification](###Label-studio-annotation-signification))
+- depending on the view of the clip (see [Annotation signification](##Label-studio-annotation-signification))
 - for each frame of the clip measure the luminosity intensity of each Led
-- define which cue was on and if the optogenetic stimulation was on (see [Led signification](###Led-signification))
+- define which cue was on and if the optogenetic stimulation was on (see [Led signification](##Led-signification))
 - depending on which cue was on, and the opto stimulation, it will rename the mp4 clip and the corresponding csv trajectory file.   
 exemple: 
 *Rat_#517Ambidexter_20240523_ContiMT300_LeftHemi_L1L2_C001H001*   
