@@ -5,6 +5,7 @@ import pandas as pd
 import yaml 
 import numpy as np
 import joblib
+from datetime import datetime
 import sys
 
 from rats_kinematics_utils.file_management import make_database, is_csv, is_video, get_date, get_condition, get_clip_number, get_laser_intensity
@@ -82,10 +83,10 @@ def load_preprocess_validator(dir) :
 def init_metadata(coords: Path, lum: Path, clip: Path) : 
     return {
             "name" : clip.stem,
-            "filename_coords" : coords,
-            "filename_luminosity" : lum,
-            "filename_clips" : clip,
-            "date" : get_date(coords.stem), # datetime object
+            "filename_coords" : str(coords),
+            "filename_luminosity" : str(lum),
+            "filename_clips" : str(clip),
+            "date" : get_date(coords.stem).date().isoformat(), # datetime object
             "condition" : get_condition(coords.stem),
             "nb_clip" : get_clip_number(coords.stem),
             "laser_intensity" : get_laser_intensity(coords.stem),
@@ -93,6 +94,10 @@ def init_metadata(coords: Path, lum: Path, clip: Path) :
 
 
 def to_yaml(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, Path):
+        return str(obj)
     if isinstance(obj, np.generic):  
         return obj.item()
     if isinstance(obj, np.ndarray):
@@ -118,11 +123,11 @@ def check_lost_coords(xy_filtered, coords, max_lost=10):
 
 def check_times(time_pad_off, time_laser_on, laser_duration):
     if time_pad_off is None:
-        print("  ! Pad off time is None")
+        # print("  ! Pad off time is None")
         return False
 
     if time_laser_on is not None and time_laser_on + laser_duration > 3:
-        print(f"  ! Laser window out of bounds (laser_on={time_laser_on})")
+        # print(f"  ! Laser window out of bounds (laser_on={time_laser_on})")
         return False
 
     return True
@@ -184,7 +189,7 @@ def load_metrics(path: Path) -> dict :
 
 
 
-def make_output_path(base_dir, file_name):
+def make_output_path(base_dir, file_name) ->  Path:
     base_dir.mkdir(parents=True, exist_ok=True)
     return base_dir / file_name
 
@@ -197,6 +202,7 @@ def print_analysis_info(cfg, analysis) :
     print(f"  view : {cfg.view}")
     print(f"  task : {cfg.task} -> {cfg.task_pad}")
     print(f"  cm per pixel : {cfg.cm_per_pixel}")
+    print(f"  likelihood threshold : {cfg.threshold}")
     print(f"============================================\n")
 
 

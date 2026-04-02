@@ -81,10 +81,13 @@ for i, file in enumerate(file_to_validate):
 
     if filename in validation_data :
         for trial in metadata : 
-            state = validation_data[filename][trial["name"]]
+            state = validation_data[filename].get(trial["name"])
             trial[cfg.bodypart]["xy_state"] = state
 
-            if state == "rejected" : 
+            if state is None : 
+                continue
+
+            elif state == "rejected" : 
                 trial[cfg.bodypart]["trial_success"] = False 
 
             elif state == "raw" : 

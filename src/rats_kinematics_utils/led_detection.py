@@ -139,13 +139,13 @@ def define_cue_type(luminosities: pd.Series, threshold=100, min_duration=5) :
     elif cue_count == 2 : 
         cue_type = "CueL2"
 
-    print(f"\ncue count : {cue_count}")
+    # print(f"\ncue count : {cue_count}")
         
     return cue_type
 
 
 
-def rename_file(file_path: Path, laser_on: bool, new_cue: str):
+def rename_file(file_path: Path, laser_on: bool, new_cue: str, apply_rename: bool = False):
     """
     Rename a video clip based on detected cue and laser state.
 
@@ -171,7 +171,7 @@ def rename_file(file_path: Path, laser_on: bool, new_cue: str):
         "onlyL1LeftHand", "onlyL2", "onlyL1",
         "L1L26040", "L1L25050", "L1L2",
         "L1-60", "L2-40",
-        "L1", "L2"
+        "L1", "L2", "NoCue", "CueL1", "CueL2"
     ]) + r")"
 
 
@@ -193,10 +193,14 @@ def rename_file(file_path: Path, laser_on: bool, new_cue: str):
     if new_path.exists():
         raise FileExistsError(f"Target already exists: {new_path}")
 
-    # /!\ WARNING this line rename file, must uncomment manually 
-    file_path.rename(new_path)
+    print(f"\nold name: {file_path.name}\nnew name: {new_path.name}")
 
-    print(f"\nRenamed {file_path.name} into : \n\t{new_path.name}")
+    # /!\ WARNING this line rename file
+    if apply_rename :
+        file_path.rename(new_path)
+        print("RENAMED !")
+    
+    
 
 
 def remove_file(file_path : Path) : 
@@ -238,17 +242,20 @@ def led_state(luminosities: pd.Series,
 
 
 
-def get_time_led_state(luminosity_path: Path, 
+def get_time_led_state(
+                    luminosity_path: Path, 
+                    luminosities: pd.DataFrame = None,
                     LED: str = "LED_3", 
                     state: str = "ON",
                     min_duration: int = 5,
                     in_sec: bool = False, 
                     fps: int =125) :
 
-    luminosities = pd.read_csv(luminosity_path)
-    luminosities.columns = luminosities.iloc[0]      # use first row as column names
-    luminosities = luminosities.drop(0).reset_index(drop=True) # remove useless row
-    luminosities = luminosities[luminosities.iloc[:, 0] != 't']
+    if luminosities is None : 
+        luminosities = pd.read_csv(luminosity_path)
+        luminosities.columns = luminosities.iloc[0]      # use first row as column names
+        luminosities = luminosities.drop(0).reset_index(drop=True) # remove useless row
+        luminosities = luminosities[luminosities.iloc[:, 0] != 't']
 
     if state == "ON" : 
         _, first_frame = led_state(luminosities[LED], min_duration=min_duration, comparator=operator.gt)  # gt: greater than = ON
@@ -262,6 +269,26 @@ def get_time_led_state(luminosity_path: Path,
         first_time = first_frame
     
     return first_time
+
+
+
+
+def match_rule(meta, rules):
+    value = rules.get("default")
+
+    for rule in rules.get("rules"):
+        conditions = rule.get("when", {})
+    
+        if all(meta.get(k) == v for k, v in conditions.items()):
+            value = rule["value"]
+
+    return value
+
+
+
+
+
+
 
 
 

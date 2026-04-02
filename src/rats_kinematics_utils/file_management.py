@@ -79,7 +79,6 @@ PATTERNS = {
     "handedness": r"(Ambidexter|LeftHanded|RightHanded)",
     "session": r"S\d+",
     "view": r"H\d+",
-    "laser_on": r"(LaserOn|LaserOff)",
     "laser_intensity": r"\d,\d*mW|\d+mW",
     "date": r"(\d{4}20\d{2}|20\d{6})",
     "clip": r"clip_(\d+)",
@@ -164,7 +163,7 @@ def classify_file(file_path: Path, videos: list) -> None:
 
     
 
-def make_name_by_condition(name : str) : 
+def make_name_by_condition(name : str, laser_state: str) : 
     """
     Generate a name by extracting metadata tokens from a filename or a directory name.
     Note : This function is used when doing the analysis of multiple clips that
@@ -182,9 +181,9 @@ def make_name_by_condition(name : str) :
         A name composed of the extracted metadata fields.
     """
     meta = parse_filename(name)
-    keys = ["rat_name", "rat_type", "condition", "stim_location", 
-            "cue_type", "view", "laser_on", "laser_intensity"]
+    keys = ["rat_name", "rat_type", "condition", "stim_location", "view", "laser_intensity"]
     new_name = [meta[k] for k in keys if meta.get(k) not in ("Unknown", None)]
+    new_name.append(laser_state)
     return "_".join(new_name)
 
 
@@ -205,13 +204,13 @@ def get_date(name: str):
 
 
 def get_condition(name: str):
-    meta = parse_filename(name)
-    return f"{meta['condition']}_{meta['laser_on']}"
+    condi = parse_filename(name)["condition"]
+    return condi if condi else None
 
 
 def get_clip_number(name: str):
     clip = parse_filename(name)["clip"]
-    return clip if clip else None
+    return int(clip) if clip else None
 
 
 def get_session(name: str):
@@ -242,7 +241,7 @@ def is_left_view(filename : str) -> bool :
     """
 
     view  = parse_filename(filename)["view"]
-    print(f"view for {filename} : {view}")
+    # print(f"view for {filename} : {view}")
     if view == "H001" : 
         return True
     return False

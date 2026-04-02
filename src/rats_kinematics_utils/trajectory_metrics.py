@@ -179,7 +179,7 @@ def crop_xy(xy: pd.DataFrame, start: float, end: float) :
 
 
 
-def define_likelihood_threshold(coords: pd.DataFrame, thresh: float, percentile: float = 0.05) -> float : 
+def define_likelihood_threshold(coords: pd.DataFrame, thresh: float, percentile: float = None) -> float : 
     """
     Define the threshold of low likelihood coordinates
     Coords must be a dataframe containing the following columns ['x', 'y', 'likelihood']
@@ -192,7 +192,7 @@ def define_likelihood_threshold(coords: pd.DataFrame, thresh: float, percentile:
     return computed_tresh
 
 
-def filter_likelihood(coords: pd.DataFrame, thresh: float, percentile: float = None) -> pd.DataFrame : 
+def filter_likelihood(coords: pd.DataFrame, thresh: float, percentile: float = None) -> tuple[pd.DataFrame, float] : 
     """
     Returns the filtered coordinates based on the threshold of low likelihood coordinates.
     Coords must be a dataframe containing the following columns ['x', 'y', 'likelihood']
@@ -201,9 +201,9 @@ def filter_likelihood(coords: pd.DataFrame, thresh: float, percentile: float = N
     computed_thresh = define_likelihood_threshold(coords, thresh, percentile)
     # print(f"\nthreshold set to: {computed_thresh}")
     mask = coords["likelihood"] > computed_thresh
-    filtered_coords = coords.copy()
+    filtered_coords: pd.DataFrame = coords.copy()
     filtered_coords.loc[~mask, ["x", "y"]] = np.nan
-    return filtered_coords
+    return filtered_coords, computed_thresh
 
 
 
@@ -256,7 +256,7 @@ def filter_outliers(coords: pd.DataFrame, stat_method: str = 'mad') -> pd.DataFr
       - 'regression': dists distance to computed polynomial regression < threshold
       - 'eucli': euclidian distance between 2 consecutive points > threshold
     """
-    filtered_coords = coords.copy()
+    filtered_coords: pd.DataFrame = coords.copy()
 
     t = coords["t"].to_numpy(dtype=float)
     x = coords["x"].to_numpy(dtype=float)
