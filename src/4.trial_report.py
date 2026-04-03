@@ -13,11 +13,7 @@ from rats_kinematics_utils.pipeline_maker import load_metrics, print_analysis_in
 
 # ------- plot styling -------
 
-sns.set_theme(
-    style="darkgrid",
-    palette="pastel",
-)
-
+sns.set_theme("paper", style="whitegrid", palette="pastel")
 
 # ---------------- function ------------
 
@@ -27,8 +23,8 @@ def trial_report(trials: list[dict]) -> dict:
     def new_block(intensities):
         return {
             "Total": 0,
-            "Laser ON": {"Total": 0, **{i: 0 for i in intensities}},
-            "Laser OFF": {"Total": 0, **{i: 0 for i in intensities}},
+            "LaserOn": {"Total": 0, **{i: 0 for i in intensities}},
+            "LaserOff": {"Total": 0, **{i: 0 for i in intensities}},
         }
 
     def init_group(intensities):
@@ -67,7 +63,7 @@ def trial_report(trials: list[dict]) -> dict:
         else : 
             group = report["NOstim trials"]
 
-        laser_state = "Laser ON" if "On" in condition else "Laser OFF"
+        laser_state = t["laser_state"]
 
         # Successful
         if t[cfg.bodypart]["trial_success"]:
@@ -103,7 +99,7 @@ def plot_trial_report(yaml_file: Path, output_path: Path) :
 
             outcome_block = trial_block[outcome]
 
-            for laser_state in ["Laser ON", "Laser OFF"]:
+            for laser_state in ["LaserOn", "LaserOff"]:
                 laser_block = outcome_block[laser_state]
 
                 for power, value in laser_block.items():
