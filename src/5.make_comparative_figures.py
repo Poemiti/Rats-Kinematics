@@ -43,7 +43,7 @@ if plot_choice["plot_stacked_velocity"] :
             f"Number of trials: {sum(1 for m in metrics if m[cfg.bodypart].get('trial_success'))}"
             )
 
-        ax.set_title(title, color="blue")
+        ax.set_title(title)
         ax.set_xlabel("Time (seconds)")
         ax.set_ylabel("Velocity (cm.s$^{-1}$)") 
 
@@ -78,7 +78,7 @@ if plot_choice["plot_stacked_Yposition"] :
             )
 
         ax.invert_yaxis()
-        ax.set_title(title, color="blue")
+        ax.set_title(title)
         ax.set_xlabel("Time (seconds)")
         ax.set_ylabel("Position (cm)")  
 
@@ -117,9 +117,9 @@ if plot_choice["plot_stacked_trajectories"] :
 
         ax.set_xlabel("x (cm)")
         ax.set_ylabel("y (cm)")
-        ax.set_title(f"Stacked Trajectories of \n{metrics_path.stem}")
+        ax.set_title(f"Stacked Trajectories of \n{metrics_path.stem}\nNumber of trials: {sum(1 for m in metrics if m[cfg.bodypart].get('trial_success'))}")
 
-        # ax.invert_xaxis()
+        ax.invert_xaxis()
 
         fig = ax.figure
         fig.savefig(make_output_path(output_fig_dir, f"stacked_trajectories.png"))
@@ -149,9 +149,10 @@ def _preprocess_violin(METRIC: str, split_condition: bool = False) -> pd.DataFra
             rat = name[4:8]
             
             if split_condition : 
-                condition, laser_state = trial["condition"].split("_")
-            else : 
                 condition = trial["condition"]
+                laser_state = trial["laser_state"]
+            else : 
+                condition = trial["condition"] + "_" + trial["laser_state"]
             reward = "yes" if trial["reward"] else "no"
 
             
@@ -227,14 +228,14 @@ def _make_violin_stat(data, metric, formula) :
 
 if plot_choice["plot_violin_stat_velocity"] : 
     metric = "average_velocity"
-    data = _preprocess_violin(METRIC= metric)
+    data = _preprocess_violin(METRIC= metric, split_condition=False)
     _make_violin_stat(data, metric, "value ~ condition * laser_intensity")
 
 
 
 if plot_choice["plot_violin_stat_tortuosity"] : 
     metric = "tortuosity"
-    data = _preprocess_violin(METRIC= metric)
+    data = _preprocess_violin(METRIC= metric, split_condition=False)
     _make_violin_stat(data, metric, "value ~ condition * laser_intensity")
 
 
@@ -294,7 +295,8 @@ if plot_choice['plot_velocity_over_cliptime'] :
 
             name = trial["filename_clips"].as_posix()
             session = get_session(name)
-            condition, laser_state = trial["condition"].split("_")
+            condition = trial["condition"]
+            laser_state = trial["laser_state"]
 
             df = pd.DataFrame({
                 "date": [trial["date"]],

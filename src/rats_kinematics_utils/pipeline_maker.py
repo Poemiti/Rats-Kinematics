@@ -177,15 +177,22 @@ def check_trial_success(cfg, trial, may_restriction: bool = False) :
 
 
 def load_metrics(path: Path) -> dict :
+    from datetime import datetime
     try:
         metrics = joblib.load(path)
+
+        for trial in metrics : 
+            for key in ["filename_coords", "filename_clips", "filename_luminosity"]:
+                if key in trial:
+                    trial[key] = Path(trial[key])
+
+            if "date" in trial:
+                trial["date"] = datetime.fromisoformat(trial["date"])
+
         return metrics
+
     except FileNotFoundError:
-        print(f"ERROR : {path} does not exist")
-    except yaml.YAMLError as exc:
-        print(f"Error when trying to open {path} : ", exc)
-    except Exception as e:
-        print("Unexpected error : ", e)
+        raise FileNotFoundError(f"{path} does not exist")
 
 
 

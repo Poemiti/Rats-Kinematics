@@ -7,6 +7,17 @@ from statannotations.Annotator import Annotator
 
 from rats_kinematics_utils.trajectory_metrics import crop_xy
 
+# ==================================== display hyperparameter ===========================================
+
+
+custom_params = {"axes.spines.right": False, "axes.spines.top": False}
+sns.set_theme("paper", style="ticks", rc=custom_params)
+
+LASER_COLOR = "lightpink"
+LINE_COLOR = "lightskyblue"
+AVG_LINE_COLOR = "navy"
+
+
 # ==================================== Plots for comparative analysis ===========================================
 
 
@@ -21,7 +32,7 @@ def _relative_metric(metric_list: pd.Series,
     if ax is None:
         fig, ax = plt.subplots()
 
-    ax.plot(relative_time, metric_list, color= color, alpha=transparancy)
+    ax.plot(relative_time, metric_list, color= color, alpha=transparancy, label="average" if show_pad_off else None)
     if show_pad_off :
         # add line for pad off 
         ax.axvline(0, color='k', lw=0.8, ls='--', label="pad off")
@@ -31,7 +42,7 @@ def _relative_metric(metric_list: pd.Series,
         if laser_on :
             laser_on = 0 + 0.025
             laser_off = laser_on +  0.3 # sec or 37.5 frame
-            ax.axvspan(laser_on, laser_off, color='red', alpha=0.3, label="laser on")
+            ax.axvspan(laser_on, laser_off, color=LASER_COLOR, alpha=0.3, label="laser on")
             ax.legend()
         
     return ax
@@ -48,7 +59,7 @@ def plot_stacked_velocity(cfg, metrics: dict) :
     for trial in metrics:
         if not check_trial_success(cfg, trial):
             continue
-
+        laser_state = trial["laser_state"]
         trial_name = trial["filename_clips"].stem
         velo = trial[cfg.bodypart]["instant_velocity"]
         relative_time = velo["t"] - trial["pad_off"]
@@ -56,8 +67,8 @@ def plot_stacked_velocity(cfg, metrics: dict) :
         _relative_metric(velo["velocity"],
                          relative_time=relative_time,
                          ax=axs, 
-                         color="green",
-                         transparancy=0.33)
+                         color=LINE_COLOR,
+                         transparancy=0.7)
 
         df = pd.DataFrame({
             "velocity": velo["velocity"].values
@@ -86,8 +97,8 @@ def plot_stacked_velocity(cfg, metrics: dict) :
                     relative_time=common_time,
                     ax=axs,
                     show_pad_off=True,
-                    laser_on="LaserOn" in trial_name,
-                    color="blue",
+                    laser_on="On" in laser_state,
+                    color=AVG_LINE_COLOR,
                     transparancy=1
                 )
 
@@ -110,6 +121,7 @@ def plot_stacked_Yposition(cfg, metrics: dict) :
         if not check_trial_success(cfg, trial) : 
             continue 
 
+        laser_state = trial["laser_state"]
         trial_name = trial["filename_clips"].stem
         y_pos = trial[cfg.bodypart]["xy_raw"]
         relative_time = y_pos["t"] - trial["pad_off"]
@@ -118,10 +130,10 @@ def plot_stacked_Yposition(cfg, metrics: dict) :
                         relative_time=relative_time,
                         ax = axs, 
                         laser_on=False, 
-                        color="green",
-                        transparancy=0.3)
+                        color=LINE_COLOR,
+                        transparancy=0.7)
         
-        df = pd.DataFrame({"y_pos": y_pos["y"] * cfg.cm_per_pixel}, index=relative_time.values)
+        df = pd.DataFrame({"y_pos": (y_pos["y"] * cfg.cm_per_pixel).values}, index=relative_time.values)
 
         aligned_pos.append(df)
 
@@ -145,8 +157,8 @@ def plot_stacked_Yposition(cfg, metrics: dict) :
                     relative_time = common_time,
                     ax = axs, 
                     show_pad_off=True,
-                    laser_on="LaserOn" in trial_name,
-                    color="blue",
+                    laser_on="On" in laser_state,
+                    color=AVG_LINE_COLOR,
                     transparancy=1)
 
     return axs
@@ -187,25 +199,25 @@ def plot_stacked_trajectories(cfg, metrics, ax: plt.axes = None) :
                 cm_per_pixel=cfg.cm_per_pixel,
                 frame_laser_on=frame_laser_on,
                 ax=ax,
-                color="green",
-                transparancy=0.5,
+                color=LINE_COLOR,
+                transparancy=0.7,
             )
         all_coords.append(coords)
 
-    # avg_coords = (pd.concat(all_coords, axis=1)
-    #                 .T
-    #                 .groupby(level=0)
-    #                 .mean()
-    #                 .T)
+    avg_coords = (pd.concat(all_coords, axis=1)
+                    .T
+                    .groupby(level=0)
+                    .mean()
+                    .T)
 
-    # plot_single_bodypart_trajectories(
-    #         coords=avg_coords,
-    #         cm_per_pixel=cfg.cm_per_pixel,
-    #         frame_laser_on=None,
-    #         ax=ax,
-    #         color="blue",
-    #         transparancy=1,
-    #     )
+    plot_single_bodypart_trajectories(
+            coords=avg_coords,
+            cm_per_pixel=cfg.cm_per_pixel,
+            frame_laser_on=None,
+            ax=ax,
+            color=AVG_LINE_COLOR,
+            transparancy=1,
+        )
 
     return ax
 
@@ -562,8 +574,6 @@ def plot_violin_stat_tortuosity() :
 
 
 def _displot_stat(perm_data) : 
-    custom_params = {"axes.spines.right": False, "axes.spines.top": False}
-    sns.set_theme(style="ticks", rc=custom_params)
 
     rows = []
     for cond in perm_data:
