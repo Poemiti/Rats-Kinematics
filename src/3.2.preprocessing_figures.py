@@ -18,10 +18,10 @@ from rats_kinematics_utils.pipeline_maker import load_database, print_analysis_i
 
 # ------------------------------------ plot choice ---------------------------------
 
-FILTRATION = True
-DISTRI = True
+FILTRATION = False
+DISTRI = False
 LIKELIHOOD = False
-
+SUCCESS_DISTRI = True
 
 # ------------------------------------ setup ---------------------------------------
 
@@ -36,6 +36,7 @@ output_dir.mkdir(parents=True, exist_ok=True)
 
 
 filenames = list((cfg.paths.metrics / RAT_NAME).glob("*.joblib"))
+# filenames = list((Path("data_V1") / "metrics_results" / RAT_NAME).glob("*.joblib"))
 preprocess_counts_path = make_output_path(cfg.paths.metrics / "preprocessing" , f"{RAT_NAME}_preprocessing_removal_counts3.joblib")
 
 # ------------------------------------ filtration ---------------------------------------
@@ -274,7 +275,7 @@ if DISTRI :
 
     plt.xticks(rotation=45)
     plt.tight_layout()
-    fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME, f"bodypart_likelihood_distribution.png"))
+    fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME, f"{RAT_NAME}_bodypart_likelihood_distribution.png"))
     plt.close()
 
 
@@ -326,5 +327,64 @@ if LIKELIHOOD :
             fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / folder / "likelihood_distri", f"{trial['name']}_likelihood.png"))
             plt.close()
 
+
+
+
+
+if SUCCESS_DISTRI : 
+
+    all_state = {"raw" : 0,
+                "interpolate": 0,
+                "rejected": 0, 
+                "None": 0}
+
+    for session in filenames :
+        
+        for trial in joblib.load(session) :
+            body = trial.get(cfg.bodypart)
+
+            if body is None : 
+                print("BODY NONE")
+                continue
+
+            success = body.get("trial_success")
+            state = body.get("xy_state")
+
+            if state is None : 
+                print(trial["name"])
+                all_state["None"] += 1
+                continue
+
+            all_state[state] += 1
+
+    df = pd.DataFrame({
+        "State": list(all_state.keys()),
+        "Count": list(all_state.values())
+    })
+
+    order = ["rejected", "raw", "interpolate", "None"]
+
+    fig = plt.figure(figsize=(8, 5))
+    sns.set_theme("paper", style="whitegrid", palette="pastel")
+
+    ax = sns.barplot(
+        data=df,
+        x="State",
+        y="Count",
+        palette="pastel",
+        order=order,
+    )
+
+    for container in ax.containers:
+        ax.bar_label(container, fmt='%d')
+
+    ax.set_title(f"Trial State Distribution of Rat {RAT_NAME}")
+    ax.set_xlabel("State")
+    ax.set_ylabel("Number of Trials")
+
+    plt.tight_layout()
+    fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME, f"{RAT_NAME}_trial_state_distribution.png"))
+    plt.show()
+    plt.close()
 
 print("Done !")

@@ -4,7 +4,7 @@ import joblib
 import sys
 
 from rats_kinematics_utils.config import load_config
-from rats_kinematics_utils.pipeline_maker import print_analysis_info, load_preprocess_validator
+from rats_kinematics_utils.pipeline_maker import print_analysis_info, load_preprocess_validator, check_times
 
 
 # ------------------------------------ setup ---------------------------------------
@@ -20,7 +20,6 @@ output_dir.mkdir(parents=True, exist_ok=True)
 
 
 filenames = list((cfg.paths.metrics / RAT_NAME).glob("*.joblib"))
-
 
 # ----------------------- does validation has already been done ? -----------------------------
 
@@ -81,10 +80,13 @@ for i, file in enumerate(file_to_validate):
 
     if filename in validation_data :
         for trial in metadata : 
+            if not check_times(trial["pad_off"], trial["laser_on"], cfg.laser_on_duration): # pass the "rejected" by the preprocessing
+                continue
+
             state = validation_data[filename].get(trial["name"])
             trial[cfg.bodypart]["xy_state"] = state
 
-            if state is None : 
+            if state is None :              # pass when the validation has been stop in the middle
                 continue
 
             elif state == "rejected" : 
@@ -100,5 +102,3 @@ for i, file in enumerate(file_to_validate):
 
     # save updated metadata
     joblib.dump(metadata, output_dir / f"{filename}.joblib")
-
-print("Done !")

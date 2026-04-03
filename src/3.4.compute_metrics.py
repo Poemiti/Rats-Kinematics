@@ -39,7 +39,7 @@ for file in filenames:
     )
 
     if not is_validated : 
-        print(f"This file has not been validated : {file.stem}")
+        print(f"\nThis file has not been validated : {file.stem}")
         print(f"Please run 3.1.preprocessing_validation before !")
         continue
 
