@@ -71,10 +71,10 @@ def cleanup_temp_directory(analysis_output_path: Path):
 def dlc_predict_Julien(model_path: Path, 
                        video_path: Path, 
                        output_csv_path : Path = None) -> xr.DataArray:
-    import deeplabcut, tempfile
+    import tempfile
 
     with tempfile.TemporaryDirectory() as dlc_dest:
-        print(dlc_dest)
+        # print(dlc_dest)
         deeplabcut.analyze_videos(
             f'{model_path}/config.yaml',
             [str(video_path)],

@@ -14,7 +14,7 @@ from rats_kinematics_utils.statistics import compute_statistics, save_stat_resul
 
 # ------------------------------------ setup ---------------------------------------
 
-SHOW = True
+SHOW = False
 cfg = load_config()
 print_analysis_info(cfg, "Making comparative figures")
 
@@ -33,14 +33,22 @@ if plot_choice["plot_stacked_velocity"] :
 
         print(f"\n[{i+1}/{len(filenames)}]")
         print(f"Making figures of {metrics_path.stem}\n")
+        
 
         metrics = load_metrics(metrics_path)
+        successful_trial = sum(1 for m in metrics if m[cfg.bodypart].get('trial_success'))
+        print(f"Number of successful trials over total: {successful_trial}/{len(metrics)}")
+
+        if successful_trial == 0 : 
+            print("NO SUCCESSFUL TRIALS")
+            continue
+
         ax = plot_stacked_velocity(cfg, metrics)
 
         title = (
             "Average velocity of the left paw, across trials with settings:\n"
             f"{output_fig_dir.name}\n"
-            f"Number of trials: {sum(1 for m in metrics if m[cfg.bodypart].get('trial_success'))}"
+            f"Number of trials: {successful_trial}"
             )
 
         ax.set_title(title)
@@ -68,13 +76,24 @@ if plot_choice["plot_stacked_Yposition"] :
         metrics_path = Path(metrics_path) 
         output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.stem
 
+        print(f"\n[{i+1}/{len(filenames)}]")
+        print(f"Making figures of {metrics_path.stem}\n")
+
         metrics = load_metrics(metrics_path)
+
+        successful_trial = sum(1 for m in metrics if m[cfg.bodypart].get('trial_success'))
+        print(f"Number of successful trials over total: {successful_trial}/{len(metrics)}")
+
+        if successful_trial == 0 : 
+            print("NO SUCCESSFUL TRIALS")
+            continue
+
         ax = plot_stacked_Yposition(cfg, metrics)
 
         title = (
             "Average y position of the left paw, across trials with settings:\n"
             f"{output_fig_dir.name}\n"
-            f"Number of trials: {sum(1 for m in metrics if m[cfg.bodypart].get('trial_success'))}"
+            f"Number of trials: {successful_trial}"
             )
 
         ax.invert_yaxis()
@@ -102,7 +121,18 @@ if plot_choice["plot_stacked_trajectories"] :
         metrics_path = Path(metrics_path) 
         output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.stem
 
+        print(f"\n[{i+1}/{len(filenames)}]")
+        print(f"Making figures of {metrics_path.stem}\n")
+
         metrics = load_metrics(metrics_path)
+
+        successful_trial = sum(1 for m in metrics if m[cfg.bodypart].get('trial_success'))
+        print(f"Number of successful trials over total: {successful_trial}/{len(metrics)}")
+
+        if successful_trial == 0 : 
+            print("NO SUCCESSFUL TRIALS")
+            continue
+
         ax = plot_stacked_trajectories(cfg, metrics)
 
         ax.yaxis.tick_right()
@@ -117,7 +147,7 @@ if plot_choice["plot_stacked_trajectories"] :
 
         ax.set_xlabel("x (cm)")
         ax.set_ylabel("y (cm)")
-        ax.set_title(f"Stacked Trajectories of \n{metrics_path.stem}\nNumber of trials: {sum(1 for m in metrics if m[cfg.bodypart].get('trial_success'))}")
+        ax.set_title(f"Stacked Trajectories of \n{metrics_path.stem}\nNumber of trials: {successful_trial}")
 
         ax.invert_xaxis()
 

@@ -310,7 +310,23 @@ def split_clip_range(clip_path: Path,
     run_ffmpeg(ffmpeg_args)
 
 
+def verify_video(path: Path) : 
+        
+        video_state = True
 
+        cap = cv2.VideoCapture(str(path))
+        if not cap.isOpened():
+            print(f"[ERROR] {path.name}: cannot be opened")
+            video_state = False
+
+        ret, _ = cap.read()
+        cap.release()
+
+        if not ret:
+            print(f"[ERROR] {path.name}: cannot read frames")
+            video_state = False
+
+        return video_state
 
 
 if __name__ == "__main__":

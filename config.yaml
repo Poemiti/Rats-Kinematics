@@ -1,7 +1,7 @@
 
 # parameter
-rat_name: "#525"
-bodypart: soft_pad 
+rat_name: "#517"
+bodypart: finger_3 
 view: left           # camera view
 task: L1            # L1: left lever, L2: right lever
 

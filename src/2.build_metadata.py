@@ -7,9 +7,9 @@ import sys
 import time
 
 from rats_kinematics_utils.file_management import make_name_by_condition, verify_exist, is_left_view, get_date, get_condition
-from rats_kinematics_utils.led_detection import get_time_led_state, get_luminosity, define_cue_type, match_rule
+from rats_kinematics_utils.led_detection import get_time_led_state, get_luminosity, define_cue_type
 
-from rats_kinematics_utils.config import load_config
+from rats_kinematics_utils.config import load_config, match_rule
 from rats_kinematics_utils.pipeline_maker import load_database, init_metadata, print_analysis_info, make_output_path
 
 # ------------------------------------ setup ---------------------------------------
@@ -48,7 +48,6 @@ for file in output_dir.iterdir() :
 # ------------------------------------ loop ---------------------------------------
 
 ALL_METADATA = {}
-SESSION_METADATA = []
 dirs = set()
 n_wrong_trial = 0
 
@@ -111,24 +110,6 @@ for i, coords_path in enumerate(DATABASE["filename"]):
     time_reward = get_time_led_state(luminosity_path, luminosities, "LED_5", "ON", in_sec=True)
     laser_state = "LaserOn" if time_laser_on is not None else "LaserOff"
 
-    # if new condition, save metrics.jpblib + initialise metadata dictionary + make new folder
-    if i == 0 : 
-        old_filename = make_name_by_condition(trial_name, laser_state)
-
-    new_filename = make_name_by_condition(trial_name, laser_state)
-
-    if new_filename != old_filename: 
-        if old_filename in ALL_METADATA.keys() : 
-            for trial_meta in SESSION_METADATA :
-                ALL_METADATA[old_filename].append(trial_meta)
-        else : 
-            ALL_METADATA[old_filename] = SESSION_METADATA
-
-        old_filename = new_filename
-        SESSION_METADATA = []
-        # print(f"File will be stored in {new_filename}")
- 
-
     # ------------------------------------build metadata + save them as yaml ---------------------------------------
 
     if (camera_view == "left" and cue_type == "CueL2") or \
@@ -141,14 +122,20 @@ for i, coords_path in enumerate(DATABASE["filename"]):
                                         luminosity_path,
                                         clip_path)
     
-    TRIAL_METADATA["lavel_studio_annotation"] = label_studio_annotation
+    TRIAL_METADATA["label_studio_annotation"] = label_studio_annotation
     TRIAL_METADATA["camera_view"] = camera_view
     TRIAL_METADATA["laser_state"] = laser_state
     TRIAL_METADATA["cue_type"] = cue_type
     TRIAL_METADATA["pad_off"] = time_pad_off
     TRIAL_METADATA["laser_on"] = time_laser_on
     TRIAL_METADATA["reward"] = time_reward
-    SESSION_METADATA.append(TRIAL_METADATA)
+
+    filename = make_name_by_condition(trial_name, laser_state)
+
+    if not filename in ALL_METADATA.keys() : 
+        ALL_METADATA[filename] = [TRIAL_METADATA]
+    else : 
+        ALL_METADATA[filename].append(TRIAL_METADATA) 
 
     yaml_path: Path = make_output_path(output_dir / "per_trial_metadata" / session_name, f"{trial_name}.yaml")
 
@@ -159,8 +146,6 @@ for i, coords_path in enumerate(DATABASE["filename"]):
 end = time.time()
 process_time = (end - start) / 60 # min
 
-
-ALL_METADATA[old_filename] = SESSION_METADATA
 n_trial = 0 
 
 print()

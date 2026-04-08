@@ -18,10 +18,10 @@ from rats_kinematics_utils.pipeline_maker import load_database, print_analysis_i
 
 # ------------------------------------ plot choice ---------------------------------
 
-FILTRATION = False
-DISTRI = False
-LIKELIHOOD = False
-SUCCESS_DISTRI = True
+FILTRATION = True
+DISTRI = True
+LIKELIHOOD = True
+SUCCESS_DISTRI = False
 
 # ------------------------------------ setup ---------------------------------------
 

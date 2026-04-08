@@ -61,3 +61,15 @@ class Config(BaseModel):
 def load_config(path: str = "config.yaml") -> Config:
     with open(path, "r") as f:
         return Config(**yaml.safe_load(f))
+
+
+def match_rule(meta, rules):
+    value = rules.get("default")
+
+    for rule in rules.get("rules"):
+        conditions = rule.get("when", {})
+    
+        if all(meta.get(k) == v for k, v in conditions.items()):
+            value = rule["value"]
+
+    return value

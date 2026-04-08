@@ -273,17 +273,6 @@ def get_time_led_state(
 
 
 
-def match_rule(meta, rules):
-    value = rules.get("default")
-
-    for rule in rules.get("rules"):
-        conditions = rule.get("when", {})
-    
-        if all(meta.get(k) == v for k, v in conditions.items()):
-            value = rule["value"]
-
-    return value
-
 
 
 
