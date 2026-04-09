@@ -158,61 +158,53 @@ Script that experiment on clustering the trajectories based on distance calculat
 ## Folder sytem
 
 ```bash
--- data/                            # all the FINAL generated data from scripts of src/
-    |
-    | -- csv_results/               # results from the dlc model prediction (csv and h5)
-    | -- dlc_results/
-    |
-    | -- frames/                    # generated frames for each clip
-    | -- clips/                     # generated videos (clips) from the raw video
-    |
-    | -- temporary/                 # temporary dlc prediction (always empty because it erase the temporary files generated)
-    | -- figures_results/           # .png of the trajectory of video (single clip, stacked clips, average clip)
-        |
-        | -- rat#517/
-            |
-            |-- Rat_#512_....video_name.../
-                |
-                | -- clip_annotation/    # trajectory on clip video
-                | -- trajectory_per_clip # graphic of the trajectory
-                | -- .../
-                | 
-                | trajectory_stacked.png # stacked trajectory 
-                | trajectory_average.png # average trajectory 
-                | ...
-    
-    | -- metrics_results/           # .joblib of all the metadata and computed metrics of each condition
-        |                           # necessary to make any kind of figures
-        | -- rat#517/
-            |
-            | rat#525_CHR_Conti_RightHemi_H001_LaserOn_0,5mW.joblib
-            | ...
+
+data/                            # all data organized per animal
+│
+├── rat_#517/
+├── rat_#521/
+├── rat_#525/
+│   │
+│   ├── raw_clips/               # raw trial clips + their metadata (once computed)
+│   │   └── Rat_#512_....video_name.../             
+│   │
+│   ├── processed/               # intermediate processing outputs
+│   │   ├── dlc/                 # DLC predictions (csv)
+│   │   ├── metrics/             # computed metrics per trial (.joblib)
+│   │   ├── luminosity/          # luminosity analysis results
+│   │   └── preprocessing/       # temporary / intermediate processing steps
+│   │
+│   ├── soft_pad_analysis/       # analysis specific to a bodypart/task (plots and visualizations)
+│   │   │
+│   │   ├── rat#525_CHR_Conti_RightHemi_H001_LaserOn_0,5mW/         
+│   │   │   │
+│   │   │   ├── clip_annotation/      # trajectories overlaid on clips
+│   │   │   ├── trajectory_per_clip/  # individual trajectory plots
+│   │   │   ├── trajectory_stacked.png
+│   │   │   ├── trajectory_average.png
+│   │   │   └── ...
+│   │   └── ...                  
+│   └── ...                     # other analyses (if multiple bodyparts/tasks)
+│
+└── database/                       # video names ordered by spec
 
 
--- exploration/                     # jupyter notebook to explore / test things
-    |
-    |-- data/                           # generated data of utils files on their own, it s for test only
-            |
-            | ...
+src/
+│
+├── 0.initialisation.py
+├── 1.make_prediction.py
+├── 2.build_metadata.py
+├── 3.0.preprocessing.py
+├── 3.1.preprocess_validation.py
+├── 3.3.compute_metrics.py
+├── 4.make_comparative_figures.py
+├── 4.make_inter_rats_figures.py
+├── 4.make_single_figures.py
+├── 5.trajectory_clustering.py
+├── alternative_make_prediction.py
+│
+└── rats_kinematics_utils/          # all utility function used by the main pipeline
 
--- src/                             # "official" scripts
-    |
-    | -- rats_kinematics_utils/     # all utility function used by the main pipeline
-    |
-    | 1.1.make_prediction.py
-    | 1.2.rename_files.py
-    |
-    | 3.0.preprocessing.py
-    | 3.1.preprocess_validation.py
-    | 3.2.preprocess_figures.py
-    | 3.4.compute_metrics.py
-    |  
-    | 4.trial_report.py
-    |
-    | 5.make_comparative_figures.py
-    | 5.make_inter_rats_figures.py
-    | 5.make_single_figures.py
-    | 
-    | 6.trajectory_clustering.py
+
 -- 
 ```
