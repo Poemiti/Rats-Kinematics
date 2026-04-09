@@ -2,8 +2,9 @@ from pathlib import Path
 import pandas as pd
 import tkinter as tk
 from tkinter import ttk
+import sys
 
-from rats_kinematics_utils.file_management import make_database, is_csv, is_video
+from rats_kinematics_utils.core.file_utils import make_database, is_csv, is_video
 
 class Controller:           # where we controle what does each button do 
     def __init__(self, model, view):
@@ -207,38 +208,43 @@ class Model:                # focus on filtration manipulation
         return pd.read_csv(csv_path, index_col=0)
 
 
-if __name__ == "__main__" : 
 
-    # ----------------------------- setup directories --------------------------------
 
-    DATABASE_DIR = Path("../../exploration/data/database")
-    RAW_VIDEO_DIR = Path("/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024")
 
-    DATABASE_DIR.mkdir(parents=True, exist_ok=True)
+def load_database(files_path, database_path, source: str): 
 
-    # ----------------------------- exemple of usage of this GUI ----------------------
+    if source == "video" :
+        raw_database = make_database(files_path, is_video)
+    elif source == "csv" : 
+        raw_database = make_database(files_path, is_csv)
+    else : 
+        raise ValueError("Invalid source. Available source are :\n\tcsv \n\tvideo \nChange source type in 'config.yaml'")    
 
-    print(f"Making database from {RAW_VIDEO_DIR}")
-
-    # make the database from the directory
-    DATABASE: pd.DataFrame = make_database(RAW_VIDEO_DIR, is_video)
-
-    # print(DATABASE)
-
-    # gui 
-    model = Model(DATABASE, DATABASE_DIR) # or DATABASE_PRED
+    model = Model(raw_database, database_path)
     view = View()
     controller = Controller(model, view)
     view.mainloop()
 
-    # get the filtered database from the gui
-    FILTERED_DATABASE = controller.filtered_dataset
+    if controller.filtered_dataset is None: 
+        print("No database seletected, stop !")
+        sys.exit()
 
-    # save the dataset with the name put in the gui
-    if controller.dataset_name.get() : 
+    database = controller.filtered_dataset.reset_index(drop=True)
+    print(database)
+
+    # save database
+    if controller.dataset_name.get() :
         dataset_name = f"{controller.dataset_name.get().strip()}.csv"
-        FILTERED_DATABASE.to_csv(DATABASE_DIR / dataset_name)
-        print(f"Filtered dataset saved as : {DATABASE_DIR / dataset_name}")
+        database.to_csv(database_path / dataset_name)
+        print(f"\nFiltered dataset saved as : {database_path / dataset_name}")
 
-    print(f"Number of files in database : {len(FILTERED_DATABASE)}")
-    print(FILTERED_DATABASE)
+    print(f"\nNumber of files in database : {len(database)}")
+
+    return database
+
+
+
+
+if __name__ == "__main__" : 
+
+    print("No main")

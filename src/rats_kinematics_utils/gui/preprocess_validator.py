@@ -149,24 +149,23 @@ class Model:
 
 
 
+def load_preprocess_validator(dir) : 
 
-if __name__ == "__main__" : 
-    import pandas as pd
-
-    fig_dir = Path("/home/poemiti/Rats-Kinematics/data/figures_results/#525/CHR_Conti_RightHemi_H001_LaserOn_0,75mW/preprocessing")
-
-    # gui 
-    model = Model(fig_dir)
+    model = Model(dir) 
     view = View()
     controller = Controller(model, view)
     view.bind_keys(controller)
     view.mainloop()
 
-    # get_path the validation dictionnary
-    validation = model.validation
-    print(validation)
-    print(f"n fig: {len(validation)}")
+    if view.stop_requested : 
+        return
 
-    # validation_df = pd.DataFrame(validation)
-    # print(validation_df.head())
+    return model.validation
+
+
+
+
+
+if __name__ == "__main__" : 
     
+    print("No main")

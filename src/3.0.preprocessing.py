@@ -4,25 +4,17 @@ import joblib, time, sys
 import numpy as np
 from tqdm import tqdm
 
-from rats_kinematics_utils.file_management import open_DLC_results
-
-from rats_kinematics_utils.config import load_config
-from rats_kinematics_utils.pipeline_maker import print_analysis_info, make_output_path, check_times
-from rats_kinematics_utils.trajectory_metrics import filter_outliers, filter_likelihood, interpolate_data
-from rats_kinematics_utils.plot_preprocess import make_interpolation_figures
+from rats_kinematics_utils.core.config import load_config
+from rats_kinematics_utils.core.file_utils import print_analysis_info, make_output_path
+from rats_kinematics_utils.preprocessing.preprocess import check_times, filter_outliers, filter_likelihood, interpolate_data, open_DLC_results
+from rats_kinematics_utils.preprocessing.plot_preprocess import make_interpolation_figures, plot_likelihood_across_frames, plot_preprocess_lost_points, plot_likelihood_distribution
 
 # ------------------------------------ setup ---------------------------------------
 
 cfg = load_config()
 print_analysis_info(cfg, "Preprocessing")
 
-RAT_NAME = cfg.rat_name
-
-output_dir = cfg.paths.metrics / RAT_NAME
-output_dir.mkdir(parents=True, exist_ok=True)
-
-
-filenames = list((cfg.paths.metrics / RAT_NAME).glob("*.joblib"))
+filenames = list((cfg.paths.metrics).glob("*.joblib"))
 
 
 # ----------------------- does preprocessing has already been done ? -----------------------------
@@ -102,7 +94,7 @@ for session_path in file_to_preprocess:
                                     raw_coords,
                                     trial["pad_off"],
                                     title=session_name, 
-                                    save_as=make_output_path(cfg.paths.figures / RAT_NAME / session_name / "preprocessing", f"{trial['name']}_interpolation.png"))
+                                    save_as=make_output_path(cfg.paths.preprocessing, f"{trial['name']}_interpolation.png"))
 
 
         # save trial bodyparts session
@@ -121,4 +113,14 @@ process_time = (end - start) / 60 # min
 
 print(f"Processing time: {process_time:.1f} min")
 print("Done !")
+
+
+
+# ---------- show report before doing validation -----------
+
+print("\nPlotting likelihood across frame of each trials\n")
+plot_likelihood_across_frames(cfg, filenames)
+
+print("\nPlotting the number of points loosed at each step\n")
+plot_preprocess_lost_points(cfg, filenames)
 

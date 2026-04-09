@@ -20,7 +20,7 @@ from statsmodels.stats.multitest import multipletests
 
 def ANOVA(data: pd.DataFrame, formula: str = "velocity ~ condition * laser_state * laser_intensity"):
 
-    from rats_kinematics_utils.plot_comparative import _trim_extremes_iqr
+    from rats_kinematics_utils.analysis.plot_comparative import _trim_extremes_iqr
 
     # data_trimmed = _trim_extremes_iqr(data, k=1.5).copy()
     data_trimmed = data

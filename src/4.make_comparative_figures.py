@@ -5,11 +5,11 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from rats_kinematics_utils.file_management import verify_exist, get_session
-from rats_kinematics_utils.plot_comparative import plot_stacked_velocity, plot_stacked_Yposition, _plot_violin_distribution, plot_stacked_trajectories, plot_velocity_over_cliptime, _plot_displot, _plot_violin_statistic
-from rats_kinematics_utils.config import load_config
-from rats_kinematics_utils.pipeline_maker import load_metrics, load_figure_maker, make_output_path, check_analysis_choice, print_analysis_info
-from rats_kinematics_utils.statistics import compute_statistics, save_stat_results
+from rats_kinematics_utils.core.file_utils import get_session, load_trial_data, make_output_path, print_analysis_info, check_analysis_choice
+from rats_kinematics_utils.analysis.plot_comparative import plot_stacked_velocity, plot_stacked_Yposition, _plot_violin_distribution, plot_stacked_trajectories, plot_velocity_over_cliptime, _plot_displot, _plot_violin_statistic
+from rats_kinematics_utils.core.config import load_config
+from rats_kinematics_utils.gui.figures_maker import load_figure_maker
+from rats_kinematics_utils.analysis.statistics import compute_statistics, save_stat_results
 
 
 # ------------------------------------ setup ---------------------------------------
@@ -18,9 +18,7 @@ SHOW = False
 cfg = load_config()
 print_analysis_info(cfg, "Making comparative figures")
 
-
-RAT_NAME = cfg.rat_name
-filenames, plot_choice = load_figure_maker(cfg.paths.metrics / RAT_NAME, single_plot=False)
+filenames, plot_choice = load_figure_maker(cfg.paths.metrics, single_plot=False)
 
 check_analysis_choice(filenames, plot_choice)
  
@@ -29,13 +27,13 @@ if plot_choice["plot_stacked_velocity"] :
     for i, metrics_path in enumerate(filenames) :
 
         metrics_path = Path(metrics_path) 
-        output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.stem
+        output_fig_dir = cfg.paths.analysis / metrics_path.stem
 
         print(f"\n[{i+1}/{len(filenames)}]")
         print(f"Making figures of {metrics_path.stem}\n")
         
 
-        metrics = load_metrics(metrics_path)
+        metrics = load_trial_data(metrics_path)
         successful_trial = sum(1 for m in metrics if m[cfg.bodypart].get('trial_success'))
         print(f"Number of successful trials over total: {successful_trial}/{len(metrics)}")
 
@@ -74,12 +72,12 @@ if plot_choice["plot_stacked_Yposition"] :
     for i, metrics_path in enumerate(filenames) :
 
         metrics_path = Path(metrics_path) 
-        output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.stem
+        output_fig_dir = cfg.paths.analysis / metrics_path.stem
 
         print(f"\n[{i+1}/{len(filenames)}]")
         print(f"Making figures of {metrics_path.stem}\n")
 
-        metrics = load_metrics(metrics_path)
+        metrics = load_trial_data(metrics_path)
 
         successful_trial = sum(1 for m in metrics if m[cfg.bodypart].get('trial_success'))
         print(f"Number of successful trials over total: {successful_trial}/{len(metrics)}")
@@ -119,12 +117,12 @@ if plot_choice["plot_stacked_trajectories"] :
     for i, metrics_path in enumerate(filenames) :
 
         metrics_path = Path(metrics_path) 
-        output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.stem
+        output_fig_dir = cfg.paths.analysis / metrics_path.stem
 
         print(f"\n[{i+1}/{len(filenames)}]")
         print(f"Making figures of {metrics_path.stem}\n")
 
-        metrics = load_metrics(metrics_path)
+        metrics = load_trial_data(metrics_path)
 
         successful_trial = sum(1 for m in metrics if m[cfg.bodypart].get('trial_success'))
         print(f"Number of successful trials over total: {successful_trial}/{len(metrics)}")
@@ -168,7 +166,7 @@ def _preprocess_violin(METRIC: str, split_condition: bool = False) -> pd.DataFra
     data = pd.DataFrame()
 
     for i, metrics_path in enumerate(filenames) :
-        metrics = load_metrics(Path(metrics_path))
+        metrics = load_trial_data(Path(metrics_path))
 
         for trial in metrics : 
 
@@ -209,7 +207,7 @@ def _make_violin(cfg, data, metric) :
     
     g.set_ylabels(metric)
     g.set_titles(col_template="{col_name}", row_template="{row_name}")
-    g.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "violin_distribution", f"violin_{metric}_left_CHR_L1.png"))
+    g.savefig(make_output_path(cfg.paths.analysis / "violin_distribution", f"violin_{metric}_left_CHR_L1.png"))
 
     if SHOW : 
         plt.show()
@@ -240,15 +238,15 @@ def _make_violin_stat(data, metric, formula) :
     stats_res = compute_statistics(data, formula)
     
     # save statistics results has joblib: dict of dataframe for each statistical test
-    save_stat_results(stats_res, cfg.paths.metrics / "statistics" / RAT_NAME / f"{metric}.joblib")
+    save_stat_results(stats_res, cfg.paths.metrics / "statistics" / cfg.rat_name / f"{metric}.joblib")
 
     if "mann_whitney" in stats_res.keys() :
         pairwise_results = stats_res["mann_whitney"] 
         significant_pair = pairwise_results[pairwise_results["p_value"] < 0.05]
 
         fig = _plot_violin_statistic(cfg, data, significant_pair, strip=len(significant_pair) == 0)
-        fig.suptitle(f"{metric} distribution for rat {RAT_NAME}")
-        fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "violin_distribution",  f"stat_violin_{metric}_{RAT_NAME}.png"))
+        fig.suptitle(f"{metric} distribution for rat {cfg.rat_name}")
+        fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution",  f"stat_violin_{metric}_{cfg.rat_name}.png"))
 
         if SHOW : 
                 plt.show()
@@ -289,7 +287,7 @@ def _make_displot(cfg, data, metric) :
     g.figure.subplots_adjust(top=0.88)
     g.set_axis_labels(metric, "Density (KDE)")
     g.set_titles(col_template="{col_name}", row_template="{row_name}")
-    # g.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "violin_distribution", f"displot_{metric}_left_CHR_L2.png"))
+    # g.savefig(make_output_path(cfg.paths.analysis / "violin_distribution", f"displot_{metric}_left_CHR_L2.png"))
 
     if SHOW : 
         plt.show()
@@ -316,7 +314,7 @@ if plot_choice['plot_velocity_over_cliptime'] :
     data = pd.DataFrame()
 
     for i, metrics_path in enumerate(filenames) :
-        metrics = load_metrics(Path(metrics_path))
+        metrics = load_trial_data(Path(metrics_path))
 
         for trial in metrics : 
 
@@ -345,10 +343,10 @@ if plot_choice['plot_velocity_over_cliptime'] :
                 ascending=[True, True, True, True], 
             )
     final_data["date"] = pd.to_datetime(final_data["date"]).dt.date
-    final_data.to_csv(make_output_path(cfg.paths.figures / RAT_NAME / "metrics_by_sessions", f"data.csv"))
+    final_data.to_csv(make_output_path(cfg.paths.analysis / "metrics_by_sessions", f"data.csv"))
 
     fig = plot_velocity_over_cliptime(final_data)
-    fig.savefig(make_output_path(cfg.paths.figures / RAT_NAME / "metrics_by_sessions", f"velocity_overclip_LeftHemi_CHR_L1.png"))
+    fig.savefig(make_output_path(cfg.paths.analysis / "metrics_by_sessions", f"velocity_overclip_LeftHemi_CHR_L1.png"))
 
     if SHOW : 
         plt.show()

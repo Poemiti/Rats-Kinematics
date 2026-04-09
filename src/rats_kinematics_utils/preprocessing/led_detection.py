@@ -9,8 +9,6 @@ import tqdm
 import operator
 
 
-from rats_kinematics_utils.file_management import is_left_view
-
 
 def get_luminosity(annotation_num, video_path, fig_output_path, csv_ouput_path: Path, max_n_frames, label_studio_url, api_key):
     from label_studio_sdk import LabelStudio
@@ -93,7 +91,7 @@ def get_luminosity(annotation_num, video_path, fig_output_path, csv_ouput_path: 
 
 
 
-def define_cue_type(luminosities: pd.Series, threshold=100, min_duration=5) :
+def define_cue_type(luminosities: pd.Series, threshold=100, min_duration=5) -> str :
     """
     Determine the cue type based on LED luminosity over time.
     Note : Must be applied only on LED_1
@@ -144,78 +142,6 @@ def define_cue_type(luminosities: pd.Series, threshold=100, min_duration=5) :
     return cue_type
 
 
-
-def rename_file(file_path: Path, laser_on: bool, new_cue: str, apply_rename: bool = False):
-    """
-    Rename a video clip based on detected cue and laser state.
-
-    The function replaces any existing cue token in the filename
-    with a new cue label and appends a laser status suffix
-    (``LaserOn`` or ``LaserOff``).
-
-    Parameters
-    ----------
-    clip_path : pathlib.Path
-        Path to the video clip to rename.
-    laser_on : bool
-        Whether the laser was active during the clip.
-    new_cue : str
-        Cue label to insert into the filename (e.g., ``CueL1``, ``CueL2``).
-
-    Returns
-    -------
-    None
-    """
-
-    CUE_PATTERN = r"(" + "|".join([
-        "onlyL1LeftHand", "onlyL2", "onlyL1",
-        "L1L26040", "L1L25050", "L1L2",
-        "L1-60", "L2-40",
-        "L1", "L2", "NoCue", "CueL1", "CueL2"
-    ]) + r")"
-
-
-    name = file_path.stem
-    suffix = file_path.suffix
-
-    # Replace cue if present
-    name, cue_count = re.subn(CUE_PATTERN, new_cue, name)
-    if cue_count == 0:
-        print(f"[WARN] No cue token found in: {file_path.name}")
-
-    if laser_on :
-        name += "_LaserOn"
-    else : 
-        name += "_LaserOff"
-
-    new_path = file_path.with_name(name + suffix)
-
-    if new_path.exists():
-        raise FileExistsError(f"Target already exists: {new_path}")
-
-    print(f"\nold name: {file_path.name}\nnew name: {new_path.name}")
-
-    # /!\ WARNING this line rename file
-    if apply_rename :
-        file_path.rename(new_path)
-        print("RENAMED !")
-    
-    
-
-
-def remove_file(file_path : Path) : 
-    if not isinstance(file_path, Path):
-        raise TypeError("file_path must be a pathlib.Path object")
-
-    if not file_path.exists():
-        raise FileNotFoundError(f"No such file: '{file_path}'")
-
-    if file_path.is_dir():
-        raise IsADirectoryError(f"Expected a file but got a directory: '{file_path}'")
-
-    file_path.unlink()
-
-
 def led_state(luminosities: pd.Series,
               threshold: float = 100,
               min_duration: int = 10,
@@ -249,7 +175,7 @@ def get_time_led_state(
                     state: str = "ON",
                     min_duration: int = 5,
                     in_sec: bool = False, 
-                    fps: int =125) :
+                    fps: int =125) -> float | int :
 
     if luminosities is None : 
         luminosities = pd.read_csv(luminosity_path)
@@ -283,47 +209,4 @@ def get_time_led_state(
 
 if __name__ == "__main__" :
 
-    # ---------------------------------------------- setup path -------------------------------------------------
-
-    # inputs (should exist)
-    GENERATED_DATA_DIR = Path("../exploration/data")
-    DATABASE_PATH = GENERATED_DATA_DIR / "database/rat_517_H001.csv"  # if it does not exist, make one with make_database (in file_management.py)
-
-    # get the path for a video (path in a premade database)
-    database = pd.read_csv(DATABASE_PATH)
-    VIDEO_EXEMPLE = Path(database.iloc[0]["filename"])
-    INPUT_VIDEO_PATH = GENERATED_DATA_DIR / "clips" / VIDEO_EXEMPLE.stem / f"{VIDEO_EXEMPLE.stem}_clip_00.mp4"
-
-    # outputs
-    OUTPUT_LUMINOSITY_DIR = GENERATED_DATA_DIR / "luminosity" /  VIDEO_EXEMPLE.stem 
-    OUTPUT_LUMINOSITY_DIR.mkdir(parents=True, exist_ok=True)
-
-    # ---------------------------------------------- get luminosisty -------------------------------------------------
-
-    output_path = OUTPUT_LUMINOSITY_DIR / f"luminosity_{VIDEO_EXEMPLE.stem}"
-
-    # verify if the clip is left or right view
-    if is_left_view(str(VIDEO_EXEMPLE.stem)) : 
-        label_studio_annotation = 1812
-    else : 
-        label_studio_annotation = 1811
-    print(f"\nlabel studio annotation : {label_studio_annotation}")
-    
-
-    luminosity = get_luminosity(annotation_num=label_studio_annotation,        
-                                video_path= INPUT_VIDEO_PATH,
-                                fig_output_path= f"{output_path}.html",
-                                csv_ouput_path = f"{output_path}.csv",
-                                max_n_frames=None,
-                                label_studio_url= "http://l-t4-mamserver.imn.u-bordeaux2.fr/labelstudioapp",
-                                api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6ODA3NTE1MDkzNCwiaWF0IjoxNzY3OTUwOTM0LCJqdGkiOiI4OGEwYTE5NDZkODM0NTlhYjQyMzIzN2I1MTQ0N2ZlYiIsInVzZXJfaWQiOiIyNCJ9.dNTu0zJNPHax5tnfYWanvZlH8SZ9VHQvOGZ_GEyN0l8"
-    )
-
-    print(f"\nNumber of frame : {len(luminosity)}")
-    
-    # ---------------------------------------------- classify clip depending on led  -------------------------------------------------
-
-    luminosity.columns = luminosity.columns.droplevel(0) # columns = LED_1 ...
-    luminosity = luminosity.drop([1]).reset_index(drop=True)  # remove useless row
-
-    print(luminosity)
+    print("No main")

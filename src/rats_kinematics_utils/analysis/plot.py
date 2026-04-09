@@ -8,6 +8,17 @@ import numpy as np
 import cv2
 import numba
 import matplotlib.animation as animation
+import seaborn as sns
+
+# ==================================== display hyperparameter ===========================================
+
+
+custom_params = {"axes.spines.right": False, "axes.spines.top": False}
+sns.set_theme("talk", style="ticks", rc=custom_params)
+
+LASER_COLOR = "lightpink"
+LINE_COLOR = "gray"
+AVG_LINE_COLOR = "navy"
 
 
 # --------------------------------- plotting ----------------------------------

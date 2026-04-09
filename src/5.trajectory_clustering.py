@@ -8,9 +8,9 @@ import joblib
 import time
 import seaborn as sns
 
-from rats_kinematics_utils.config import load_config
-from rats_kinematics_utils.pipeline_maker import load_metrics, print_analysis_info
-from rats_kinematics_utils.clustering import extract_trajectories, make_distance_matrix, plot_true_clustered_traj, plot_clustered_trajectories, display_distance_matrix, plot_trajectories
+from rats_kinematics_utils.core.config import load_config
+from rats_kinematics_utils.core.file_utils import print_analysis_info
+from rats_kinematics_utils.analysis.clustering import extract_trajectories, make_distance_matrix, plot_true_clustered_traj, plot_clustered_trajectories, display_distance_matrix, plot_trajectories
 
 from sklearn.cluster import HDBSCAN
 from sklearn.preprocessing import LabelEncoder
@@ -26,13 +26,13 @@ print_analysis_info(cfg, "Trajectory Clustering")
 
 RAT_NAME = cfg.rat_name
 
-matrix_dir = cfg.paths.metrics / "distance_matrix" / RAT_NAME
-figures_dir = cfg.paths.figures / RAT_NAME / "distance_matrix" 
+matrix_dir = cfg.paths.metrics / "distance_matrix"
+figures_dir = cfg.paths.analysis / "distance_matrix" 
 matrix_dir.mkdir(parents=True, exist_ok=True)
 figures_dir.mkdir(parents=True, exist_ok=True)
 MATRIX = matrix_dir / "dtw_only_successful_raw.joblib"
 
-filenames = sorted((cfg.paths.metrics / RAT_NAME).glob("*.joblib"))
+filenames = sorted((cfg.paths.metrics).glob("*.joblib"))
 
 print(f"\nClustering of rat {RAT_NAME}")
 print(f"Metrics used : ")
@@ -69,7 +69,7 @@ if MATRIX.exists() :
     joblib.dump(dist_matrix, MATRIX)
 else : 
     print(f"Loading {MATRIX}")
-    dist_matrix = load_metrics(MATRIX)
+    dist_matrix = joblib.load(MATRIX)
 
 # ------------------------------- display distance matrix -------------------------------------
 

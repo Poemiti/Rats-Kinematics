@@ -5,10 +5,10 @@ import os
 import shutil
 from deeplabcut.pose_estimation_pytorch import set_load_weights_only
 
-from rats_kinematics_utils.split_video import split_video
-from rats_kinematics_utils.dlc_prediction import dlc_predict_Julien
-from rats_kinematics_utils.config import load_config
-from rats_kinematics_utils.pipeline_maker import load_database
+from rats_kinematics_utils.core.video_utils import split_video
+from rats_kinematics_utils.prediction.dlc_prediction import dlc_predict_Julien
+from rats_kinematics_utils.core.config import load_config
+from rats_kinematics_utils.gui.database_filter import load_database
 
 # lauching line : 
 #            nohup python3 -u 1.make_prediction.py > main.out &

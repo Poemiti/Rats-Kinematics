@@ -8,8 +8,8 @@ import joblib
 import time
 import seaborn as sns
 
-from rats_kinematics_utils.plot_comparative import plot_stacked_trajectories
-from rats_kinematics_utils.pipeline_maker import load_metrics
+from rats_kinematics_utils.analysis.plot_comparative import plot_stacked_trajectories
+from rats_kinematics_utils.core.file_utils import load_trial_data
 from tslearn.metrics import frechet_path, dtw_path, ctw_path, lcss_path
 
 sns.set_theme(style="darkgrid")
@@ -69,7 +69,7 @@ def plot_all_trajectories(cfg, filenames: list[Path]) -> None:
         print(f"\n[{i+1}/{len(filenames)}]")
         print(f"Making figures of {metrics_path.parent.stem}\n")
 
-        metrics = load_metrics(metrics_path)
+        metrics = load_trial_data(metrics_path)
         plot_stacked_trajectories(cfg, metrics, ax)
         n_trial += sum(1 for m in metrics if m.get('trial_success'))
         total_trial += len(metrics)
@@ -278,7 +278,7 @@ def extract_trajectories(cfg, filenames: list[Path], coords: str) -> list[pd.Dat
     true_labels = []
     for i, metrics_path in enumerate(filenames) :
         metrics_path = Path(metrics_path) 
-        for trial in load_metrics(metrics_path) :
+        for trial in load_trial_data(metrics_path) :
 
             # if coords == "xy_raw" : 
             #     xy = trial[coords]

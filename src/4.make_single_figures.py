@@ -5,33 +5,32 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from rats_kinematics_utils.file_management import verify_exist
-from rats_kinematics_utils.plot import plot_single_bodypart_trajectories, plot_3D_traj, plot_animation, plot_metric_time, plot_annotated_video
-from rats_kinematics_utils.split_video import split_clip_range
+from rats_kinematics_utils.core.file_utils import verify_exist
+from rats_kinematics_utils.analysis.plot import plot_single_bodypart_trajectories, plot_3D_traj, plot_animation, plot_metric_time, plot_annotated_video
+from rats_kinematics_utils.core.video_utils import split_clip_range
+from rats_kinematics_utils.gui.figures_maker import load_figure_maker
 
-from rats_kinematics_utils.config import load_config
-from rats_kinematics_utils.pipeline_maker import load_metrics, load_figure_maker, make_output_path, check_analysis_choice, check_trial_success, print_analysis_info
+from rats_kinematics_utils.core.config import load_config
+from rats_kinematics_utils.core.file_utils import load_trial_data, make_output_path, check_analysis_choice, check_trial_success, print_analysis_info
 
 # ------------------------------------ setup ---------------------------------------
 
 cfg = load_config()
 print_analysis_info(cfg, "Making single figures")
 
-
-RAT_NAME = cfg.rat_name
-filenames, plot_choice = load_figure_maker(cfg.paths.metrics / RAT_NAME, single_plot=True)
+filenames, plot_choice = load_figure_maker(cfg.paths.metrics, single_plot=True)
 
 check_analysis_choice(filenames, plot_choice)
 
 for i, metrics_path in enumerate(filenames) :
 
     metrics_path = Path(metrics_path) 
-    output_fig_dir = cfg.paths.figures / RAT_NAME / metrics_path.stem
+    output_fig_dir = cfg.paths.analysis / metrics_path.stem
 
     print(f"\n[{i+1}/{len(filenames)}]")
     print(f"Making figures of {metrics_path.stem}\n")
 
-    metrics = load_metrics(metrics_path)
+    metrics = load_trial_data(metrics_path)
 
     for t, trial in enumerate(metrics) : 
 

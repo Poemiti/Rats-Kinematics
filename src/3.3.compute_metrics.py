@@ -3,23 +3,17 @@
 import joblib
 import sys
 
-from rats_kinematics_utils.trajectory_metrics import Trajectory, crop_xy
-from rats_kinematics_utils.config import load_config
-from rats_kinematics_utils.pipeline_maker import check_reward, print_analysis_info
+from rats_kinematics_utils.preprocessing.Trajectory import Trajectory
+from rats_kinematics_utils.core.config import load_config
+from rats_kinematics_utils.core.file_utils import print_analysis_info
+from rats_kinematics_utils.preprocessing.preprocess import check_reward, crop_xy
 
 # ------------------------------------ setup ---------------------------------------
 
 cfg = load_config()
 print_analysis_info(cfg, "Compute metrics")
 
-
-RAT_NAME = cfg.rat_name
-
-output_dir = cfg.paths.metrics / RAT_NAME
-output_dir.mkdir(parents=True, exist_ok=True)
-
-
-filenames = list((cfg.paths.metrics / RAT_NAME).glob("*.joblib"))
+filenames = list((cfg.paths.metrics).glob("*.joblib"))
 
 
 # ----------------------- does validation has already been done ? -----------------------------
@@ -119,7 +113,7 @@ for i, file in enumerate(file_to_compute):
         trial[cfg.bodypart]["xy_reward"] = xy_reward
         
     # save updated metadata + metrics and trajectories
-    joblib.dump(data, output_dir / f"{filename}.joblib")
+    joblib.dump(data, cfg.paths.metrics / f"{filename}.joblib")
 
 print(nb)
 print("Done !")

@@ -5,11 +5,13 @@ import yaml
 from pathlib import Path
 from deeplabcut.pose_estimation_pytorch import set_load_weights_only
 
-from rats_kinematics_utils.split_video import split_video, verify_video
-from rats_kinematics_utils.dlc_prediction import dlc_predict_Julien
-from rats_kinematics_utils.config import load_config, match_rule
-from rats_kinematics_utils.pipeline_maker import load_database
-from rats_kinematics_utils.file_management import get_date
+from rats_kinematics_utils.core.config import load_config, match_rule
+
+from rats_kinematics_utils.core.video_utils import split_video, verify_video
+from rats_kinematics_utils.core.file_utils import get_date
+
+from rats_kinematics_utils.prediction.dlc_prediction import dlc_predict_Julien
+from rats_kinematics_utils.gui.database_filter import load_database
 
 # lauching line : 
 #            nohup python3 -u src/1.1.make_prediction.py > main.out &
@@ -24,8 +26,6 @@ set_load_weights_only(False)
 cfg = load_config()
 DATABASE = load_database(cfg.paths.raw_videos, cfg.paths.database, "video")
 
-RAT_NAME = DATABASE['rat_name'][0]
-
 start = time.perf_counter()
 
 for i, video_path in enumerate(DATABASE["filename"].iloc[:]): 
@@ -38,7 +38,7 @@ for i, video_path in enumerate(DATABASE["filename"].iloc[:]):
     print(f"Prediction of video: {video_path}\n")
 
 
-    output_clips_dir = cfg.paths.clips / RAT_NAME / video_path.stem 
+    output_clips_dir = cfg.paths.raw_clips / video_path.stem 
 
     # ----------------------------------------------- get clips lenght by looking at the month --------------------------------------------------
 
@@ -59,10 +59,7 @@ for i, video_path in enumerate(DATABASE["filename"].iloc[:]):
                 CLIP_DURATION= clip_duration)
     
     
-    OUTPUT_H5_PATH = cfg.paths.h5 / RAT_NAME / video_path.stem
-    OUTPUT_CSV_PATH = cfg.paths.coords / RAT_NAME /  video_path.stem
-
-    OUTPUT_H5_PATH.mkdir(parents=True, exist_ok=True)
+    OUTPUT_CSV_PATH = cfg.paths.dlc / video_path.stem
     OUTPUT_CSV_PATH.mkdir(parents=True, exist_ok=True)
 
     # ----------------------------------------------- prediction --------------------------------------------------
@@ -88,6 +85,8 @@ process_time = end - start
 
 print(f"Processing time : {(process_time / 60 / 60):.1f} h")
 print("Done !")
+
+
 
 
 

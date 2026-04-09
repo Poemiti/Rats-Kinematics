@@ -6,22 +6,23 @@ import joblib, yaml
 import sys
 import time
 
-from rats_kinematics_utils.file_management import make_name_by_condition, verify_exist, is_left_view, get_date, get_condition
-from rats_kinematics_utils.led_detection import get_time_led_state, get_luminosity, define_cue_type
+from rats_kinematics_utils.core.file_utils import make_name_by_condition, verify_exist, is_left_view, get_date, get_condition
+from rats_kinematics_utils.preprocessing.led_detection import get_time_led_state, get_luminosity, define_cue_type
+from rats_kinematics_utils.preprocessing.preprocess import init_metadata
 
-from rats_kinematics_utils.config import load_config, match_rule
-from rats_kinematics_utils.pipeline_maker import load_database, init_metadata, print_analysis_info, make_output_path
+from rats_kinematics_utils.core.config import load_config, match_rule
+from rats_kinematics_utils.gui.database_filter import load_database
+from rats_kinematics_utils.core.file_utils import print_analysis_info, make_output_path
+from rats_kinematics_utils.preprocessing.plot_preprocess import metadata_report, plot_likelihood_distribution
 
 # ------------------------------------ setup ---------------------------------------
 
 cfg = load_config()
 print_analysis_info(cfg, "Build trial metadata")
 
+DATABASE = load_database(cfg.paths.dlc, cfg.paths.database, "csv")
 
-RAT_NAME = cfg.rat_name
-DATABASE = load_database(cfg.paths.coords / RAT_NAME, cfg.paths.database, "csv")
-
-output_dir = cfg.paths.metrics / RAT_NAME
+output_dir = cfg.paths.metrics
 output_dir.mkdir(parents=True, exist_ok=True)
 
 old_filename = ""
@@ -61,41 +62,52 @@ for i, coords_path in enumerate(DATABASE["filename"]):
     session_name = coords_path.parent.stem 
 
     # compute luminosity
-    luminosity_dir = cfg.paths.luminosity / RAT_NAME / session_name 
+    luminosity_dir = cfg.paths.luminosity / session_name 
     luminosity_dir.mkdir(parents=True, exist_ok=True)
 
     html_path = luminosity_dir / f"luminosity_{trial_name}.html"
     luminosity_path = luminosity_dir / f"luminosity_{trial_name}.csv"
-    clip_path = cfg.paths.clips / RAT_NAME / session_name / f"{trial_name}.mp4"
+    clip_path = cfg.paths.raw_clips / session_name / f"{trial_name}.mp4"
     verify_exist(clip_path)
 
 
     # ------------------------------------ get luminosities info + save them as csv ---------------------------------------
 
+    camera_view = "left" if is_left_view(trial_name) else "right"
+
     # get annotation  number
     with open("./annotation_rules.yaml") as f:
         annotation_rules = yaml.safe_load(f)
-
-    camera_view = "left" if is_left_view(trial_name) else "right"
 
     annotation_meta = {
         "condition": get_condition(trial_name), 
         "view": camera_view,
         "month": get_date(trial_name).month,
     }
-    
     label_studio_annotation = match_rule(annotation_meta, annotation_rules)
-    luminosities: pd.DataFrame = get_luminosity(annotation_num=label_studio_annotation,        
-                                                video_path= clip_path,
-                                                fig_output_path= html_path if luminosity_dir not in dirs else None,
-                                                csv_ouput_path = luminosity_path,
-                                                max_n_frames=None,
-                                                label_studio_url= "http://l-t4-mamserver.imn.u-bordeaux2.fr/labelstudioapp",
-                                                api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6ODA3NTE1MDkzNCwiaWF0IjoxNzY3OTUwOTM0LCJqdGkiOiI4OGEwYTE5NDZkODM0NTlhYjQyMzIzN2I1MTQ0N2ZlYiIsInVzZXJfaWQiOiIyNCJ9.dNTu0zJNPHax5tnfYWanvZlH8SZ9VHQvOGZ_GEyN0l8"
-                                                )
-    # clean luminosities dataframe
-    luminosities.columns = luminosities.columns.droplevel(0)        # columns = LED_1 ...
-    luminosities = luminosities.drop([1]).reset_index(drop=True)    # remove useless row
+
+
+    # luminosity has already been compute, just open the csv
+    if luminosity_path.exists() : 
+        print("opening luminosity")
+        luminosities = pd.read_csv(luminosity_path)
+        luminosities.columns = luminosities.iloc[0]      # use first row as column names
+        luminosities = luminosities.drop(0).reset_index(drop=True) # remove useless row
+        luminosities = luminosities[luminosities.iloc[:, 0] != 't']
+    
+    else : 
+        luminosities: pd.DataFrame = get_luminosity(annotation_num=label_studio_annotation,        
+                                                    video_path= clip_path,
+                                                    fig_output_path= html_path if luminosity_dir not in dirs else None,
+                                                    csv_ouput_path = luminosity_path,
+                                                    max_n_frames=None,
+                                                    label_studio_url= "http://l-t4-mamserver.imn.u-bordeaux2.fr/labelstudioapp",
+                                                    api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6ODA3NTE1MDkzNCwiaWF0IjoxNzY3OTUwOTM0LCJqdGkiOiI4OGEwYTE5NDZkODM0NTlhYjQyMzIzN2I1MTQ0N2ZlYiIsInVzZXJfaWQiOiIyNCJ9.dNTu0zJNPHax5tnfYWanvZlH8SZ9VHQvOGZ_GEyN0l8"
+                                                    )
+
+        # clean luminosities dataframe
+        luminosities.columns = luminosities.columns.droplevel(0)        # columns = LED_1 ...
+        luminosities = luminosities.drop([1]).reset_index(drop=True)    # remove useless row
 
     if luminosity_dir not in dirs : 
         dirs.add(luminosity_dir)
@@ -137,7 +149,7 @@ for i, coords_path in enumerate(DATABASE["filename"]):
     else : 
         ALL_METADATA[filename].append(TRIAL_METADATA) 
 
-    yaml_path: Path = make_output_path(output_dir / "per_trial_metadata" / session_name, f"{trial_name}.yaml")
+    yaml_path: Path =  clip_path.parent / f"{trial_name}.yaml"
 
     with open((yaml_path) , "w") as f : 
         yaml.safe_dump(TRIAL_METADATA, f)
@@ -163,3 +175,10 @@ print(f"Number of all orginal prediction: {len(DATABASE)}")
 print(f"Processing time: {process_time:.1f} min")
 print("Done !")
 
+# show metadata report
+print("\nVisualisation of the proportion of each experimental condition\n")
+fig = metadata_report(cfg.paths.raw_clips, output_dir)
+fig.write_html(str(cfg.paths.analysis / f"{cfg.rat_name}_experimental_condition_proportion.html"))
+
+print("\nPlotting likelihood distribution of all bodyparts\n")
+plot_likelihood_distribution(cfg, list(output_dir.glob("*.joblib")))

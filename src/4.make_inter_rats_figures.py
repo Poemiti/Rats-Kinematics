@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 import inspect
 import re
 
-import rats_kinematics_utils.plot_comparative as plot
-from rats_kinematics_utils.plot_comparative import _plot_violin_statistic, _displot_stat
-from rats_kinematics_utils.config import load_config
-from rats_kinematics_utils.pipeline_maker import load_metrics, make_output_path, check_analysis_choice, print_analysis_info, print_interRat_analysis_info, dataframe_report
-from rats_kinematics_utils.statistics import compute_statistics, save_stat_results, LMM, compute_permutation_effect_size, transform_data
+import rats_kinematics_utils.analysis.plot_comparative as plot_comparative
+from rats_kinematics_utils.analysis.plot_comparative import _plot_violin_statistic, _displot_stat
+from rats_kinematics_utils.core.config import load_config
+from rats_kinematics_utils.core.file_utils import load_trial_data, make_output_path, check_analysis_choice, print_analysis_info, print_interRat_analysis_info, dataframe_report
+from rats_kinematics_utils.analysis.statistics import compute_statistics, save_stat_results, LMM, compute_permutation_effect_size, transform_data
 
 
 # ------------------------------------ setup ---------------------------------------
@@ -31,7 +31,7 @@ filenames = sorted(
 )
 
 available_functions = {name: func
-                for name, func in inspect.getmembers(plot, inspect.isfunction)
+                for name, func in inspect.getmembers(plot_comparative, inspect.isfunction)
                 if name.startswith("plot")}
 
 check_analysis_choice(filenames, available_functions)
@@ -61,7 +61,7 @@ def _preprocess(filenames, METRIC: str, split_condition: bool = False) -> pd.Dat
     data = pd.DataFrame()
 
     for i, metrics_path in enumerate(filenames) :
-        metrics = load_metrics(Path(metrics_path))
+        metrics = load_trial_data(Path(metrics_path))
 
         for trial in metrics : 
             print(trial.keys())

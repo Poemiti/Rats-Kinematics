@@ -1,7 +1,7 @@
 
 # parameter
 rat_name: "#517"
-bodypart: finger_3 
+bodypart: soft_pad 
 view: left           # camera view
 task: L1            # L1: left lever, L2: right lever
 
@@ -14,22 +14,25 @@ max_lost_coords: 10
 frame_width_px: 512     # pixels
 
 paths:
-  # raw data
+  # input data
   model: "/media/filer2/T4b/UserFolders/Poemiti/Reaching-DLC-model-main/data/model/DLC-Poe-2026-03-27/"
   raw_videos: "/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024"
 
-  # results folder
-  metrics: ./data/metrics_results
-  figures: ./data/figures_results
+  # output folder
+  data_root: ./data
+  database: "{data_root}/database"
 
-  # source data for analysis
-  data: ./data
-  clips: ./data/clips
-  coords: ./data/csv_results
-  database: ./data/database
-  luminosity: ./data/luminosity
+  # inter rat
+  inter_rat: "{data_root}/inter_rat"
 
-  # complementary folder
-  report: ./data/trial_report
-  frames: ./data/frames
-  h5: ./data/dlc_results
+  # per rat
+  rat_root: "{data_root}/rat_{rat_name}"
+  raw_clips: "{rat_root}/raw_clips"
+  
+  processed: "{rat_root}/processed"
+  dlc: "{processed}/dlc"
+  metrics: "{processed}/metrics"
+  luminosity: "{processed}/luminosity"
+  preprocessing: "{processed}/preprocessing"
+
+  analysis: "{rat_root}/{bodypart}_analysis"

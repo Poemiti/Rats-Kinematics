@@ -5,16 +5,15 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from statannotations.Annotator import Annotator
 
-from rats_kinematics_utils.trajectory_metrics import crop_xy
 
 # ==================================== display hyperparameter ===========================================
 
 
 custom_params = {"axes.spines.right": False, "axes.spines.top": False}
-sns.set_theme("paper", style="ticks", rc=custom_params)
+sns.set_theme("talk", style="ticks", rc=custom_params)
 
 LASER_COLOR = "lightpink"
-LINE_COLOR = "lightskyblue"
+LINE_COLOR = "gray"
 AVG_LINE_COLOR = "navy"
 
 
@@ -167,7 +166,7 @@ def plot_stacked_Yposition(cfg, metrics: dict) :
 
 
 def plot_stacked_trajectories(cfg, metrics, ax: plt.axes = None) : 
-    from rats_kinematics_utils.plot import plot_single_bodypart_trajectories
+    from rats_kinematics_utils.analysis.plot import plot_single_bodypart_trajectories
     from rats_kinematics_utils.pipeline_maker import check_trial_success
 
     all_coords = []
@@ -642,7 +641,7 @@ def _displot_stat(perm_data) :
 
 
 def _plot_displot(data):
-    from rats_kinematics_utils.statistics import transform_data
+    from rats_kinematics_utils.analysis.statistics import transform_data
 
     print(f"data size before trim = {len(data)}")
     # log_val = np.log(data["value"])

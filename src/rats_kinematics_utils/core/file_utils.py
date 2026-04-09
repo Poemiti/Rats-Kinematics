@@ -4,34 +4,6 @@ from pathlib import Path
 
 # ----------------------------------- basic utility --------------------------------------
 
-def open_DLC_results(csv_path : Path) -> pd.DataFrame : 
-    """
-    Load and clean a DeepLabCut CSV file.
-
-    DeepLabCut CSV files contain a three-level header
-    (scorer, bodypart, coordinate). This function removes the scorer
-    level and drops the first data row to return a clean DataFrame.
-
-    Parameters
-    ----------
-    csv_path : pathlib.Path
-        Path to the DeepLabCut CSV file.
-
-    Returns
-    -------
-    pandas.DataFrame
-        Cleaned DataFrame with a two-level column index
-        (bodypart, coordinate).
-    """
-
-    # DLC CSV has 3 header rows (scorer, bodyparts, coords)
-    df = pd.read_csv(csv_path, header=[0, 1, 2])
-
-    # clean dataframe
-    df.columns = df.columns.droplevel(0)  # remove scorer row
-    clean_df = df.iloc[1:].reset_index(drop=True)
-
-    return clean_df
 
 def is_video(filename : str) -> bool : 
     """
@@ -278,6 +250,136 @@ def make_database(root_dir : Path, satisfy_condition):
         if file_path.is_file() and satisfy_condition(file_path.name):
             classify_file(file_path, sorted_videos)
     return pd.DataFrame(sorted_videos)
+
+
+
+def make_output_path(base_dir, file_name) ->  Path:
+    base_dir.mkdir(parents=True, exist_ok=True)
+    return base_dir / file_name
+
+
+def load_trial_data(path: Path) -> dict :
+    from datetime import datetime
+    import joblib
+
+    try:
+        metrics = joblib.load(path)
+
+        for trial in metrics : 
+            for key in ["filename_coords", "filename_clips", "filename_luminosity"]:
+                if key in trial:
+                    trial[key] = Path(trial[key])
+
+            if "date" in trial:
+                trial["date"] = datetime.fromisoformat(trial["date"])
+
+        return metrics
+
+    except FileNotFoundError:
+        raise FileNotFoundError(f"{path} does not exist")
+
+
+
+def check_analysis_choice(files, choice) : 
+    import sys
+    
+    if not choice or all(v is False for v in choice.values()):
+        print("No plotting option selected ! Stop")
+        sys.exit()
+
+    if len(files) == 0 : 
+        print("No files selected ! Stop")
+        sys.exit()
+
+
+
+def check_trial_success(cfg, trial, may_restriction: bool = False) : 
+    if not trial[cfg.bodypart]["trial_success"] :
+        print("Trial success : ", trial[cfg.bodypart]["trial_success"])
+        return False 
+    if may_restriction : 
+        if "202405" in  trial["filename_clips"].as_posix() or \
+            "052024" in trial["filename_clips"].as_posix() : 
+            print("Trial made in may 2024, skipped")
+            return False
+    return True
+
+# ----------------- display info ---------------------------
+
+def print_analysis_info(cfg, analysis) : 
+    print(f"\n====== {analysis} of {cfg.rat_name} ======")
+    print(f"  bodypart : {cfg.bodypart}")
+    print(f"  view : {cfg.view}")
+    print(f"  task : {cfg.task} -> {cfg.task_pad}")
+    print(f"  cm per pixel : {cfg.cm_per_pixel}")
+    print(f"  likelihood threshold : {cfg.threshold}")
+    print(f"============================================\n")
+
+
+def print_interRat_analysis_info(filenames: list[Path], available_functions: dict) : 
+    print("Available rats: ")
+    rats = [file.parent.stem for file in filenames]
+    seen = []
+    for r in rats : 
+        if not r in seen : 
+            seen.append(r)
+            print("  ", r)
+
+    print("\nAvailable files:")
+    for file in filenames : 
+        print(f"  {file.parent.name}/{file.stem}" )
+
+    print("\nAvailable functions")
+    for function_name in available_functions.keys() : 
+        print("  ", function_name)
+    print("==============================================\n")
+
+
+
+def dataframe_report(df: pd.DataFrame, include_na=False, sort=True):
+    """
+    Analyze categorical columns in a DataFrame.
+    
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        Input dataframe
+    include_na : bool (default=False)
+        Whether to include NaN values in counts
+    sort : bool (default=True)
+        Whether to sort categories by frequency (descending)
+        
+    Returns:
+    --------
+    dict
+        Dictionary where keys are column names and values are
+        DataFrames containing counts and percentages per category.
+    """
+    
+    results = {}
+    
+    # Select categorical and object columns
+    categorical_cols = df.select_dtypes(include=['object', 'category']).columns
+    
+    for col in categorical_cols:
+        counts = df[col].value_counts(dropna=not include_na)
+        percentages = df[col].value_counts(normalize=True, dropna=not include_na) * 100
+        
+        summary = pd.DataFrame({
+            'count': counts,
+            'percentage (%)': percentages.round(2)
+        })
+        
+        if sort:
+            summary = summary.sort_values(by='count', ascending=False)
+        
+        results[col] = {
+            'summary': summary,
+            'total_non_null': df[col].count(),
+            'num_unique_categories': df[col].nunique(dropna=not include_na)
+        }
+    
+    return results
 
 
 

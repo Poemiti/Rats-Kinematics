@@ -3,8 +3,8 @@ import tkinter as tk
 from tkinter import ttk
 import inspect
 
-import rats_kinematics_utils.plot as plot
-import rats_kinematics_utils.plot_comparative as plot_comparative
+import rats_kinematics_utils.analysis.plot as plot
+import rats_kinematics_utils.analysis.plot_comparative as plot_comparative
 
 class Controller:
     def __init__(self, model, view):
@@ -118,3 +118,17 @@ class Model:
                 name: func
                 for name, func in inspect.getmembers(plot_comparative, inspect.isfunction)
                 if name.startswith("plot")}
+            
+
+
+def load_figure_maker(dir, single_plot: bool) : 
+
+    model = Model(dir, single_plot)
+    view = View()
+    controller = Controller(model, view)
+    view.mainloop()
+
+    filenames : list[Path] = controller.selected_files
+    plot_choice : list[bool] = controller.selected_functions
+
+    return filenames, plot_choice

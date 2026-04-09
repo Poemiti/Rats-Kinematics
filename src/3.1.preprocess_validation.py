@@ -3,23 +3,18 @@
 import joblib
 import sys
 
-from rats_kinematics_utils.config import load_config
-from rats_kinematics_utils.pipeline_maker import print_analysis_info, load_preprocess_validator, check_times
-
+from rats_kinematics_utils.core.config import load_config
+from rats_kinematics_utils.core.file_utils import print_analysis_info
+from rats_kinematics_utils.preprocessing.preprocess import check_times
+from rats_kinematics_utils.preprocessing.plot_preprocess import plot_trial_success_distri, plot_trial_failure_reason
+from rats_kinematics_utils.gui.preprocess_validator import load_preprocess_validator
 
 # ------------------------------------ setup ---------------------------------------
 
 cfg = load_config()
 print_analysis_info(cfg, "Validation of the preprocessing")
 
-
-RAT_NAME = cfg.rat_name
-
-output_dir = cfg.paths.metrics / RAT_NAME
-output_dir.mkdir(parents=True, exist_ok=True)
-
-
-filenames = list((cfg.paths.metrics / RAT_NAME).glob("*.joblib"))
+filenames = list((cfg.paths.analysis).glob("*.joblib"))
 
 # ----------------------- does validation has already been done ? -----------------------------
 
@@ -64,7 +59,7 @@ print(f"Total number of trial to validate : {nb}")
 validation_data = {}
 
 for file in file_to_validate:
-    val = load_preprocess_validator(cfg.paths.figures / RAT_NAME / file.stem)
+    val = load_preprocess_validator(cfg.paths.preprocessing / file.stem)
     if not val : 
         break
 
@@ -101,4 +96,13 @@ for i, file in enumerate(file_to_validate):
                 trial[cfg.bodypart]["xy_raw"] = trial[cfg.bodypart]["xy_after"]
 
     # save updated metadata
-    joblib.dump(metadata, output_dir / f"{filename}.joblib")
+    joblib.dump(metadata, cfg.paths.metrics / f"{filename}.joblib")
+
+
+# -------------- show report of the successful trials ------------
+
+print("\nPlotting the distribution of trial success\n")
+plot_trial_success_distri(cfg, filenames)
+
+print("\nPlotting the distribution of the failure reason\n")
+plot_trial_failure_reason(cfg, filenames)
