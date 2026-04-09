@@ -194,9 +194,11 @@ src/
 ├── 0.initialisation.py
 ├── 1.make_prediction.py
 ├── 2.build_metadata.py
+│
 ├── 3.0.preprocessing.py
 ├── 3.1.preprocess_validation.py
 ├── 3.3.compute_metrics.py
+│
 ├── 4.make_comparative_figures.py
 ├── 4.make_inter_rats_figures.py
 ├── 4.make_single_figures.py
@@ -205,6 +207,4 @@ src/
 │
 └── rats_kinematics_utils/          # all utility function used by the main pipeline
 
-
--- 
 ```
