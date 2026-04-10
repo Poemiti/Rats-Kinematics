@@ -91,6 +91,10 @@ for i, coords_path in enumerate(DATABASE["filename"]):
     if luminosity_path.exists() : 
         print("opening luminosity")
         luminosities = pd.read_csv(luminosity_path)
+
+        if len(luminosities) < 10 : 
+            continue
+
         luminosities.columns = luminosities.iloc[0]      # use first row as column names
         luminosities = luminosities.drop(0).reset_index(drop=True) # remove useless row
         luminosities = luminosities[luminosities.iloc[:, 0] != 't']
@@ -104,6 +108,9 @@ for i, coords_path in enumerate(DATABASE["filename"]):
                                                     label_studio_url= "http://l-t4-mamserver.imn.u-bordeaux2.fr/labelstudioapp",
                                                     api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6ODA3NTE1MDkzNCwiaWF0IjoxNzY3OTUwOTM0LCJqdGkiOiI4OGEwYTE5NDZkODM0NTlhYjQyMzIzN2I1MTQ0N2ZlYiIsInVzZXJfaWQiOiIyNCJ9.dNTu0zJNPHax5tnfYWanvZlH8SZ9VHQvOGZ_GEyN0l8"
                                                     )
+        
+        if len(luminosities) < 10 : 
+            continue
 
         # clean luminosities dataframe
         luminosities.columns = luminosities.columns.droplevel(0)        # columns = LED_1 ...
@@ -177,8 +184,8 @@ print("Done !")
 
 # show metadata report
 print("\nVisualisation of the proportion of each experimental condition\n")
-fig = metadata_report(cfg.paths.raw_clips, output_dir)
-fig.write_html(str(cfg.paths.analysis / f"{cfg.rat_name}_experimental_condition_proportion.html"))
+fig = metadata_report(cfg.paths.raw_clips, output_dir, show_noCue=True)
+fig.write_html(str(cfg.paths.rat_root / f"{cfg.rat_name}_experimental_condition_proportion.html"))
 
 print("\nPlotting likelihood distribution of all bodyparts\n")
-plot_likelihood_distribution(cfg, list(output_dir.glob("*.joblib")))
+plot_likelihood_distribution(cfg, list((cfg.paths.raw_clips).rglob("*.yaml")))

@@ -79,14 +79,13 @@ for session_path in file_to_preprocess:
         interpolated_coords = interpolate_data(likelihood_filtered_coords, method="spline", max_gap=5)
 
         # make the figure to do the validation after
-        if not check_times(trial["pad_off"], trial["laser_on"], cfg.laser_on_duration):
-            trial[cfg.bodypart] = {
-                    "trial_success" : False,
-                    "xy_state" : "rejected",
-                    "xy_before" : raw_coords,
-                    "xy_after" : interpolated_coords
-            }
-            continue
+        if not check_times(trial["pad_off"], trial["laser_on"], cfg.laser_on_duration) or \
+            trial["cue_type"] == "NoCue" :
+                trial[cfg.bodypart] = {
+                        "trial_success" : False,
+                        "xy_state" : "rejected",
+                }
+                continue
         
         make_interpolation_figures(interpolated_coords, 
                                     likelihood_filtered_coords,

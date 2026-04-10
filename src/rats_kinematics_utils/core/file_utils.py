@@ -309,7 +309,7 @@ def check_trial_success(cfg, trial, may_restriction: bool = False) :
 def print_analysis_info(cfg, analysis) : 
     print(f"\n====== {analysis} of {cfg.rat_name} ======")
     print(f"  bodypart : {cfg.bodypart}")
-    print(f"  view : {cfg.view}")
+    print(f"  view : {cfg.view} ({'H001' if cfg.view == 'left' else 'H002'})")
     print(f"  task : {cfg.task} -> {cfg.task_pad}")
     print(f"  cm per pixel : {cfg.cm_per_pixel}")
     print(f"  likelihood threshold : {cfg.threshold}")

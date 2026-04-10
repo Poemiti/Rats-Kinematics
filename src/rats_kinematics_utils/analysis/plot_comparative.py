@@ -10,7 +10,7 @@ from statannotations.Annotator import Annotator
 
 
 custom_params = {"axes.spines.right": False, "axes.spines.top": False}
-sns.set_theme("talk", style="ticks", rc=custom_params)
+sns.set_theme("paper", style="ticks", rc=custom_params, palette="pastel")
 
 LASER_COLOR = "lightpink"
 LINE_COLOR = "gray"

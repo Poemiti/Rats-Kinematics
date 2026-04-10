@@ -14,7 +14,7 @@ import seaborn as sns
 
 
 custom_params = {"axes.spines.right": False, "axes.spines.top": False}
-sns.set_theme("paper", style="ticks", rc=custom_params)
+sns.set_theme("paper", style="ticks", rc=custom_params, palette="pastel")
 
 LASER_COLOR = "lightpink"
 LINE_COLOR = "gray"
@@ -128,8 +128,10 @@ def make_interpolation_figures(interpolated_coords,
     _plot_xy([ax_xt, ax_yt], outlier_filtered_coords, 1*offset, "#bdc9e1","|", "1.outlier")
     _plot_xy([ax_xt, ax_yt], raw_coords, 0*offset, "#d1cbdc","|", "0.raw", time_pad_off)
     
-    _plot_traj(raw_coords[:63], 0*offset, "raw", "#d1cbdc", ax_traj)
-    _plot_traj(interpolated_coords[:63], 0*offset, "interpolate", "#0570b0" ,ax_traj, "|")
+    off_frame = int((time_pad_off + 0.4) * 125)
+
+    _plot_traj(raw_coords[:off_frame], 0*offset, "raw", "#d1cbdc", ax_traj)
+    _plot_traj(interpolated_coords[:off_frame], 0*offset, "interpolate", "#0570b0" ,ax_traj, "|")
 
     # ax_speed.plot(raw_coords["t"], speed, label="speed", marker="|")
     # ax_speed.plot(raw_coords["t"][peaks], speed[peaks], "x")
@@ -179,7 +181,7 @@ def make_outlier_figures(raw_coords, params, save_as):
 
 
 
-def metadata_report(clips_folder, metadata_folder: str) : 
+def metadata_report(clips_folder, metadata_folder: str, show_noCue: bool = False) : 
     from collections import Counter
 
     yaml_filenames = list(clips_folder.rglob("*.yaml"))
@@ -274,6 +276,10 @@ def metadata_report(clips_folder, metadata_folder: str) :
     fig.show()
 
     print(f"\nNumber of NoCue videos : {len(noCue_video)}")
+    if show_noCue: 
+        for k, v in noCue_video.items() : 
+            print(f"\n{k}\n{v}")
+
     return fig
 
 
@@ -289,8 +295,6 @@ from rats_kinematics_utils.preprocessing.preprocess import open_DLC_results, fil
 
 def plot_likelihood_across_frames(cfg, filenames) : 
     
-    print(f"Number of files : {len(filenames)}")
-
     for i, session in enumerate(filenames):
         session_data = joblib.load(session)
         folder = session.stem
@@ -298,9 +302,9 @@ def plot_likelihood_across_frames(cfg, filenames) :
         print(f"Processing {folder}")
 
         for trial in tqdm(session_data, desc="Trials") :
-            date = datetime.fromisoformat(trial["date"])
-            if date.month == 5 : 
-                continue
+            # date = datetime.fromisoformat(trial["date"])
+            # if date.month == 5 : 
+            #     continue
 
             # loading
             coords_path = Path(trial['filename_coords'])
@@ -331,18 +335,17 @@ def plot_likelihood_across_frames(cfg, filenames) :
 
 
 
-def plot_likelihood_distribution(cfg, filenames) : 
+def plot_likelihood_distribution(cfg, yaml_filenames) : 
 
     likelihood_distri = []
 
-    print(f"Number of files : {len(filenames)}")
+    for f in tqdm(yaml_filenames, desc="collecting data"):
+        with open(f, "r") as file:
+            trial = yaml.safe_load(file)
 
-    for i, session in enumerate(filenames):
-
-        for trial in joblib.load(session) :
-            date = datetime.fromisoformat(trial["date"])
-            if date.month == 5 : 
-                continue
+            # date = datetime.fromisoformat(trial["date"])
+            # if date.month == 5 : 
+            #     continue
 
             # loading
             coords_path = Path(trial['filename_coords'])
@@ -380,7 +383,8 @@ def plot_likelihood_distribution(cfg, filenames) :
 
     plt.xticks(rotation=45)
     plt.tight_layout()
-    fig.savefig(make_output_path(cfg.paths.analysis, f"{cfg.rat_name}_bodypart_likelihood_distribution.png"))
+    fig.savefig(make_output_path(cfg.paths.rat_root, f"{cfg.rat_name}_bodypart_likelihood_distribution.png"))
+    plt.show()
     plt.close()
 
 
@@ -419,7 +423,6 @@ def plot_trial_success_distri(cfg, filenames) :
     order = ["rejected", "raw", "interpolate", "None"]
 
     fig = plt.figure(figsize=(8, 5))
-    sns.set_theme("paper", style="whitegrid", palette="pastel")
 
     ax = sns.barplot(
         data=df,
@@ -451,7 +454,6 @@ def plot_preprocess_lost_points(cfg, filenames) :
 
     folder_names = {}
 
-    print(f"Number of files : {len(filenames)}")
     for i, session in enumerate(filenames) : 
         folder_name = session.stem
         counts = []
@@ -460,9 +462,9 @@ def plot_preprocess_lost_points(cfg, filenames) :
         print(f"\nProcessing {folder_name}")
         for trial in tqdm(session_data, desc="Trials"):
 
-            date = datetime.fromisoformat(trial["date"])
-            if date.month == 5 : 
-                continue
+            # date = datetime.fromisoformat(trial["date"])
+            # if date.month == 5 : 
+            #     continue
                 
             # get all the path (coordinates, luminosity and video clips)
             coords_path = trial["filename_coords"]
@@ -525,15 +527,15 @@ def plot_preprocess_lost_points(cfg, filenames) :
             ax=ax
         )
 
-        sns.stripplot(
-            data=data,
-            x="step",
-            y="n",
-            marker="X",
-            size=3,
-            alpha=0.7,
-            color="black"
-        )
+        # sns.stripplot(
+        #     data=data,
+        #     x="step",
+        #     y="n",
+        #     marker="X",
+        #     size=3,
+        #     alpha=0.7,
+        #     color="black"
+        # )
 
         props = _outlier_proportion(data)
         y_max = data["n"].max()
@@ -553,11 +555,6 @@ def plot_preprocess_lost_points(cfg, filenames) :
         ax.set_xlabel("Step")
         ax.set_ylabel("Number of removed points")
 
-        if folder == "#525_CHR_Conti_RightHemi_H001_0,5mW_LaserOn" : 
-            ax.set_ylim(-0.5, 50)
-        else : 
-            ax.set_ylim(-0.5, 20)
-
         # plt.xticks(rotation=45)
         # plt.tight_layout()
         fig.savefig(make_output_path(cfg.paths.analysis,  f"{folder}_distri.png"))
@@ -567,7 +564,6 @@ def plot_preprocess_lost_points(cfg, filenames) :
     all_data = pd.DataFrame(all_counts)
 
     fig, ax = plt.subplots()
-    sns.set_theme("paper", style="whitegrid", palette="pastel")
 
     sns.boxplot(
         data=all_data,
@@ -631,6 +627,7 @@ def _trial_report(cfg, trials: list[dict]) -> dict:
             "Rejected": new_block(intensities),
             "No reward": new_block(intensities),
             "No pad off": new_block(intensities),
+            "No cue": new_block(intensities),
         }
 
     def update(group, outcome, laser_state, intensity):
@@ -675,6 +672,9 @@ def _trial_report(cfg, trials: list[dict]) -> dict:
         # No reward
         if not t["reward"]:
             update(group, "No reward", laser_state, intensity)
+
+        if t["cue_type"] == "NoCue":
+            update(group, "No cue", laser_state, intensity)
 
     return report
 
@@ -721,6 +721,7 @@ def _plot_trial_report(yaml_file: Path, output_path: Path):
             block["Rejected"]["Total"]
             + block["No reward"]["Total"]
             + block["No pad off"]["Total"]
+            + block["No cue"]["Total"]
         )
 
         labels.append("Unsuccessful")

@@ -75,7 +75,8 @@ for i, file in enumerate(file_to_validate):
 
     if filename in validation_data :
         for trial in metadata : 
-            if not check_times(trial["pad_off"], trial["laser_on"], cfg.laser_on_duration): # pass the "rejected" by the preprocessing
+            if not check_times(trial["pad_off"], trial["laser_on"], cfg.laser_on_duration) or \
+                trial["cue_type"] == "NoCue" : # pass the "rejected" by the preprocessing
                 continue
 
             state = validation_data[filename].get(trial["name"])
