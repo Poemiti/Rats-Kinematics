@@ -192,6 +192,9 @@ def get_session(name: str):
 def get_laser_intensity(name: str) : 
     return parse_filename(name)["laser_intensity"]
 
+def get_rat_type(name: str) : 
+    return parse_filename(name)["rat_type"]
+
 
 
 

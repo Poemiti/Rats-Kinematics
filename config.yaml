@@ -1,7 +1,7 @@
 
 # parameter
 rat_name: "#521"
-bodypart: soft_pad 
+bodypart: finger_3 
 view: right           # camera view
 task: L2            # L1: left lever, L2: right lever
 
@@ -16,7 +16,8 @@ frame_width_px: 512     # pixels
 paths:
   # input data
   model: "/media/filer2/T4b/UserFolders/Poemiti/Reaching-DLC-model-main/data/model/DLC-Poe-2026-03-27/"
-  raw_videos: "/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024"
+  raw_videos: "/media/filer2/T4b/UserFolders/Raphael/Raphael_M2_2024/Opto_SkilledReaching_2024_experiments/MOVIES/"
+  # raw_videos: "/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024"
 
   # output folder
   data_root: ./data
@@ -35,4 +36,4 @@ paths:
   luminosity: "{processed}/luminosity"
   preprocessing: "{processed}/preprocessing"
 
-  analysis: "{rat_root}/{bodypart}_analysis"
+  analysis: "{rat_root}/analysis_{bodypart}"

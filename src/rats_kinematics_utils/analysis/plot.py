@@ -16,7 +16,7 @@ import seaborn as sns
 custom_params = {"axes.spines.right": False, "axes.spines.top": False}
 sns.set_theme("paper", style="ticks", rc=custom_params, palette="pastel")
 
-LASER_COLOR = "lightpink"
+LASER_COLOR = "coral"
 LINE_COLOR = "gray"
 AVG_LINE_COLOR = "navy"
 
@@ -343,7 +343,7 @@ def plot_single_bodypart_trajectories(
             x[frame_laser_on: frame_laser_on+int(0.3*125)],
             y[frame_laser_on: frame_laser_on+int(0.3*125)],
             marker=marker,
-            color="red",
+            color=LASER_COLOR,
             linestyle="-",
             alpha=0.7,
             label="Laser on"

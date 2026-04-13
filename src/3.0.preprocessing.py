@@ -34,7 +34,7 @@ for file in filenames:
     )
 
     if already_preprocess:
-        print(f"{file.stem}: yes")
+        print(f"\n{file.stem}: yes")
         res = input("Overwrite? (y/n): ")
 
         if res == "y":
@@ -87,13 +87,14 @@ for session_path in file_to_preprocess:
                 }
                 continue
         
+        interpolation_path = make_output_path(cfg.paths.preprocessing / session_name, f"{trial['name']}_interpolation.png")
         make_interpolation_figures(interpolated_coords, 
                                     likelihood_filtered_coords,
                                     outlier_filtered_coords,
                                     raw_coords,
                                     trial["pad_off"],
-                                    title=session_name, 
-                                    save_as=make_output_path(cfg.paths.preprocessing, f"{trial['name']}_interpolation.png"))
+                                    title=f"{session_name} - {cfg.view} view", 
+                                    save_as=interpolation_path)
 
 
         # save trial bodyparts session
@@ -111,15 +112,21 @@ end = time.time()
 process_time = (end - start) / 60 # min
 
 print(f"Processing time: {process_time:.1f} min")
-print("Done !")
 
 
 
 # ---------- show report before doing validation -----------
 
-print("\nPlotting likelihood across frame of each trials\n")
-plot_likelihood_across_frames(cfg, filenames)
+res = input("Do you want to plot likelihood across each trials ? "
+" And the number of points loosed at each step ? (y/n) : ")
 
-print("\nPlotting the number of points loosed at each step\n")
-plot_preprocess_lost_points(cfg, filenames)
+if res == "y" : 
+
+    print("\nPlotting likelihood across frame of each trials\n")
+    plot_likelihood_across_frames(cfg, filenames)
+
+    print("\nPlotting the number of points loosed at each step\n")
+    plot_preprocess_lost_points(cfg, filenames)
+
+print("Done !")
 

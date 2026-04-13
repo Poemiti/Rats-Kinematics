@@ -14,7 +14,7 @@ from rats_kinematics_utils.gui.preprocess_validator import load_preprocess_valid
 cfg = load_config()
 print_analysis_info(cfg, "Validation of the preprocessing")
 
-filenames = list((cfg.paths.analysis).glob("*.joblib"))
+filenames = list((cfg.paths.metrics).glob("*.joblib"))
 
 # ----------------------- does validation has already been done ? -----------------------------
 
@@ -32,7 +32,7 @@ for file in filenames:
     )
 
     if already_validated:
-        print(f"{file.stem}: yes")
+        print(f"\n{file.stem}: yes")
         res = input("Overwrite? (y/n): ")
 
         if res == "y":

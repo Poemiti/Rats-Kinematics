@@ -60,6 +60,7 @@ for i, coords_path in enumerate(DATABASE["filename"]):
 
     trial_name = coords_path.stem.replace('pred_results_', '')  
     session_name = coords_path.parent.stem 
+    print(trial_name)
 
     # compute luminosity
     luminosity_dir = cfg.paths.luminosity / session_name 
@@ -149,7 +150,7 @@ for i, coords_path in enumerate(DATABASE["filename"]):
     TRIAL_METADATA["laser_on"] = time_laser_on
     TRIAL_METADATA["reward"] = time_reward
 
-    filename = make_name_by_condition(trial_name, laser_state)
+    filename = make_name_by_condition(f"{session_name}_{trial_name}", laser_state)
 
     if not filename in ALL_METADATA.keys() : 
         ALL_METADATA[filename] = [TRIAL_METADATA]
@@ -184,7 +185,7 @@ print("Done !")
 
 # show metadata report
 print("\nVisualisation of the proportion of each experimental condition\n")
-fig = metadata_report(cfg.paths.raw_clips, output_dir, show_noCue=True)
+fig = metadata_report(cfg.paths.raw_clips, output_dir, show_noCue=False)
 fig.write_html(str(cfg.paths.rat_root / f"{cfg.rat_name}_experimental_condition_proportion.html"))
 
 print("\nPlotting likelihood distribution of all bodyparts\n")

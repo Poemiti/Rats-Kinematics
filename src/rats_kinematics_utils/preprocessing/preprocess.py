@@ -12,7 +12,7 @@ from sklearn.neighbors import LocalOutlierFactor
 from scipy.interpolate import UnivariateSpline, make_splrep, splev
 
 
-from rats_kinematics_utils.core.file_utils import make_database, is_csv, is_video, get_date, get_condition, get_clip_number, get_laser_intensity
+from rats_kinematics_utils.core.file_utils import parse_filename, get_date, get_condition, get_clip_number, get_laser_intensity
 
 
 def open_DLC_results(csv_path : Path) -> pd.DataFrame : 
@@ -34,15 +34,19 @@ def open_DLC_results(csv_path : Path) -> pd.DataFrame :
 
 
 def init_metadata(coords: Path, lum: Path, clip: Path) : 
+    metadata = parse_filename(clip.stem)
+    date = get_date(coords.stem).date().isoformat()
     return {
             "name" : clip.stem,
             "filename_coords" : str(coords),
             "filename_luminosity" : str(lum),
             "filename_clips" : str(clip),
-            "date" : get_date(coords.stem).date().isoformat(), # datetime object
-            "condition" : get_condition(coords.stem),
-            "nb_clip" : get_clip_number(coords.stem),
-            "laser_intensity" : get_laser_intensity(coords.stem),
+            "date" : date, # datetime object
+            "condition" : metadata["condition"],
+            "nb_clip" : metadata["clip"],
+            "laser_intensity" : metadata["laser_intensity"],
+            "rat_type": metadata["rat_type"], 
+            "stim_location": metadata["stim_location"],
         }
 
 
@@ -84,6 +88,7 @@ def check_reward(time_reward) :
     return True
 
 
+# ------------------------------------------ function for trajectory processing ------------------------------------
 
 
 def crop_xy(xy: pd.DataFrame, start: float, end: float) :  

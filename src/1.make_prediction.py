@@ -14,7 +14,8 @@ from rats_kinematics_utils.prediction.dlc_prediction import dlc_predict_Julien
 from rats_kinematics_utils.gui.database_filter import load_database
 
 # lauching line : 
-#            nohup python3 -u src/1.1.make_prediction.py > main.out &
+#            conda activate DEEPLABCUT
+#            nohup python3 -u src/1.make_prediction.py > main.out &
 #            tail -f main.out 
 
 # Disable "weights only" before analyzing
@@ -30,8 +31,15 @@ start = time.perf_counter()
 
 for i, video_path in enumerate(DATABASE["filename"].iloc[:]): 
     video_path = Path(video_path) 
+    trial_name = video_path.parent.stem
+    trial_month = get_date(trial_name).month
 
-    if i < 21 : 
+    if trial_month != 5 :
+        print("Not may, skipped") 
+        continue
+
+    if "FIBER_BROKEN" in trial_name:        # for the rat 521
+        print("FIBER_BROKEN, skipped")
         continue
 
     print(f"\n[{i+1}/{len(DATABASE)}]")
@@ -44,29 +52,28 @@ for i, video_path in enumerate(DATABASE["filename"].iloc[:]):
 
     with open("./clip_duration_rules.yaml") as f:
         clip_duration_rules = yaml.safe_load(f)
-
-    trial_name = video_path.stem
-
-    meta = {"month": get_date(trial_name).month}
+    
+    meta = {"month": trial_month}
     clip_duration = match_rule(meta, clip_duration_rules)
     
     # ----------------------------------------------- video splitting --------------------------------------------------
 
-    print(f"\nSplitting video : {video_path.stem}\n")
+    print(f"\nSplitting video : {video_path.stem}")
+    print(f"clip duration: {clip_duration}")
 
     split_video(input_path= video_path, 
                 output_path= output_clips_dir, 
                 CLIP_DURATION= clip_duration)
     
     
-    OUTPUT_CSV_PATH = cfg.paths.dlc / video_path.stem
-    OUTPUT_CSV_PATH.mkdir(parents=True, exist_ok=True)
+    output_csv_dir = cfg.paths.dlc / trial_name
+    output_csv_dir.mkdir(parents=True, exist_ok=True)
 
     # ----------------------------------------------- prediction --------------------------------------------------
 
     for j, clip_path in enumerate(output_clips_dir.iterdir() ):
 
-        csv_path = OUTPUT_CSV_PATH / f"pred_results_{clip_path.stem}.csv"
+        csv_path = output_csv_dir / f"pred_results_{clip_path.stem}.csv"
 
         print(f"\n[{j+1}/{i+1}/{len(DATABASE)}]")
         print(f"\nPrediction of clip : {clip_path.stem}\n")

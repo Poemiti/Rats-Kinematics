@@ -128,10 +128,11 @@ def make_interpolation_figures(interpolated_coords,
     _plot_xy([ax_xt, ax_yt], outlier_filtered_coords, 1*offset, "#bdc9e1","|", "1.outlier")
     _plot_xy([ax_xt, ax_yt], raw_coords, 0*offset, "#d1cbdc","|", "0.raw", time_pad_off)
     
+    pad_off_frame = int((time_pad_off - 0.1)* 125)
     off_frame = int((time_pad_off + 0.4) * 125)
 
-    _plot_traj(raw_coords[:off_frame], 0*offset, "raw", "#d1cbdc", ax_traj)
-    _plot_traj(interpolated_coords[:off_frame], 0*offset, "interpolate", "#0570b0" ,ax_traj, "|")
+    _plot_traj(raw_coords[pad_off_frame : off_frame], 0*offset, "raw", "#d1cbdc", ax_traj)
+    _plot_traj(interpolated_coords[pad_off_frame : off_frame], 0*offset, "interpolate", "#0570b0" ,ax_traj, "|")
 
     # ax_speed.plot(raw_coords["t"], speed, label="speed", marker="|")
     # ax_speed.plot(raw_coords["t"][peaks], speed[peaks], "x")
@@ -213,11 +214,15 @@ def metadata_report(clips_folder, metadata_folder: str, show_noCue: bool = False
     transitions = Counter()
 
     for d in data:
+        v = d["camera_view"] + " view"
+        t = d["rat_type"]
         c = d["condition"]
         ls = d["laser_state"] 
         li = "0mW" if d["laser_intensity"] == "NOstim" else  d["laser_intensity"] + "_" +  ls
         ct = d["cue_type"]
         
+        transitions[(v, t)] += 1
+        transitions[(t, c)] += 1
         transitions[(c, ls)] += 1
         transitions[(ls, li)] += 1
         transitions[(li, ct)] += 1
@@ -275,10 +280,11 @@ def metadata_report(clips_folder, metadata_folder: str, show_noCue: bool = False
 
     fig.show()
 
-    print(f"\nNumber of NoCue videos : {len(noCue_video)}")
     if show_noCue: 
         for k, v in noCue_video.items() : 
             print(f"\n{k}\n{v}")
+
+    print(f"\nNumber of NoCue videos : {len(noCue_video)}")
 
     return fig
 
@@ -624,14 +630,16 @@ def _trial_report(cfg, trials: list[dict]) -> dict:
         return {
             "Total": 0,
             "Successful": new_block(intensities),
+            "Unsuccessful": new_block(intensities),
             "Rejected": new_block(intensities),
-            "No reward": new_block(intensities),
+            "No reward -": new_block(intensities),
+            "No reward +": new_block(intensities),
             "No pad off": new_block(intensities),
             "No cue": new_block(intensities),
+            "Unknown": new_block(intensities),
         }
 
     def update(group, outcome, laser_state, intensity):
-        group["Total"] += 1
         group[outcome]["Total"] += 1
         group[outcome][laser_state]["Total"] += 1
         group[outcome][laser_state][intensity] += 1
@@ -639,9 +647,9 @@ def _trial_report(cfg, trials: list[dict]) -> dict:
 
     report = {
         "Total number of trials": len(trials),
-        "Beta trials": init_group(["1mW", "2,5mW"]),
-        "Conti trials": init_group(["0,5mW", "0,75mW", "2,5mW"]),
-        "NOstim trials": init_group(["NOstim"]),
+        "Beta": init_group(["1mW", "2,5mW"]),
+        "Conti": init_group(["0,5mW", "0,75mW", "2,5mW"]),
+        "NOstim": init_group(["NOstim"]),
     }
 
     #--------------------- loop ---------------------------
@@ -651,30 +659,45 @@ def _trial_report(cfg, trials: list[dict]) -> dict:
         intensity = t["laser_intensity"]
 
         if "Beta" in condition:
-            group = report["Beta trials"]
+            group = report["Beta"]
         elif "Conti" in condition:
-            group = report["Conti trials"]
+            group = report["Conti"]
         else : 
-            group = report["NOstim trials"]
+            group = report["NOstim"]
 
         laser_state = t["laser_state"]
 
+
         # Successful
         if t[cfg.bodypart]["trial_success"]:
+            group["Total"] += 1
             update(group, "Successful", laser_state, intensity)
-        else : 
-            update(group, "Rejected", laser_state, intensity)
+
+            # No reward
+            if not t["reward"]:
+                update(group, "No reward +", laser_state, intensity)
         
-        # No pad off
-        if not t["pad_off"]:
-            update(group, "No pad off", laser_state, intensity)
+        # Unsuccessful
+        else : 
+            group["Total"] += 1
+            update(group, "Unsuccessful", laser_state, intensity)
 
-        # No reward
-        if not t["reward"]:
-            update(group, "No reward", laser_state, intensity)
+            # No reward
+            if not t["reward"]:
+                update(group, "No reward -", laser_state, intensity)
 
-        if t["cue_type"] == "NoCue":
-            update(group, "No cue", laser_state, intensity)
+            if not t["pad_off"] :
+                update(group, "No pad off", laser_state, intensity)
+
+            elif t["cue_type"] == "NoCue":
+                update(group, "No cue", laser_state, intensity)
+
+            elif t["pad_off"] and t["cue_type"] != "NoCue" :
+                update(group, "Rejected", laser_state, intensity)
+
+            else : 
+                update(group, "Unknown", laser_state, intensity)
+            
 
     return report
 
@@ -688,13 +711,13 @@ def _plot_trial_report(yaml_file: Path, output_path: Path):
     with open(yaml_file, "r") as f:
         data = yaml.safe_load(f)
 
-    trial_types = ["Beta trials", "Conti trials", "NOstim trials"]
+    trial_types = ["Beta", "Conti", "NOstim"]
 
     fig = make_subplots(
         rows=1,
         cols=len(trial_types),
         specs=[[{"type": "domain"}] * len(trial_types)],
-        subplot_titles=[t.replace(" trials", "") for t in trial_types]
+        subplot_titles=[t for t in trial_types]
     )
 
     for i, trial_type in enumerate(trial_types, start=1):
@@ -705,8 +728,14 @@ def _plot_trial_report(yaml_file: Path, output_path: Path):
         parents = []
         values = []
 
+        print()
+        print(trial_type)
+        print(f"Total: ", block["Total"])
+        print(f"Successful total: ", block["Successful"]["Total"])
+        print(f"Unsuccessful total: ", block["Unsuccessful"]["Total"])
+
         # ---- ROOT ----
-        root_name = trial_type.replace(" trials", "")
+        root_name = trial_type
         labels.append(root_name)
         parents.append("")
         values.append(block["Total"])
@@ -717,19 +746,11 @@ def _plot_trial_report(yaml_file: Path, output_path: Path):
         values.append(block["Successful"]["Total"])
 
         # ---- UNSUCCESSFUL ----
-        unsuccessful_total = (
-            block["Rejected"]["Total"]
-            + block["No reward"]["Total"]
-            + block["No pad off"]["Total"]
-            + block["No cue"]["Total"]
-        )
-
         labels.append("Unsuccessful")
         parents.append(root_name)
-        values.append(unsuccessful_total)
+        values.append(block["Unsuccessful"]["Total"])
 
-        # ---- FAILURE BREAKDOWN ----
-        for reason in ["Rejected", "No reward", "No pad off"]:
+        for reason in ["Rejected", "No pad off", "No cue", "Unknown"]:
             labels.append(reason)
             parents.append("Unsuccessful")
             values.append(block[reason]["Total"])
@@ -748,12 +769,10 @@ def _plot_trial_report(yaml_file: Path, output_path: Path):
 
     fig.update_layout(
         title="Trial Outcomes with Failure Breakdown",
-        margin=dict(t=60, l=0, r=0, b=0)
     )
 
     fig.write_html(str(output_path.with_suffix(".html")))
     fig.show()
-    plt.close(fig)
 
 
 
@@ -773,7 +792,7 @@ def plot_trial_failure_reason(cfg, filenames) :
             all_trials.append(trial)
 
     print("True number of trials :", len(all_trials))
-    report = _trial_report(all_trials)
+    report = _trial_report(cfg, all_trials)
 
     # save report
     with open(output_dir / report_path, "w") as file :
