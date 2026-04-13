@@ -117,16 +117,18 @@ print(f"Processing time: {process_time:.1f} min")
 
 # ---------- show report before doing validation -----------
 
-res = input("Do you want to plot likelihood across each trials ? "
+
+print("\nPlotting the number of points loosed at each step\n")
+plot_preprocess_lost_points(cfg, filenames)
+
+
+res = input("\nDo you want to plot likelihood across each trials ? "
 " And the number of points loosed at each step ? (y/n) : ")
 
 if res == "y" : 
 
     print("\nPlotting likelihood across frame of each trials\n")
     plot_likelihood_across_frames(cfg, filenames)
-
-    print("\nPlotting the number of points loosed at each step\n")
-    plot_preprocess_lost_points(cfg, filenames)
 
 print("Done !")
 

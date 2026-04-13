@@ -46,7 +46,9 @@ for i, video_path in enumerate(DATABASE["filename"].iloc[:]):
     print(f"Prediction of video: {video_path}\n")
 
 
-    output_clips_dir = cfg.paths.raw_clips / video_path.stem 
+    output_clips_dir = cfg.paths.raw_clips / trial_name
+    output_csv_dir = cfg.paths.dlc / trial_name
+    output_csv_dir.mkdir(parents=True, exist_ok=True)
 
     # ----------------------------------------------- get clips lenght by looking at the month --------------------------------------------------
 
@@ -61,19 +63,20 @@ for i, video_path in enumerate(DATABASE["filename"].iloc[:]):
     print(f"\nSplitting video : {video_path.stem}")
     print(f"clip duration: {clip_duration}")
 
-    split_video(input_path= video_path, 
-                output_path= output_clips_dir, 
-                CLIP_DURATION= clip_duration)
+    if not output_clips_dir.exists() : 
+        split_video(input_path= video_path, 
+                    output_path= output_clips_dir, 
+                    CLIP_DURATION= clip_duration)
+    else : 
+        print(f"Has already been splitted !")
     
-    
-    output_csv_dir = cfg.paths.dlc / trial_name
-    output_csv_dir.mkdir(parents=True, exist_ok=True)
 
     # ----------------------------------------------- prediction --------------------------------------------------
 
     for j, clip_path in enumerate(output_clips_dir.iterdir() ):
 
-        csv_path = output_csv_dir / f"pred_results_{clip_path.stem}.csv"
+        clip_number = clip_path.stem[-7:]
+        csv_path = output_csv_dir / f"pred_results_{trial_name}_{clip_number}.csv"
 
         print(f"\n[{j+1}/{i+1}/{len(DATABASE)}]")
         print(f"\nPrediction of clip : {clip_path.stem}\n")

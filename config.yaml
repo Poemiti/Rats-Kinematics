@@ -6,7 +6,7 @@ view: right           # camera view
 task: L2            # L1: left lever, L2: right lever
 
 # hyper parameters
-threshold: 0.7
+threshold: 0.6
 fps: 125
 clip_length: 12.5       # sec
 laser_on_duration: 0.3  # sec 
