@@ -325,7 +325,7 @@ def _make_displot(cfg, data, metric) :
     g.figure.subplots_adjust(top=0.88)
     g.set_axis_labels(metric, "Density (KDE)")
     g.set_titles(col_template="{col_name}", row_template="{row_name}")
-    # g.savefig(make_output_path(cfg.paths.analysis / "violin_distribution", f"displot_{metric}_left_CHR_L2.png"))
+    g.savefig(make_output_path(cfg.paths.analysis / "violin_distribution", f"displot_{metric}.png"))
 
     if SHOW : 
         plt.show()
@@ -435,17 +435,17 @@ if plot_choice["plot_velocity_at_padOff"] :
                     "laser_intensity": [laser_intensity]
                 })
 
-                data = pd.concat([data, df])
+                data = pd.concat([data, df], ignore_index=True)
 
-    data.to_csv(make_output_path(cfg.paths.analysis / "metrics_boxplot", f"data.csv"))
+    forme = "violin"  # boxplot or violin
+    data.to_csv(make_output_path(cfg.paths.analysis / f"metrics_at_padOff", f"data.csv"))
 
-    fig = pc._metric_boxplot(data)
-    fig.add_legend(title="Laser intensity")
+    fig = pc._metric_at_padOff(data, type=forme)
     fig.set_titles(col_template="{col_name}", row_template="{row_name}")
     fig.set_axis_labels("", "Velocity (cm.s$^{-1}$)")
     
     fig.tight_layout()
-    fig.savefig(make_output_path(cfg.paths.analysis / "metrics_boxplot", f"velocity_boxplot_at_padoff_laserOn.png"))
+    fig.savefig(make_output_path(cfg.paths.analysis / "metrics_at_padOff", f"velocity_{forme}_at_padoff_laserOn.png"))
 
     
 

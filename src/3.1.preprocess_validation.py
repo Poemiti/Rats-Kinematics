@@ -6,7 +6,7 @@ import sys
 from rats_kinematics_utils.core.config import load_config
 from rats_kinematics_utils.core.file_utils import print_analysis_info
 from rats_kinematics_utils.preprocessing.preprocess import check_times
-from rats_kinematics_utils.preprocessing.plot_preprocess import plot_trial_success_distri, plot_trial_failure_reason
+from rats_kinematics_utils.preprocessing.plot_preprocess import plot_trial_success_distri, plot_trial_failure_reason, plot_trial_failure_reason_detail
 from rats_kinematics_utils.gui.preprocess_validator import load_preprocess_validator
 
 # ------------------------------------ setup ---------------------------------------
@@ -107,3 +107,6 @@ plot_trial_success_distri(cfg, filenames)
 
 print("\nPlotting the distribution of the failure reason\n")
 plot_trial_failure_reason(cfg, filenames)
+
+print("\nPlotting the distribution of the failure reason DETAIL VERSION\n")
+plot_trial_failure_reason_detail(cfg, filenames)

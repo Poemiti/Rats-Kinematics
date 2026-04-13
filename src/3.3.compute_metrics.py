@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import joblib
-import sys
+import sys, time
+from tqdm import tqdm
 
 from rats_kinematics_utils.preprocessing.Trajectory import Trajectory
 from rats_kinematics_utils.core.config import load_config
@@ -62,7 +63,9 @@ for f in file_to_compute :
     print("  -",f.stem)
 
 
-for i, file in enumerate(file_to_compute): 
+start = time.perf_counter()
+
+for file in tqdm(file_to_compute): 
 
     # open file and data
     filename  = file.stem
@@ -115,5 +118,10 @@ for i, file in enumerate(file_to_compute):
     # save updated metadata + metrics and trajectories
     joblib.dump(data, cfg.paths.metrics / f"{filename}.joblib")
 
-print(nb)
+
+end = time.perf_counter()
+process_time = (end - start) # sec
+
+print(f"\nNumber of trial processed: {nb}")
+print(f"Computation time: {process_time:.2f} s")
 print("Done !")

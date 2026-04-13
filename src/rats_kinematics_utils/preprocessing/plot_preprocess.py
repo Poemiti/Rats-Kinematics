@@ -129,6 +129,7 @@ def make_interpolation_figures(interpolated_coords,
     _plot_xy([ax_xt, ax_yt], raw_coords, 0*offset, "#d1cbdc","|", "0.raw", time_pad_off)
     
     pad_off_frame = int((time_pad_off - 0.1)* 125)
+    pad_off_frame = pad_off_frame if pad_off_frame >=0 else 0
     off_frame = int((time_pad_off + 0.4) * 125)
 
     _plot_traj(raw_coords[pad_off_frame : off_frame], 0*offset, "raw", "#d1cbdc", ax_traj)
@@ -182,111 +183,83 @@ def make_outlier_figures(raw_coords, params, save_as):
 
 
 
-def metadata_report(clips_folder, metadata_folder: str, show_noCue: bool = False) : 
-    from collections import Counter
-
-    yaml_filenames = list(clips_folder.rglob("*.yaml"))
-    print(f"Number of metadata files: {len(yaml_filenames)}")
-
-    joblib_filenames = list(metadata_folder.glob("*.joblib"))
-    ntrials = 0
-
-    for file in joblib_filenames : 
-        file = Path(file)
-
-        meta = joblib.load(file)
-        ntrials += len(meta)
-    print(f"Number of joblib metadata files: {ntrials}")
 
 
-    data = []
-    noCue_video = {}
 
-    for f in yaml_filenames:
-        with open(f, "r") as file:
-            meta = yaml.safe_load(file)
-            data.append(meta)
+def _plot_metadata_report(cfg, rat_type, data, output_path: Path):
+    import plotly.express as px
 
-            if meta["cue_type"] == "NoCue" : 
-                noCue_video[f] = meta["filename_clips"]
+    counts = (
+        data
+        .groupby(["condition", "view", "stim", "cue", "laser", "intensity"])
+        .size()
+        .reset_index(name="count")
+    )
 
+    fig = px.sunburst(
+        counts,
+        path=["condition", "view", "stim", "cue", "laser", "intensity"],
+        values="count"
+    )
 
-    transitions = Counter()
+    fig.update_layout(
+        title=f"Trial metadata of rat {cfg.rat_name}, {rat_type}",
+    )
 
-    for d in data:
-        v = d["camera_view"] + " view"
-        t = d["rat_type"]
-        c = d["condition"]
-        ls = d["laser_state"] 
-        li = "0mW" if d["laser_intensity"] == "NOstim" else  d["laser_intensity"] + "_" +  ls
-        ct = d["cue_type"]
-        
-        transitions[(v, t)] += 1
-        transitions[(t, c)] += 1
-        transitions[(c, ls)] += 1
-        transitions[(ls, li)] += 1
-        transitions[(li, ct)] += 1
-
-
-    nodes = list(set([x for pair in transitions for x in pair]))
-    node_indices = {node: i for i, node in enumerate(nodes)}
-
-    sources = []
-    targets = []
-    values = []
-
-    for (src, target), count in transitions.items():
-        sources.append(node_indices[src])
-        targets.append(node_indices[target])
-        values.append(count)
-
-
-    cmap = cm.get_cmap("inferno")
-    norm = mcolors.Normalize(vmin=0, vmax=len(nodes)-1)
-
-    node_colors = {
-        node: cmap(norm(i))  # RGBA tuple (0-1)
-        for i, node in enumerate(nodes)
-    }
-
-    def to_rgba_str(rgba, alpha=0.8):
-        r, g, b, _ = rgba
-        return f"rgba({int(r*255)},{int(g*255)},{int(b*255)},{alpha})"
-
-    node_color_list = [to_rgba_str(node_colors[n]) for n in nodes]
-
-    # links take color from source node
-    link_colors = [
-        to_rgba_str(node_colors[nodes[s]], alpha=0.4)  # more transparent
-        for s in sources
-    ]
-
-    fig = go.Figure(go.Sankey(
-        node=dict(
-            pad=15,
-            thickness=20,
-            label=nodes, 
-            color=node_color_list
-        ),
-        link=dict(
-            source=sources,
-            target=targets,
-            value=values,
-            color=link_colors,
-            customdata=values,  # store counts
-            hovertemplate="From %{source.label} → %{target.label}<br>Count: %{customdata}<extra></extra>"
-        )
-    ))
-
+    fig.write_html(str(output_path.with_suffix(".html")))
     fig.show()
 
-    if show_noCue: 
-        for k, v in noCue_video.items() : 
-            print(f"\n{k}\n{v}")
 
-    print(f"\nNumber of NoCue videos : {len(noCue_video)}")
 
-    return fig
+def metadata_report(cfg, yaml_filenames, show_noCue: bool = False) : 
+
+    output_dir = cfg.paths.rat_root
+
+    rat_types = ["CHR", "CTRL"]
+    noCue_video = {}
+
+    for r_type in rat_types : 
+
+        report = pd.DataFrame()
+
+        for f in yaml_filenames:
+            with open(f, "r") as file:
+                t = yaml.safe_load(file)
+
+            if t['rat_type'] != r_type: 
+                continue
+
+            view_num = "H001" if t["camera_view"]=="left" else "H002"
+
+            df = pd.DataFrame({
+                    "condition": [t["condition"]],
+                    "view": [t["camera_view"] + f" ({view_num})"],
+                    "stim": [t["stim_location"]],
+                    "cue": [t["cue_type"]],
+                    "laser": [t["laser_state"]],
+                    "intensity": [t["laser_intensity"]]
+
+                }
+            )
+            report = pd.concat([report, df], ignore_index=True)
+
+        print("True number of trials :", len(report))
+
+        # plot report
+        _plot_metadata_report(cfg, r_type, 
+                            report, 
+                            output_dir / f"{r_type}_{cfg.rat_name}_trial_metadata_report")
+        
+        if show_noCue: 
+            for k, v in noCue_video.items() : 
+                print(f"\n{k}\n{v}")
+
+        print(f"\nNumber of NoCue videos : {len(noCue_video)}")
+
+
+
+
+
 
 
 
@@ -703,7 +676,7 @@ def _trial_report(cfg, trials: list[dict]) -> dict:
 
 
 
-def _plot_trial_report(yaml_file: Path, output_path: Path):
+def _plot_trial_report(cfg, yaml_file: Path, output_path: Path):
     import plotly.express as px
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
@@ -768,7 +741,7 @@ def _plot_trial_report(yaml_file: Path, output_path: Path):
         )
 
     fig.update_layout(
-        title="Trial Outcomes with Failure Breakdown",
+        title=f"Trial success rate of rat {cfg.rat_name}",
     )
 
     fig.write_html(str(output_path.with_suffix(".html")))
@@ -801,5 +774,124 @@ def plot_trial_failure_reason(cfg, filenames) :
 
     # plot report
     print(f"Loading {report_path} and plotting")
-    _plot_trial_report(output_dir / report_path,
+    _plot_trial_report(cfg, output_dir / report_path,
                     output_dir / f"{cfg.rat_name}_failure_reason.png")
+
+
+
+
+def _plot_trial_report_detail(cfg, rat_type, data, output_path: Path):
+    import plotly.express as px
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+
+    trial_types = ["Beta", "Conti", "NOstim"]
+
+    fig = make_subplots(
+        rows=1,
+        cols=len(trial_types),
+        specs=[[{"type": "domain"}] * len(trial_types)],
+        subplot_titles=trial_types
+    )
+
+    for i, t_type in enumerate(trial_types, start=1):
+        subset = data[data["condition"].str.contains(t_type)]
+
+        if subset.empty:
+            print("empty")
+            continue
+
+        counts = (
+            subset
+            .groupby(["trial_success", "failure_reason", "view", "stim", "cue", "laser", "intensity"])
+            .size()
+            .reset_index(name="count")
+        )
+
+        # use px to build structure
+        sunburst = px.sunburst(
+            counts,
+            path=["trial_success", "failure_reason", "view", "stim", "cue", "laser", "intensity"],
+            values="count"
+        )
+
+        fig.add_trace(sunburst.data[0], row=1, col=i)
+
+    fig.update_layout(
+        title=f"Trial metadata of rat {cfg.rat_name}, {rat_type}",
+        height=700
+    )
+
+    fig.write_html(str(output_path.with_suffix(".html")))
+    fig.show()
+
+
+
+ ################### version detail
+
+
+
+def plot_trial_failure_reason_detail(cfg, joblib_filenames, show_noCue: bool = False) : 
+    from rats_kinematics_utils.core.file_utils import load_trial_data
+
+    output_dir = cfg.paths.rat_root
+
+    rat_types = ["CHR", "CTRL"]
+    noCue_video = {}
+
+    for r_type in rat_types : 
+
+        report = pd.DataFrame()
+
+        for f in joblib_filenames:
+
+            session = load_trial_data(f)
+            for t in session : 
+
+                if t['rat_type'] != r_type: 
+                    continue
+
+                view_num = "H001" if t["camera_view"]=="left" else "H002"
+                trial_success = "successful" if t[cfg.bodypart]["trial_success"] else "not successful"
+                fail= "unknown"
+                
+                if trial_success == "not successful": 
+                    if not t["pad_off"] :
+                        fail = "no pad off"
+
+                    elif t["cue_type"] == "NoCue":
+                        fail = "no cue"
+
+                    else:
+                        fail = "rejected"
+                else : 
+                    fail = "successful"
+
+                df = pd.DataFrame({
+                        "trial_success": trial_success,
+                        "failure_reason": fail,
+
+                        "condition": [t["condition"]],
+                        "view": [t["camera_view"] + f" ({view_num})"],
+                        "stim": [t["stim_location"]],
+                        "cue": [t["cue_type"]],
+                        "laser": [t["laser_state"]],
+                        "intensity": [t["laser_intensity"]]
+
+                    }
+                )
+                report = pd.concat([report, df], ignore_index=True)
+
+        print("True number of trials :", len(report))
+
+        # plot report
+        _plot_trial_report_detail(cfg, r_type, 
+                            report, 
+                            output_dir / f"{r_type}_{cfg.rat_name}_failure_reason_detail")
+        
+        if show_noCue: 
+            for k, v in noCue_video.items() : 
+                print(f"\n{k}\n{v}")
+
+        print(f"\nNumber of NoCue videos : {len(noCue_video)}")
+

@@ -83,7 +83,7 @@ def check_non_empty(xy_filtered, time_pad_off):
 
 def check_reward(time_reward) : 
     if time_reward is None : 
-        print("  ! Reward time is None")
+        # print("  ! Reward time is None")
         return False
     return True
 

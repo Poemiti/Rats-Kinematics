@@ -817,28 +817,39 @@ def plot_velocity_over_cliptime(data) :
 
 
 
-def _metric_boxplot(data) :
+def _metric_at_padOff(data, type: str = "boxplot") :
+
+    multiple_intensity =  len(data["laser_intensity"].unique()) > 1 
+    print(multiple_intensity)
     
     g = sns.FacetGrid(
         data=data,
         row="laser_state",
         col="condition",
-        # height=2,
-        # aspect=2,
         margin_titles=True,
         sharex=False,
     )
 
-    g.map_dataframe(
-        sns.boxplot,
-        x="event",
-        y="value",
-        hue="laser_intensity",
-        palette=LASER_INTENSITY_PALETTE,
-        # split=True,
-        # inner="quart",
-        # gap= .1,
-    )
+    if type == "boxplot" : 
+        g.map_dataframe(
+            sns.boxplot,
+            x="event",
+            y="value",
+            hue="laser_intensity" if multiple_intensity else None,
+            palette=LASER_INTENSITY_PALETTE if multiple_intensity else None,
+        )
+
+    elif type == "violin" : 
+        g.map_dataframe(
+            sns.violinplot,
+            x="event",
+            y="value",
+            hue="laser_intensity" if multiple_intensity else None,
+            palette=LASER_INTENSITY_PALETTE if multiple_intensity else None,
+            split=True if multiple_intensity else None,
+            inner="quart",
+            gap= .1,
+        )
 
     # --- Add counts ---
     for (laser_state, condition), ax in g.axes_dict.items():
@@ -871,7 +882,8 @@ def _metric_boxplot(data) :
                 fontsize=8,
             )
 
-
+        if multiple_intensity :
+            g.add_legend(title="Laser intensity")
 
     return g
 
