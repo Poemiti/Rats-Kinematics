@@ -12,9 +12,16 @@ from statannotations.Annotator import Annotator
 custom_params = {"axes.spines.right": False, "axes.spines.top": False}
 sns.set_theme("paper", style="ticks", rc=custom_params, palette="pastel")
 
-LASER_COLOR = "lightpink"
+LASER_COLOR = "coral"
 LINE_COLOR = "gray"
 AVG_LINE_COLOR = "navy"
+LINE_TRANSPARANCY = 0.3
+
+REWARD_PALETTE = {"no": "black",
+                  "yes": "green"}
+LASER_INTENSITY_PALETTE = {"low" : "lightblue",
+                            "high" : "salmon",
+                            "NOstim" : "gray"}
 
 
 # ==================================== Plots for comparative analysis ===========================================
@@ -48,8 +55,65 @@ def _relative_metric(metric_list: pd.Series,
 
 
 
+def plot_stacked_acceleration(cfg, metrics: dict) :
+    from rats_kinematics_utils.core.file_utils import check_trial_success
+
+    fig, axs = plt.subplots(figsize=(9, 7))
+
+    aligned_trials = []
+
+    for trial in metrics:
+        if not check_trial_success(cfg, trial):
+            continue
+        laser_state = trial["laser_state"]
+        trial_name = trial["filename_clips"].stem
+        acc = trial[cfg.bodypart]["acceleration"]
+        relative_time = acc["t"] - trial["pad_off"]
+
+        _relative_metric(acc["acceleration"],
+                         relative_time=relative_time,
+                         ax=axs, 
+                         color=LINE_COLOR,
+                         transparancy=LINE_TRANSPARANCY)
+
+        df = pd.DataFrame({
+            "acceleration": acc["acceleration"].values
+        }, index=relative_time.values)
+
+        aligned_trials.append(df)
+
+    common_time = np.linspace(-0.5, 1.0, 500)
+    aligned_resampled = []
+
+    for df in aligned_trials:
+        interp_values = np.interp(
+            common_time,
+            df.index.values,
+            df["acceleration"].values,
+            left=np.nan,
+            right=np.nan
+        )
+        aligned_resampled.append(interp_values)
+
+    aligned_matrix = np.vstack(aligned_resampled)
+    avg_acc = np.nanmean(aligned_matrix, axis=0)
+
+    _relative_metric(
+                    metric_list=avg_acc,
+                    relative_time=common_time,
+                    ax=axs,
+                    show_pad_off=True,
+                    laser_on="On" in laser_state,
+                    color=AVG_LINE_COLOR,
+                    transparancy=1
+                )
+
+    
+    return axs
+
+
 def plot_stacked_velocity(cfg, metrics: dict) :
-    from rats_kinematics_utils.pipeline_maker import check_trial_success
+    from rats_kinematics_utils.core.file_utils import check_trial_success
 
     fig, axs = plt.subplots(figsize=(9, 7))
 
@@ -67,7 +131,7 @@ def plot_stacked_velocity(cfg, metrics: dict) :
                          relative_time=relative_time,
                          ax=axs, 
                          color=LINE_COLOR,
-                         transparancy=0.7)
+                         transparancy=LINE_TRANSPARANCY)
 
         df = pd.DataFrame({
             "velocity": velo["velocity"].values
@@ -107,7 +171,7 @@ def plot_stacked_velocity(cfg, metrics: dict) :
 
 
 def plot_stacked_Yposition(cfg, metrics: dict) :
-    from rats_kinematics_utils.pipeline_maker import check_trial_success
+    from rats_kinematics_utils.core.file_utils import check_trial_success
 
     aligned_pos = []
     fig, axs = plt.subplots(figsize=(9, 7))
@@ -130,7 +194,7 @@ def plot_stacked_Yposition(cfg, metrics: dict) :
                         ax = axs, 
                         laser_on=False, 
                         color=LINE_COLOR,
-                        transparancy=0.7)
+                        transparancy=LINE_TRANSPARANCY)
         
         df = pd.DataFrame({"y_pos": (y_pos["y"] * cfg.cm_per_pixel).values}, index=relative_time.values)
 
@@ -167,7 +231,7 @@ def plot_stacked_Yposition(cfg, metrics: dict) :
 
 def plot_stacked_trajectories(cfg, metrics, ax: plt.axes = None) : 
     from rats_kinematics_utils.analysis.plot import plot_single_bodypart_trajectories
-    from rats_kinematics_utils.pipeline_maker import check_trial_success
+    from rats_kinematics_utils.core.file_utils import check_trial_success
 
     all_coords = []
     if not ax :
@@ -199,7 +263,7 @@ def plot_stacked_trajectories(cfg, metrics, ax: plt.axes = None) :
                 frame_laser_on=frame_laser_on,
                 ax=ax,
                 color=LINE_COLOR,
-                transparancy=0.7,
+                transparancy=LINE_TRANSPARANCY,
             )
         all_coords.append(coords)
 
@@ -352,12 +416,6 @@ def _plot_violin_distribution(cfg, data: pd.DataFrame, statistics: pd.DataFrame 
         order = ["Conti", "Beta"]
     else : 
         order = ["NOstim", "Conti", "Beta"]
-    
-    reward_palette = {"no": "black",
-                      "yes": "green"}
-    laser_intensity_palette = {"low" : "lightblue",
-                               "high" : "salmon",
-                               "NOstim" : "gray"}
 
     g = sns.FacetGrid(
         data=data_trimmed,
@@ -377,7 +435,7 @@ def _plot_violin_distribution(cfg, data: pd.DataFrame, statistics: pd.DataFrame 
         inner="quart",
         order=order,
         gap= .1,
-        palette=laser_intensity_palette,
+        palette=LASER_INTENSITY_PALETTE,
         legend=True,
     )
 
@@ -387,7 +445,7 @@ def _plot_violin_distribution(cfg, data: pd.DataFrame, statistics: pd.DataFrame 
         x="condition",
         y="value",
         hue="reward",
-        palette=reward_palette,
+        palette=REWARD_PALETTE,
         marker="X",
         size=3,
         alpha=0.7,
@@ -476,12 +534,6 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
 
     l_intensities = data["laser_intensity"].unique()
     order = ["Conti_LaserOff", "Beta_LaserOff", "Conti_LaserOn", "Beta_LaserOn"]
-    reward_palette = {"no": "black",
-                      "yes": "green"}
-    
-    laser_intensity_palette = {"low" : "lightblue",
-                               "high" : "salmon",
-                               "NOstim" : "gray"}
 
     fig, ax = plt.subplots()
 
@@ -495,7 +547,7 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
         inner="quart",
         order=order,
         gap= .1,
-        palette=laser_intensity_palette,
+        palette=LASER_INTENSITY_PALETTE,
         legend=True,
     )
 
@@ -506,7 +558,7 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
             x="condition",
             y="value",
             hue="reward",
-            palette=reward_palette,
+            palette=REWARD_PALETTE,
             marker="X",
             size=3,
             alpha=0.7,
@@ -547,7 +599,7 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
             f"{N}",
             ha="center",
             va="bottom",
-            color="lightblue" if intensity=="low" else "salmon",
+            color="steelblue" if intensity=="low" else "tomato",
             fontsize=9,
             fontweight="bold"
         )
@@ -753,3 +805,76 @@ def plot_velocity_over_cliptime(data) :
 
 
     return g
+
+
+
+
+
+
+
+
+
+
+
+
+def _metric_boxplot(data) :
+    
+    g = sns.FacetGrid(
+        data=data,
+        row="laser_state",
+        col="condition",
+        # height=2,
+        # aspect=2,
+        margin_titles=True,
+        sharex=False,
+    )
+
+    g.map_dataframe(
+        sns.boxplot,
+        x="event",
+        y="value",
+        hue="laser_intensity",
+        palette=LASER_INTENSITY_PALETTE,
+        # split=True,
+        # inner="quart",
+        # gap= .1,
+    )
+
+    # --- Add counts ---
+    for (laser_state, condition), ax in g.axes_dict.items():
+        subset = data[
+            (data["laser_state"] == laser_state) &
+            (data["condition"] == condition)
+        ]
+
+        # count per event + intensity
+        counts = (
+            subset
+            .groupby(["event", "laser_intensity"])
+            .size()
+            .reset_index(name="n")
+        )
+
+        for i, event in enumerate(subset["event"].unique()):
+            sub_counts = counts[counts["event"] == event]
+            ymax = subset["value"].max()
+
+            # build label (e.g. n=10 / n=12)
+            label = "        ".join([f"{n}" for n in sub_counts["n"]])
+
+            ax.text(
+                i,
+                ymax,
+                label,
+                ha="center",
+                va="bottom",
+                fontsize=8,
+            )
+
+
+
+    return g
+
+
+def plot_velocity_at_padOff(): 
+    return
