@@ -26,6 +26,12 @@ print("Does preprocessing already exist?\n")
 nb = 0
 for file in filenames:
 
+    is_left = "H001" in (file.stem).split("_")
+    if cfg.view == "right" and is_left or \
+        cfg.view == "left" and not is_left: 
+        print(f"\nNOT THE RIGHT VIEW (!={cfg.view}):", file.stem, "\n")
+        continue
+
     session = joblib.load(file)
 
     already_preprocess = all(
