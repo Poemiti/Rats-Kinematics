@@ -21,3 +21,4 @@ old_course/
 *.logexploration/
 
 *.egg-info/
+config.yaml
