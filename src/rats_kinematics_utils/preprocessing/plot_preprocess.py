@@ -775,7 +775,13 @@ def plot_trial_failure_reason(cfg, filenames) :
     # plot report
     print(f"Loading {report_path} and plotting")
     _plot_trial_report(cfg, output_dir / report_path,
-                    output_dir / f"{cfg.rat_name}_failure_reason.png")
+                    output_dir / f"{cfg.rat_name}_overall_failure_reason")
+
+
+
+
+
+ ################### version detail
 
 
 
@@ -818,7 +824,7 @@ def _plot_trial_report_detail(cfg, rat_type, data, output_path: Path):
         fig.add_trace(sunburst.data[0], row=1, col=i)
 
     fig.update_layout(
-        title=f"Trial metadata of rat {cfg.rat_name}, {rat_type}",
+        title=f"DETAIL Trial success rate of rat {cfg.rat_name}, {rat_type}",
         height=700
     )
 
@@ -827,14 +833,11 @@ def _plot_trial_report_detail(cfg, rat_type, data, output_path: Path):
 
 
 
- ################### version detail
-
-
 
 def plot_trial_failure_reason_detail(cfg, joblib_filenames, show_noCue: bool = False) : 
     from rats_kinematics_utils.core.file_utils import load_trial_data
 
-    output_dir = cfg.paths.rat_root
+    output_dir = cfg.paths.analysis
 
     rat_types = ["CHR", "CTRL"]
     noCue_video = {}
@@ -887,7 +890,7 @@ def plot_trial_failure_reason_detail(cfg, joblib_filenames, show_noCue: bool = F
         # plot report
         _plot_trial_report_detail(cfg, r_type, 
                             report, 
-                            output_dir / f"{r_type}_{cfg.rat_name}_failure_reason_detail")
+                            output_dir / f"{cfg.rat_name}_{r_type}_failure_reason_detail")
         
         if show_noCue: 
             for k, v in noCue_video.items() : 

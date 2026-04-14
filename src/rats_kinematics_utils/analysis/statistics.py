@@ -116,7 +116,7 @@ def mann_whitney(data: pd.DataFrame, comparisons: list) :
     return pairwise_results
 
 
-def compute_statistics(data: pd.DataFrame, formula: str) : 
+def compute_statistics(data: pd.DataFrame, comparisons: list[tuple[str, str]]) : 
     stat_res = {}
 
     # 1. check normality
@@ -150,26 +150,6 @@ def compute_statistics(data: pd.DataFrame, formula: str) :
     print("\nSIGNIFICANT")
 
     data["group"] = (data["condition"] + "." + data["laser_intensity"])
-
-    comparisons = [
-                    # Conti vs Beta
-                    ("Conti_LaserOff.low",  "Beta_LaserOff.low"),
-                    ("Conti_LaserOff.high", "Beta_LaserOff.high"),
-                    ("Conti_LaserOn.low",   "Beta_LaserOn.low"),
-                    ("Conti_LaserOn.high",  "Beta_LaserOn.high"),
-
-                    # Off vs On
-                    ("Conti_LaserOff.low",  "Conti_LaserOn.low"),
-                    ("Conti_LaserOff.high", "Conti_LaserOn.high"),
-                    ("Beta_LaserOff.low",   "Beta_LaserOn.low"),
-                    ("Beta_LaserOff.high",  "Beta_LaserOn.high"),
-
-                    # low vs high
-                    ("Beta_LaserOff.low",   "Beta_LaserOff.high"),
-                    ("Beta_LaserOn.low",    "Beta_LaserOn.high"),
-                    ("Conti_LaserOff.low",  "Conti_LaserOff.high"),
-                    ("Conti_LaserOn.low",   "Conti_LaserOn.high"),
-                ]
 
     print("\n3. Mann Whitney pairwise comparaison:")
     pairwise_results = mann_whitney(data, comparisons)
@@ -216,17 +196,17 @@ def LMM(data, formula):
 
 
 
-def transform_data(data) : 
-    # transformed  =  stats.zscore(data)
-    transformed  =  np.log(data)
-    return transformed
-
 
 
 
 
 ############ permutation ##################
 
+
+def transform_data(data) : 
+    # transformed  =  stats.zscore(data)
+    transformed  =  np.log(data)
+    return transformed
 
 
 

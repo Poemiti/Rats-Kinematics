@@ -22,6 +22,7 @@ REWARD_PALETTE = {"no": "black",
 LASER_INTENSITY_PALETTE = {"low" : "lightblue",
                             "high" : "salmon",
                             "NOstim" : "gray"}
+HUE_ORDER = ["low", "high"]
 
 
 # ==================================== Plots for comparative analysis ===========================================
@@ -248,7 +249,10 @@ def plot_stacked_trajectories(cfg, metrics, ax: plt.axes = None) :
 
         coords = trial[cfg.bodypart]["xy_pad_off"] 
 
-        if trial["laser_on"] is not None:
+        if trial_name == "Rat_#525Ambidexter_20240527_ContiMT300_RightHemiCHR_L1L25050_C001H001S0001_NO_TRUST_DATA_clip_55" : 
+            continue
+
+        if trial["laser_state"] == "LaserOn":
             frame_laser_on = coords.index[coords["t"] >= trial["laser_on"]][0]
             print(
                 f"trial laser on: {trial['laser_on']},\n"
@@ -327,139 +331,6 @@ def _trim_extremes_iqr(df, value_col="value", group_cols=("condition", "laser_in
     )
 
 
-def _add_text(ax, x, y, text, color) :
-    ax.text(
-        x, y, text,
-        ha="center", va="bottom", fontsize=8,
-        fontweight="bold", color=color, alpha=0.7)
-
-
-def _display_counts(g, data, data_trimmed, order) : 
-    counts_trimmed = (
-        data_trimmed
-        .groupby(["laser_state", "condition", "laser_intensity", "reward"])
-        .size()
-        .reset_index(name="N_trim")
-    )
-
-    counts_initial = (
-        data
-        .groupby(["laser_state", "condition", "laser_intensity"])
-        .size()
-        .reset_index(name="N_initial")
-    )
-
-    l_states = data_trimmed["laser_state"].unique()
-    l_intensities = data_trimmed["laser_intensity"].unique()
-
-    for ax, laser_state in zip(g.axes.flatten(), l_states):
-
-        subset_trim = counts_trimmed[counts_trimmed["laser_state"] == laser_state]
-        subset_init = counts_initial[counts_initial["laser_state"] == laser_state]
-
-        y_max = data_trimmed["value"].max()
-        y_offset = 0.05 * y_max
-
-        _add_text(ax, -0.4, y_max + y_offset*3, "tot:", "blue")
-        _add_text(ax, -0.4, y_max + y_offset*2, "yes:", "green")
-        _add_text(ax, -0.4, y_max + y_offset, "no:", "black")
-
-        for condition in order:
-            for intensity in l_intensities:
-
-                # --- X position with dodge ---
-                x = order.index(condition)
-                hue_index = list(l_intensities).index(intensity)
-                total_hue = len(l_intensities)
-
-                dodge_amount = 0.6
-                x_offset = (hue_index - (total_hue - 1) / 2) * dodge_amount / total_hue
-                x_pos = x + x_offset
-
-                # --- Get counts ---
-                init_row = subset_init[
-                    (subset_init["condition"] == condition) &
-                    (subset_init["laser_intensity"] == intensity)
-                ]
-
-                yes_row = subset_trim[
-                    (subset_trim["condition"] == condition) &
-                    (subset_trim["laser_intensity"] == intensity) &
-                    (subset_trim["reward"] == "yes")
-                ]
-
-                no_row = subset_trim[
-                    (subset_trim["condition"] == condition) &
-                    (subset_trim["laser_intensity"] == intensity) &
-                    (subset_trim["reward"] == "no")
-                ]
-
-                if init_row.empty:
-                    continue
-
-                N_initial = int(init_row["N_initial"].values[0])
-                N_yes = int(yes_row["N_trim"].values[0]) if not yes_row.empty else 0
-                N_no = int(no_row["N_trim"].values[0]) if not no_row.empty else 0
-
-                _add_text(ax, x_pos, y_max + y_offset*3, N_initial, "blue")
-                _add_text(ax, x_pos, y_max + y_offset*2, N_yes, "green")
-                _add_text(ax, x_pos, y_max + y_offset, N_no, "black")
-
-
-def _plot_violin_distribution(cfg, data: pd.DataFrame, statistics: pd.DataFrame = None) : 
-
-    data_trimmed = _trim_extremes_iqr(data, k=1.5)
-    print(f"\nNumber of removed outliers : {len(data) - len(data_trimmed)}")
-
-    if len(data_trimmed[data_trimmed["condition"]=="NOstim"]) == 0 : 
-        data_trimmed = data_trimmed.loc[data_trimmed["condition"]!="NOstim"]
-        order = ["Conti", "Beta"]
-    else : 
-        order = ["NOstim", "Conti", "Beta"]
-
-    g = sns.FacetGrid(
-        data=data_trimmed,
-        col="laser_state",
-        margin_titles=True,
-        height=4,
-        aspect=1
-    )
-
-    # VIOLIN
-    g.map_dataframe(
-        sns.violinplot,
-        x="condition",
-        y="value",
-        hue="laser_intensity",
-        split=True,
-        inner="quart",
-        order=order,
-        gap= .1,
-        palette=LASER_INTENSITY_PALETTE,
-        legend=True,
-    )
-
-    # STRIP
-    g.map_dataframe(
-        sns.stripplot,
-        x="condition",
-        y="value",
-        hue="reward",
-        palette=REWARD_PALETTE,
-        marker="X",
-        size=3,
-        alpha=0.7,
-        legend=True,
-    )
-    g.add_legend(title="Laser intensity        Rewarded trial", ncol=2)
-
-    # --------------------------- display counting --------------------------
-
-    _display_counts(g, data, data_trimmed, order)
-
-    return g
-
-
 def plot_violin_distribution_velocity() : 
     pass
 
@@ -504,7 +375,7 @@ def _add_stat_annotations(ax, data, statistics, order):
             y="value",
             hue="laser_intensity",
             order=order,
-            hue_order=["low", "high"] if len(l_intensities) > 1 else None
+            hue_order=HUE_ORDER if len(l_intensities) > 1 else None
         )
 
     # We already computed p-values → no test
@@ -525,27 +396,28 @@ def _add_stat_annotations(ax, data, statistics, order):
 
 def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = None, strip: bool = True) : 
 
+    print(len(data))
     data_trimmed = _trim_extremes_iqr(data, k=1.5)
     print(f"\nNumber of removed outliers : {len(data) - len(data_trimmed)}")
 
-    if data_trimmed["condition"].str.contains("NOstim").any():
+    if data_trimmed["condition"].str.contains("NOstim").any() and statistics is not None:
         data_trimmed = data_trimmed.loc[~data_trimmed["condition"].str.contains("NOstim")]
         data = data.loc[~data["condition"].str.contains("NOstim")]
 
-    l_intensities = data["laser_intensity"].unique()
     order = ["Conti_LaserOff", "Beta_LaserOff", "Conti_LaserOn", "Beta_LaserOn"]
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=[10,5])
 
     # VIOLIN
     sns.violinplot(
-        data=data_trimmed,
+        data=data,
         x="condition",
         y="value",
         hue="laser_intensity",
-        split=len(l_intensities) > 1,
+        split=True,
         inner="quart",
         order=order,
+        hue_order=HUE_ORDER,
         gap= .1,
         palette=LASER_INTENSITY_PALETTE,
         legend=True,
@@ -588,10 +460,10 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
         x = x_positions[cond]
 
         # Shift left/right depending on hue level
-        if intensity == data["laser_intensity"].unique()[0]:
-            x_shifted = x + offset
-        else:
+        if intensity == HUE_ORDER[0]:
             x_shifted = x - offset
+        else:
+            x_shifted = x + offset
 
         ax.text(
             x_shifted,
@@ -604,7 +476,8 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
             fontweight="bold"
         )
 
-    _add_stat_annotations(ax, data_trimmed, statistics, order)
+    if statistics is not None : 
+        _add_stat_annotations(ax, data_trimmed, statistics, order)
 
     ax.legend(loc="upper right")
 
@@ -836,6 +709,7 @@ def _metric_at_padOff(data, type: str = "boxplot") :
             x="event",
             y="value",
             hue="laser_intensity" if multiple_intensity else None,
+            hue_order= HUE_ORDER if multiple_intensity else None,
             palette=LASER_INTENSITY_PALETTE if multiple_intensity else None,
         )
 
@@ -845,6 +719,7 @@ def _metric_at_padOff(data, type: str = "boxplot") :
             x="event",
             y="value",
             hue="laser_intensity" if multiple_intensity else None,
+            hue_order= HUE_ORDER if multiple_intensity else None,
             palette=LASER_INTENSITY_PALETTE if multiple_intensity else None,
             split=True if multiple_intensity else None,
             inner="quart",

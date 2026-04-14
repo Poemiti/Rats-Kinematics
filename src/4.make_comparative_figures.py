@@ -14,7 +14,7 @@ from rats_kinematics_utils.analysis.statistics import compute_statistics, save_s
 
 # ------------------------------------ setup ---------------------------------------
 
-SHOW = False
+SHOW = True
 cfg = load_config()
 print_analysis_info(cfg, "Making comparative figures")
 
@@ -241,11 +241,11 @@ def _preprocess_violin(METRIC: str, split_condition: bool = False) -> pd.DataFra
 
 
 def _make_violin(cfg, data, metric) : 
-    g = pc._plot_violin_distribution(cfg, data)
+    fig = pc._plot_violin_statistic(cfg, data, statistics=None, strip=True)
     
-    g.set_ylabels(metric)
-    g.set_titles(col_template="{col_name}", row_template="{row_name}")
-    g.savefig(make_output_path(cfg.paths.analysis / "violin_distribution", f"violin_{metric}_left_CHR_L1.png"))
+    fig.set_label(metric)
+    fig.suptitle(f"{metric} distribution for rat {cfg.rat_name}")
+    fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution", f"violin_{metric}_left_CHR_L1.png"))
 
     if SHOW : 
         plt.show()
@@ -254,15 +254,14 @@ def _make_violin(cfg, data, metric) :
 
 
 if plot_choice["plot_violin_distribution_tortuosity"] : 
-    violin_data = _preprocess_violin(METRIC= "tortuosity", split_condition=True)
-    _make_violin(cfg, violin_data, "tortuosity (true path over shortest path)")
+    metric = "tortuosity"
+    violin_data = _preprocess_violin(METRIC=metric, split_condition=False)
+    _make_violin(cfg, violin_data, metric)
 
 if plot_choice["plot_violin_distribution_velocity"] : 
-    violin_data = _preprocess_violin(METRIC= "average_velocity", split_condition=True)
-
-    # ANOVA(violin_data, "value ~ condition * laser_state * laser_intensity")
-
-    _make_violin(cfg, violin_data, "average velocity (cm.s$^{-1}$)")
+    metric = "average_velocity"
+    violin_data = _preprocess_violin(METRIC=metric, split_condition=False)
+    _make_violin(cfg, violin_data, metric)
     
 
 
@@ -272,11 +271,31 @@ if plot_choice["plot_violin_distribution_velocity"] :
 
 
 
-def _make_violin_stat(data, metric, formula) : 
-    stats_res = compute_statistics(data, formula)
+def _make_violin_stat(data, metric) : 
+    comparisons = [
+                # Conti vs Beta
+                ("Conti_LaserOff.low",  "Beta_LaserOff.low"),
+                ("Conti_LaserOff.high", "Beta_LaserOff.high"),
+                ("Conti_LaserOn.low",   "Beta_LaserOn.low"),
+                ("Conti_LaserOn.high",  "Beta_LaserOn.high"),
+
+                # Off vs On
+                ("Conti_LaserOff.low",  "Conti_LaserOn.low"),
+                ("Conti_LaserOff.high", "Conti_LaserOn.high"),
+                ("Beta_LaserOff.low",   "Beta_LaserOn.low"),
+                ("Beta_LaserOff.high",  "Beta_LaserOn.high"),
+
+                # low vs high
+                ("Beta_LaserOff.low",   "Beta_LaserOff.high"),
+                ("Beta_LaserOn.low",    "Beta_LaserOn.high"),
+                ("Conti_LaserOff.low",  "Conti_LaserOff.high"),
+                ("Conti_LaserOn.low",   "Conti_LaserOn.high"),
+            ]
+    
+    stats_res = compute_statistics(data, comparisons)
     
     # save statistics results has joblib: dict of dataframe for each statistical test
-    save_stat_results(stats_res, cfg.paths.metrics / "statistics" / cfg.rat_name / f"{metric}.joblib")
+    save_stat_results(stats_res, cfg.paths.metrics / "statistics" / f"{metric}.joblib")
 
     if "mann_whitney" in stats_res.keys() :
         pairwise_results = stats_res["mann_whitney"] 
@@ -289,20 +308,22 @@ def _make_violin_stat(data, metric, formula) :
         if SHOW : 
                 plt.show()
         plt.close()
+    else : 
+        print("\nNo Mann Whitney came significant, stop !")
 
 
 
 if plot_choice["plot_violin_stat_velocity"] : 
     metric = "average_velocity"
     data = _preprocess_violin(METRIC= metric, split_condition=False)
-    _make_violin_stat(data, metric, "value ~ condition * laser_intensity")
+    _make_violin_stat(data, metric)
 
 
 
 if plot_choice["plot_violin_stat_tortuosity"] : 
     metric = "tortuosity"
     data = _preprocess_violin(METRIC= metric, split_condition=False)
-    _make_violin_stat(data, metric, "value ~ condition * laser_intensity")
+    _make_violin_stat(data, metric)
 
 
 
@@ -418,7 +439,7 @@ if plot_choice["plot_velocity_at_padOff"] :
             
             events = {
                 "pad off": pad_off ,
-                "laser on": laser_on,
+                # "laser on": laser_on,
             }
 
             val = trial[cfg.bodypart]["instant_velocity"]
@@ -440,12 +461,16 @@ if plot_choice["plot_velocity_at_padOff"] :
     forme = "violin"  # boxplot or violin
     data.to_csv(make_output_path(cfg.paths.analysis / f"metrics_at_padOff", f"data.csv"))
 
-    fig = pc._metric_at_padOff(data, type=forme)
-    fig.set_titles(col_template="{col_name}", row_template="{row_name}")
-    fig.set_axis_labels("", "Velocity (cm.s$^{-1}$)")
-    
-    fig.tight_layout()
-    fig.savefig(make_output_path(cfg.paths.analysis / "metrics_at_padOff", f"velocity_{forme}_at_padoff_laserOn.png"))
+    fig_violin = pc._metric_at_padOff(data, type=forme)
+    fig_violin.set_titles(col_template="{col_name}", row_template="{row_name}")
+    fig_violin.set_axis_labels("", "Velocity (cm.s$^{-1}$)")
+    fig_violin.savefig(make_output_path(cfg.paths.analysis / "metrics_at_padOff", f"velocity_{forme}_at_padoff_only.png"))
+
+    forme = "boxplot"  # boxplot or violin
+    fig_box = pc._metric_at_padOff(data, type=forme)
+    fig_box.set_titles(col_template="{col_name}", row_template="{row_name}")
+    fig_box.set_axis_labels("", "Velocity (cm.s$^{-1}$)")
+    fig_box.savefig(make_output_path(cfg.paths.analysis / "metrics_at_padOff", f"velocity_{forme}_at_padoff_only.png"))
 
     
 
