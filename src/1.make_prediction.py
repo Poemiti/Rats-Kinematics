@@ -34,9 +34,9 @@ for i, video_path in enumerate(DATABASE["filename"].iloc[:]):
     trial_name = video_path.parent.stem
     trial_month = get_date(trial_name).month
 
-    if trial_month != 5 :
-        print("Not may, skipped") 
-        continue
+    # if trial_month != 5 :
+    #     print("Not may, skipped") 
+    #     continue
 
     if "FIBER_BROKEN" in trial_name:        # for the rat 521
         print("FIBER_BROKEN, skipped")
