@@ -185,8 +185,7 @@ print("Done !")
 
 # show metadata report
 print("\nVisualisation of the proportion of each experimental condition\n")
-fig = metadata_report(cfg.paths.raw_clips, output_dir, show_noCue=False)
-fig.write_html(str(cfg.paths.rat_root / f"{cfg.rat_name}_experimental_condition_proportion.html"))
+metadata_report(cfg, cfg.paths.raw_clips, show_noCue=False)
 
 print("\nPlotting likelihood distribution of all bodyparts\n")
 plot_likelihood_distribution(cfg, list((cfg.paths.raw_clips).rglob("*.yaml")))
