@@ -22,6 +22,9 @@ REWARD_PALETTE = {"no": "black",
 LASER_INTENSITY_PALETTE = {"low" : "lightblue",
                             "high" : "salmon",
                             "NOstim" : "gray"}
+LASER_INTENSITY_PALETTE_DARK = {"low" : "steelblue",
+                            "high" : "tomato",
+                            "NOstim" : "black"}
 HUE_ORDER = ["low", "high"]
 
 
@@ -410,7 +413,7 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
 
     # VIOLIN
     sns.violinplot(
-        data=data,
+        data=data_trimmed,
         x="condition",
         y="value",
         hue="laser_intensity",
@@ -429,12 +432,16 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
             data=data_trimmed,
             x="condition",
             y="value",
-            hue="reward",
-            palette=REWARD_PALETTE,
+            # hue="reward",
+            # palette=REWARD_PALETTE,
+            hue="laser_intensity",
+            palette=LASER_INTENSITY_PALETTE_DARK,
+            hue_order=HUE_ORDER,
             marker="X",
             size=3,
             alpha=0.7,
-            legend=True,
+            # legend=True,
+            dodge=True,  # to split like the violin
         )
 
     # --------------------------- display counting --------------------------
@@ -467,7 +474,7 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
 
         ax.text(
             x_shifted,
-            ymin,
+            ymin-0.5,
             f"{N}",
             ha="center",
             va="bottom",
@@ -497,69 +504,6 @@ def plot_violin_stat_tortuosity() :
 
 
 
-def _displot_stat(perm_data) : 
-
-    rows = []
-    for cond in perm_data:
-        diffs = np.array(cond["permutation differences"])
-
-        # Mirror the permutation distribution
-        mirrored_diffs = np.concatenate([-diffs, diffs])
-        
-        for diff in mirrored_diffs:
-            rows.append({
-                "Condition": cond["Condition"],
-                "permutation difference": diff
-            })
-    df = pd.DataFrame(rows)
-
-    order = ["Beta vs Conti",
-             "Conti vs NOstim", 
-             "Beta vs NOstim", ]
-    
-    # Plot
-    fig, ax = plt.subplots(figsize=(6,4))
-    sns.histplot(
-        data=df,
-        x="permutation difference",
-        hue="Condition",
-        ax=ax,
-        hue_order=order,
-        common_norm=False,  # keeps separate densities normalized
-        alpha=0.5,
-        kde=True
-    )
-
-    kde_lines = [line for line in ax.lines]
-    print(f"n kde lines {len(kde_lines)}")
-    y_offset = 0.005 * (ax.get_ylim()[1] - ax.get_ylim()[0])
-
-    for i, line in enumerate(kde_lines):
-        x_data = line.get_xdata()
-        y_data = line.get_ydata()
-        
-        # Find peak of this KDE
-        max_idx = np.argmax(y_data)
-        x_peak = x_data[max_idx]
-        y_peak = y_data[max_idx]
-        
-        ax.text(
-            x_peak + 1,
-            y_peak + y_offset,
-            f"{perm_data[i]['observed mean difference']:.2f}",
-            color=line.get_color(),
-            ha="center",
-            va="bottom",
-            fontsize=10,
-            fontweight="bold"
-        )
-
-        ax.axvline(perm_data[i]["observed mean difference"], 
-                   color=line.get_color(), 
-                   lw=1, ls='--', label="conti observed")
-
-
-    return ax
 
 
 ########################################### displot ###############################################

@@ -1,5 +1,6 @@
 
-# parameter
+# parameter for analysis of one individual
+rat_type: "CHR"      # or CTRL 
 rat_name: "#525"
 bodypart: finger_3 
 view: left           # camera view
@@ -12,6 +13,30 @@ clip_length: 12.5       # sec
 laser_on_duration: 0.3  # sec 
 max_lost_coords: 10
 frame_width_px: 512     # pixels
+
+# parameter for inter rat analysis
+inter_rat:
+  rats: 
+    - "#525"
+    - "#521"
+
+  contra_hemi: 
+    "#517": "RightHemi"
+    "#521": "LeftHemi"
+    "#525": "RightHemi"
+
+
+laser_intensities: 
+  Beta: 
+    - 2,5mW
+    - 1mW
+  Conti: 
+    - 0,5mW
+    - 0,75mW
+  NOstim: 
+    - NOstim
+    - 0mW
+
 
 paths:
   # input data

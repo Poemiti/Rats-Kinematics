@@ -5,6 +5,14 @@ from pathlib import Path
 from pydantic import Field, BaseModel, root_validator
 
 
+# special config for inter rat analysis
+
+class InterRatConfig(BaseModel):
+    rats: list[str]
+    contra_hemi: dict[str, str]
+
+
+
 class PathsConfig(BaseModel):
     # dynamic fields allowed
     class Config:
@@ -55,6 +63,7 @@ class PathsConfig(BaseModel):
 
 
 class Config(BaseModel):
+    rat_type: str
     rat_name: str
     bodypart: str
     view: Literal["left", "right"]
@@ -67,7 +76,10 @@ class Config(BaseModel):
     max_lost_coords: int = Field(..., ge=0)
     frame_width_px: int = Field(..., gt=0)
 
+    laser_intensities: dict[str, list[str]]
+
     paths: PathsConfig
+    inter_rat: InterRatConfig
 
     @property
     def frame_width_cm(self) -> float:
@@ -85,6 +97,24 @@ class Config(BaseModel):
         
         return "LED_3" if self.task == "L1" else "LED_2"
 
+    @property
+    def inter_rat_metrics_paths(self) -> dict[str, Path]:
+        return {
+            rat: _build_rat_config(self, rat).paths.metrics
+            for rat in self.inter_rat.rats
+        }
+    
+
+def _build_rat_config(base_config: Config, rat_name: str) -> Config:
+    raw = dict(base_config._raw) 
+
+    raw["rat_name"] = rat_name
+    raw["paths"]["rat_name"] = rat_name
+    raw["paths"]["bodypart"] = raw["bodypart"]
+
+    return Config(**raw)
+
+
 
 
 def load_config(path: str = "config.yaml") -> Config:
@@ -95,7 +125,10 @@ def load_config(path: str = "config.yaml") -> Config:
     raw["paths"]["rat_name"] = raw["rat_name"]
     raw["paths"]["bodypart"] = raw["bodypart"]
 
-    return Config(**raw)
+    cfg = Config(**raw)
+    cfg._raw = raw 
+
+    return cfg
 
 
 def match_rule(meta, rules):

@@ -120,7 +120,7 @@ def compute_statistics(data: pd.DataFrame, comparisons: list[tuple[str, str]]) :
     stat_res = {}
 
     # 1. check normality
-    print("\n1. Checking normality: ")
+    print("\n========== 1. Checking normality: ")
 
     data_normality = (data
                           .groupby(["condition", "laser_intensity"])
@@ -129,35 +129,34 @@ def compute_statistics(data: pd.DataFrame, comparisons: list[tuple[str, str]]) :
                     )
 
 
-    print("\nNORMAL: ")
+    print("\nNormal distribution: ")
     print(data_normality[data_normality["p_value"] > 0.05])
-    print("\nNOT NORMAL: ")
+    print("\nNOT normal distribution: ")
     print(data_normality[data_normality["p_value"] < 0.05])
 
     stat_res["shapiro"] = data_normality
 
     # 2. Kruskal test
-    print("\n2. Making Kruskal Wallis test: ")
+    print("\n========== 2. Making Kruskal Wallis test: ")
     data_kruskal = kruskal_test(data)
     print(data_kruskal)
 
     stat_res["kruskal"] = data_kruskal
 
     if data_kruskal["p_value"] > 0.05 : 
-        print(f"\nNOT SIGNIFICANT")
+        print(f"\nKrustal wallis test is NOT significant: ")
         return stat_res
 
     print("\nSIGNIFICANT")
 
     data["group"] = (data["condition"] + "." + data["laser_intensity"])
 
-    print("\n3. Mann Whitney pairwise comparaison:")
+    print("\n========== 3. Mann Whitney pairwise comparaison:")
     pairwise_results = mann_whitney(data, comparisons)
     
-    print(pairwise_results)
-    print("\nSIGNIFICANT: ")
+    print("\nsignificant: ")
     print(pairwise_results[pairwise_results["p_value"] < 0.05])
-    print("\nNOT SIGNIFICANT: ")
+    print("\nNOT significant: ")
     print(pairwise_results[pairwise_results["p_value"] > 0.05])
 
     stat_res["mann_whitney"] = pairwise_results

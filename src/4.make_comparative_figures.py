@@ -301,7 +301,7 @@ def _make_violin_stat(data, metric) :
         pairwise_results = stats_res["mann_whitney"] 
         significant_pair = pairwise_results[pairwise_results["p_value"] < 0.05]
 
-        fig = pc._plot_violin_statistic(cfg, data, significant_pair, strip=len(significant_pair) == 0)
+        fig = pc._plot_violin_statistic(cfg, data, significant_pair, strip=True)
         fig.suptitle(f"{metric} distribution for rat {cfg.rat_name}")
         fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution",  f"stat_violin_{metric}_{cfg.rat_name}.png"))
 

@@ -22,3 +22,4 @@ old_course/
 
 *.egg-info/
 config.yaml
+rename.py
