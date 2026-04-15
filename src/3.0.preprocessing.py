@@ -64,6 +64,11 @@ for f in file_to_preprocess :
     print("  -",f.stem)
 print(f"Total number of trial to preprocess : {nb}")
 
+res = input("\nENTER to launch preprocessing or (q) to quit : ")
+if res == "q" or res=="Q": 
+    print("quit!")
+    sys.exit()
+
 # ------------------------------------ loop ---------------------------------------
 
 start = time.time()

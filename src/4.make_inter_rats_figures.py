@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 
-from pathlib import Path
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import inspect
-import re, yaml
+import sys
 
 import rats_kinematics_utils.analysis.plot_comparative as plot_comparative
 from rats_kinematics_utils.core.config import load_config
@@ -26,6 +21,10 @@ for r, f_list in file_to_process.items():
         print(f"  {f.stem}")
 print()
 
+res = input("\nENTER to launch preprocessing or (q) to quit : ")
+if res == "q" or res=="Q": 
+    print("quit!")
+    sys.exit()
 
 # --------------------------------------- main -------------------------------------------
 
@@ -85,23 +84,18 @@ print(f"\n ------ computing statistics on tortuosity ------\n")
 plot_statistics(cfg, file_to_process_list, "tortuosity", comparisons)
 
 
-
-# ################# linear model try
-
-
-# result = LMM(data, "value ~ condition * laser_state * laser_intensity")
-# print(result.summary())
-
-
-
 # ################### permutation
 
 n_perm = 100000
 
-print("="*60)
-print(f"\nSize effect of LOW laser intensity, metric={metric} :")
-plot_permutation(cfg, file_to_process_list, metric, "low", n_perm)
+# for metric in ["average_velocity", "tortuosity"] :
 
-print("="*60)
-print(f"\nSize effect of HIGH laser intensity, metric={metric} :")
-plot_permutation(cfg, file_to_process_list, metric, "high", n_perm)
+#     print("="*60)
+#     print(f"\nSize effect of LOW laser intensity, metric={metric} :")
+#     plot_permutation(cfg, file_to_process_list, metric, "low", n_perm)
+
+#     print("="*60)
+#     print(f"\nSize effect of HIGH laser intensity, metric={metric} :")
+#     plot_permutation(cfg, file_to_process_list, metric, "high", n_perm)
+
+

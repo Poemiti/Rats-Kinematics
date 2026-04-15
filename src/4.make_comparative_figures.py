@@ -304,12 +304,17 @@ def _make_violin_stat(data, metric) :
         fig = pc._plot_violin_statistic(cfg, data, significant_pair, strip=True)
         fig.suptitle(f"{metric} distribution for rat {cfg.rat_name}")
         fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution",  f"stat_violin_{metric}_{cfg.rat_name}.png"))
-
-        if SHOW : 
-                plt.show()
-        plt.close()
     else : 
-        print("\nNo Mann Whitney came significant, stop !")
+
+        print("\nNo Mann Whitney came significant !")
+
+        fig = pc._plot_violin_statistic(cfg, data, statistics=None, strip=True)
+        fig.suptitle(f"{metric} distribution for rat {cfg.rat_name}")
+        fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution",  f"stat_violin_{metric}_{cfg.rat_name}.png"))
+
+    if SHOW : 
+            plt.show()
+    plt.close()
 
 
 

@@ -457,7 +457,7 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
 
     # Small horizontal offset for split violins
     offset = 0.15
-    ymin = data["value"].min()
+    ymin = data_trimmed["value"].min()
 
     for _, row in count.iterrows():
         cond = row["condition"]
@@ -474,7 +474,7 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
 
         ax.text(
             x_shifted,
-            ymin-0.5,
+            ymin,
             f"{N}",
             ha="center",
             va="bottom",

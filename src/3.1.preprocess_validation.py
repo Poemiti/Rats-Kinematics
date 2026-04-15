@@ -62,6 +62,12 @@ for f in file_to_validate :
     print("  -",f.stem)
 print(f"Total number of trial to validate : {nb}")
 
+res = input("\nENTER to launch preprocessing or (q) to quit : ")
+if res == "q" or res=="Q": 
+    print("quit!")
+    sys.exit()
+
+
 validation_data = {}
 
 for file in file_to_validate:

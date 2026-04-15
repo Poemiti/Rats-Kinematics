@@ -68,6 +68,11 @@ print("\nLaunching of the metric computation for the following files :\n")
 for f in file_to_compute : 
     print("  -",f.stem)
 
+res = input("\nENTER to launch preprocessing or (q) to quit : ")
+if res == "q" or res=="Q": 
+    print("quit!")
+    sys.exit()
+
 
 start = time.perf_counter()
 

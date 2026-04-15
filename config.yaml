@@ -1,7 +1,7 @@
 
 # parameter for analysis of one individual
 rat_type: "CHR"      # or CTRL 
-rat_name: "#525"
+rat_name: "#517"
 bodypart: finger_3 
 view: left           # camera view
 task: L1            # L1: left lever, L2: right lever
@@ -19,6 +19,7 @@ inter_rat:
   rats: 
     - "#525"
     - "#521"
+    - "#517"
 
   contra_hemi: 
     "#517": "RightHemi"
