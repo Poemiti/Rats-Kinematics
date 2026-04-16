@@ -13,7 +13,7 @@ src/rats_kinematics_utils.egg-info/
 *.h5
 *.png
 
-src/test.py
+src/test.*
 notes.txt
 old_course/
 
