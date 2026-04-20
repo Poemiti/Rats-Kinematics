@@ -47,7 +47,7 @@ PATTERNS = {
     "rat_name": r"#\d{3}",
     "rat_type": r"(CTRL|CHR)",
     "condition": r"(Conti|NOstim|Beta)",
-    "stim_location": r"(LeftHemi|RightHemi|Ipsi|ipsi|Bilateral|Contra)",
+    "stim_location": r"(LeftHemi|RightHemi|Ipsi|ipsi|Bilateral|Contra|contra)",
     "handedness": r"(Ambidexter|LeftHanded|RightHanded)",
     "session": r"S\d+",
     "view": r"H\d+",
