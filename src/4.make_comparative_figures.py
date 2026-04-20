@@ -444,7 +444,7 @@ if plot_choice["plot_velocity_at_padOff"] :
             
             events = {
                 "pad off": pad_off ,
-                # "laser on": laser_on,
+                "laser on": laser_on,
             }
 
             val = trial[cfg.bodypart]["instant_velocity"]
@@ -469,13 +469,13 @@ if plot_choice["plot_velocity_at_padOff"] :
     fig_violin = pc._metric_at_padOff(data, type=forme)
     fig_violin.set_titles(col_template="{col_name}", row_template="{row_name}")
     fig_violin.set_axis_labels("", "Velocity (cm.s$^{-1}$)")
-    fig_violin.savefig(make_output_path(cfg.paths.analysis / "metrics_at_padOff", f"velocity_{forme}_at_padoff_only.png"))
+    fig_violin.savefig(make_output_path(cfg.paths.analysis / "metrics_at_padOff_laseron", f"velocity_{forme}_at_padoff_only.png"))
 
     forme = "boxplot"  # boxplot or violin
     fig_box = pc._metric_at_padOff(data, type=forme)
     fig_box.set_titles(col_template="{col_name}", row_template="{row_name}")
     fig_box.set_axis_labels("", "Velocity (cm.s$^{-1}$)")
-    fig_box.savefig(make_output_path(cfg.paths.analysis / "metrics_at_padOff", f"velocity_{forme}_at_padoff_only.png"))
+    fig_box.savefig(make_output_path(cfg.paths.analysis / "metrics_at_padOff_on", f"velocity_{forme}_at_padoff_only.png"))
 
     
 
