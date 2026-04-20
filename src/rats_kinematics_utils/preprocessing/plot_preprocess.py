@@ -186,24 +186,37 @@ def make_outlier_figures(raw_coords, params, save_as):
 
 
 
-def _plot_metadata_report(cfg, rat_type, data, output_path: Path):
+def _plot_metadata_report(data, output_path: Path,
+                          groups: list[str] = ["condition", "view", "stim", "cue", "laser", "intensity"], 
+                          rat_name: str = None, rat_type: str = None):
     import plotly.express as px
 
     counts = (
         data
-        .groupby(["condition", "view", "stim", "cue", "laser", "intensity"])
+        .groupby(groups)
         .size()
         .reset_index(name="count")
     )
 
     fig = px.sunburst(
         counts,
-        path=["condition", "view", "stim", "cue", "laser", "intensity"],
+        path=groups,
         values="count"
     )
 
-    fig.update_layout(
-        title=f"Trial metadata of rat {cfg.rat_name}, {rat_type}",
+    if rat_name is not None and rat_type is not None: 
+        title = f"Trial metadata of rat {rat_name}, {rat_type}"
+    elif rat_name is None and rat_type is not None: 
+        title = f"Trial metadata of rat {rat_type}"
+    else :
+        title = 'Trial metadata'
+        
+    fig.update_layout(title=title)
+
+    fig.update_traces(
+        branchvalues="total",
+        texttemplate="<b>%{label}</b><br>%{value} (%{percentParent:.0%})",
+        textfont_size=14
     )
 
     fig.write_html(str(output_path.with_suffix(".html")))
@@ -211,12 +224,12 @@ def _plot_metadata_report(cfg, rat_type, data, output_path: Path):
 
 
 
-def metadata_report(cfg, yaml_filenames, show_noCue: bool = False) : 
+def metadata_report(cfg, yaml_filenames) : 
 
     output_dir = cfg.paths.rat_root
 
     rat_types = ["CHR", "CTRL"]
-    noCue_video = {}
+    noCue_video = pd.DataFrame()
 
     for r_type in rat_types : 
 
@@ -243,18 +256,31 @@ def metadata_report(cfg, yaml_filenames, show_noCue: bool = False) :
             )
             report = pd.concat([report, df], ignore_index=True)
 
+            if t["cue_type"] == "NoCue" : 
+                df = pd.DataFrame({
+                    "rat type": [t["rat_type"]],
+                    "pad off": [t["pad_off"]],
+                    "laser state": [t["laser_state"]],
+                    "date": [t["date"]],
+                    "clip path": [t["filename_clips"]],
+                })
+                noCue_video = pd.concat([noCue_video, df], ignore_index=True)
+
         print("True number of trials :", len(report))
+        
+        if len(report) == 0  : 
+            print(f"\”No data for this rat type : {r_type}")
+            break
 
         # plot report
-        _plot_metadata_report(cfg, r_type, 
-                            report, 
-                            output_dir / f"{r_type}_{cfg.rat_name}_trial_metadata_report")
-        
-        if show_noCue: 
-            for k, v in noCue_video.items() : 
-                print(f"\n{k}\n{v}")
+        _plot_metadata_report(report, output_dir / f"{r_type}_{cfg.rat_name}_trial_metadata_report",
+                              rat_name=cfg.rat_name, rat_type=r_type)
 
-        print(f"\nNumber of NoCue videos : {len(noCue_video)}")
+    noCue_filename = output_dir / f"{cfg.rat_name}_NoCue_video.csv"
+    noCue_video.to_csv(noCue_filename)
+
+    print(f"\nNumber of NoCue videos : {len(noCue_video)}")
+    print(f"No Cue video are stored in {noCue_filename}")
 
 
 
@@ -749,22 +775,28 @@ def _plot_trial_report(cfg, yaml_file: Path, output_path: Path):
 
 
 
-def plot_trial_failure_reason(cfg, filenames) : 
+def plot_trial_failure_reason(cfg, filenames: list[Path], inter_rat: bool = False) : 
     from rats_kinematics_utils.core.file_utils import load_trial_data
 
-    output_dir = cfg.paths.analysis
-    output_dir.mkdir(parents=True, exist_ok=True)
+    if inter_rat: 
+        output_dir = cfg.paths.inter_rat
+        report_fig_path = output_dir / f"{cfg.rat_type}_overall_failure_reason"
+    else:
+        output_dir = cfg.paths.analysis
+        output_dir.mkdir(parents=True, exist_ok=True)
+        report_fig_path = output_dir / f"{cfg.rat_name}_overall_failure_reason"
+    
     report_path = output_dir / "failure_reason_data.yaml"
+    
 
     all_trials = []
     for i, metrics_path in enumerate(filenames) :
         metrics_path = Path(metrics_path) 
-        print(metrics_path.stem)
         metrics = load_trial_data(metrics_path)
         for trial in metrics : 
             all_trials.append(trial)
 
-    print("True number of trials :", len(all_trials))
+    print("Number of trials :", len(all_trials))
     report = _trial_report(cfg, all_trials)
 
     # save report
@@ -774,8 +806,7 @@ def plot_trial_failure_reason(cfg, filenames) :
 
     # plot report
     print(f"Loading {report_path} and plotting")
-    _plot_trial_report(cfg, output_dir / report_path,
-                    output_dir / f"{cfg.rat_name}_overall_failure_reason")
+    _plot_trial_report(cfg, report_path, report_fig_path)
 
 
 
@@ -834,13 +865,11 @@ def _plot_trial_report_detail(cfg, rat_type, data, output_path: Path):
 
 
 
-def plot_trial_failure_reason_detail(cfg, joblib_filenames, show_noCue: bool = False) : 
+def plot_trial_failure_reason_detail(cfg, joblib_filenames) : 
     from rats_kinematics_utils.core.file_utils import load_trial_data
 
     output_dir = cfg.paths.analysis
-
     rat_types = ["CHR", "CTRL"]
-    noCue_video = {}
 
     for r_type in rat_types : 
 
@@ -886,15 +915,13 @@ def plot_trial_failure_reason_detail(cfg, joblib_filenames, show_noCue: bool = F
                 report = pd.concat([report, df], ignore_index=True)
 
         print("True number of trials :", len(report))
-
+        
+        if len(report) == 0  : 
+            print(f"\”No data for this rat type : {r_type}")
+            break
+        
         # plot report
         _plot_trial_report_detail(cfg, r_type, 
                             report, 
                             output_dir / f"{cfg.rat_name}_{r_type}_failure_reason_detail")
         
-        if show_noCue: 
-            for k, v in noCue_video.items() : 
-                print(f"\n{k}\n{v}")
-
-        print(f"\nNumber of NoCue videos : {len(noCue_video)}")
-

@@ -37,6 +37,7 @@ def init_metadata(coords: Path, lum: Path, clip: Path) :
     metadata = parse_filename(clip.stem)
     date = get_date(coords.stem).date().isoformat()
     return {
+            "rat_name": metadata["rat_name"],
             "name" : clip.stem,
             "filename_coords" : str(coords),
             "filename_luminosity" : str(lum),

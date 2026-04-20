@@ -134,7 +134,7 @@ def define_cue_type(luminosities: pd.Series, threshold=100, min_duration=5) -> s
     if cue_count == 1 :
         cue_type = "CueL1"
 
-    elif cue_count == 2 : 
+    elif cue_count >= 2 : 
         cue_type = "CueL2"
 
     # print(f"\ncue count : {cue_count}")
