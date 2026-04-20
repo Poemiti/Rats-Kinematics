@@ -12,19 +12,43 @@ from rats_kinematics_utils.analysis.plot_comparative import plot_stacked_traject
 from rats_kinematics_utils.core.file_utils import load_trial_data
 from tslearn.metrics import frechet_path, dtw_path, ctw_path, lcss_path
 
-sns.set_theme(style="darkgrid")
+
+# ==================================== display hyperparameter ===========================================
+
+
+custom_params = {"axes.spines.right": False, "axes.spines.top": False}
+sns.set_theme("paper", style="ticks", rc=custom_params, palette="pastel")
+
+LASER_COLOR = "coral"
+LINE_COLOR = "gray"
+AVG_LINE_COLOR = "navy"
+LINE_TRANSPARANCY = 0.3
+
+REWARD_PALETTE = {"no": "black",
+                  "yes": "green"}
+LASER_INTENSITY_PALETTE = {"low" : "lightblue",
+                            "high" : "salmon",
+                            "NOstim" : "gray"}
+LASER_INTENSITY_PALETTE_DARK = {"low" : "steelblue",
+                            "high" : "tomato",
+                            "NOstim" : "black"}
+HUE_ORDER = ["low", "high"]
+
+
+# ==================================== Plots for comparative analysis ===========================================
 
 def plot_trajectories(cfg, trajectories, labels) : 
     fig, ax = plt.subplots(figsize=(9, 7))
 
     rows= []
-    for (traj, label) in zip(trajectories, labels) : 
+    for i, (traj, label) in enumerate(zip(trajectories, labels) ): 
         H_px = 512  # pixels
 
         rows.append(pd.DataFrame({
             "x" : (H_px - traj[:, 0]) * cfg.cm_per_pixel,
             "y" : (H_px - traj[:, 1]) * cfg.cm_per_pixel,
-            "condition" : label.split("_")[0]
+            "condition" : label.split("_")[0],
+            "traj_id" :i, 
         }))
 
     sns.lineplot(
@@ -51,6 +75,9 @@ def plot_trajectories(cfg, trajectories, labels) :
     ax.set_xlabel("x (cm)")
     ax.set_ylabel("y (cm)")
     ax.set_title(f"Stacked Trajectories, (n={len(trajectories)})")
+
+    ax.set_xlim(0, cfg.frame_width_px * cfg.cm_per_pixel)
+    ax.set_ylim(0, cfg.frame_width_px * cfg.cm_per_pixel)
 
     ax.invert_xaxis()
     return ax
@@ -95,16 +122,22 @@ def plot_all_trajectories(cfg, filenames: list[Path]) -> None:
     plt.show()
     plt.close(fig)
 
+    return ax
 
 
 
-def display_distance_matrix(dist_mat, title: str) : 
+
+def display_distance_matrix(dist_mat, title: str, show) : 
     fig = plt.figure()
     plt.imshow(dist_mat)
     plt.colorbar()
     plt.title(title)
     plt.xlabel("Trajectory")
     plt.ylabel("Trajectory")
+
+    if show: 
+        plt.show()
+
     return fig    
 
 
@@ -274,58 +307,79 @@ def plot_true_clustered_traj(cfg, trajectories, true_labels, pred_labels) :
 
 
 def extract_trajectories(cfg, filenames: list[Path], coords: str) -> list[pd.DataFrame] : 
+    """
+    Get all the trajectories
+    Each trajectories must be the same lenght in order to compute matrix after!
+    """
     all_traj = []
     true_labels = []
     for i, metrics_path in enumerate(filenames) :
         metrics_path = Path(metrics_path) 
         for trial in load_trial_data(metrics_path) :
 
-            # if coords == "xy_raw" : 
-            #     xy = trial[coords]
-            #     xy = xy[["x", "y"]].to_numpy()
-            #     all_traj.append(xy)
-            #     continue
-
             if not trial[cfg.bodypart]["trial_success"] : 
                 continue
-
-            # if not trial["reward"] : 
-            #     continue
+            
+            time_pad_off = trial["pad_off"]
+            pad_off_frame = int((time_pad_off)* 125)
+            pad_off_frame = pad_off_frame if pad_off_frame >=0 else 0
+            off_frame = int((time_pad_off + 0.325) * 125)
 
             xy = trial[cfg.bodypart][coords]
             xy = xy[["x", "y"]].to_numpy()
+            xy_cropped = xy[pad_off_frame : off_frame]
 
-            label = trial['condition'] + "_" + trial["laser_intensity"]
+            if not np.isfinite(xy_cropped).all():
+                print(trial[cfg.bodypart]["xy_state"])
+                continue
 
-            all_traj.append(xy)
+            label = trial['condition'] + "_" + trial["laser_state"] + "_" + trial["laser_intensity"]
+
+            all_traj.append(xy_cropped)
             true_labels.append(label)
 
     return all_traj, true_labels
 
 
 
+
+
+
 def make_distance_matrix(trajectories):
     from tqdm import tqdm
+    import numpy as np
 
     n_traj = len(trajectories)
-    dist_mat = np.zeros((n_traj, n_traj), dtype=np.float64)
+    dist_mat = np.full((n_traj, n_traj), np.nan)  
 
-    # total number of pair computations
-    total_pairs = n_traj * (n_traj - 1) // 2
+    for i in tqdm(range(n_traj), desc="Computing matrix"):
+        p = trajectories[i]
 
-    with tqdm(total=total_pairs, desc="Computing distances matrix") as pbar:
+        if len(p) == 0 or not np.isfinite(p).all():
+            print(f"Bad trajectory i: {i}")
+            print(p)
+            continue
 
-        for i in range(n_traj - 1):
-            p = trajectories[i]
-            for j in range(i + 1, n_traj):
-                q = trajectories[j]
+        for j in range(n_traj):
+            q = trajectories[j]
 
-                # path_frechet, frechet_dist = frechet_path(p, q)
-                path_frechet, frechet_dist = dtw_path(p, q)
+            if len(q) == 0 or not np.isfinite(q).all():
+                print(f"Bad trajectory j: {j}")
+                print(q)
+                continue
 
-                dist_mat[i, j] = frechet_dist
-                dist_mat[j, i] = frechet_dist
+            try:
+                _, dist = dtw_path(p, q)
+            except Exception as e:
+                print(f"DTW failed for ({i},{j}): {e}")
+                continue
 
-                pbar.update(1)
+            if not np.isfinite(dist):
+                print(f"NaN/inf distance at ({i},{j})")
+            else:
+                dist_mat[i, j] = dist
+                dist_mat[j, i] = dist
+
+    print("Done")
 
     return dist_mat
