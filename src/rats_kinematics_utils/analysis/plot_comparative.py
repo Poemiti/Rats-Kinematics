@@ -28,6 +28,22 @@ LASER_INTENSITY_PALETTE_DARK = {"low" : "steelblue",
 HUE_ORDER = ["low", "high"]
 
 
+LASER_STATE_MARKER = {
+    "LaserOff" :"X",
+    "LaserOn" : "o"
+}
+
+LASER_STATE_PALETTE = {
+    "LaserOff" :"slategray",
+    "LaserOn" : "tomato"
+}
+
+dash = {
+    "LaserOff" : (4,2),
+    "LaserOn" : ""
+}
+
+
 # ==================================== Plots for comparative analysis ===========================================
 
 
@@ -709,3 +725,304 @@ def _metric_at_padOff(data, type: str = "boxplot") :
 
 def plot_velocity_at_padOff(): 
     return
+
+
+
+
+
+##################################################
+
+
+
+
+
+
+def plot_pre_post_velocity(cfg, data) -> plt.axes : 
+    from rats_kinematics_utils.core.file_utils import make_output_path
+
+    for condition in data["condition"].unique():
+        for laser_intensity in data['laser_intensity'].unique() : 
+
+            subset = data[(data["condition"] == condition) &
+                          (data["laser_intensity"] == laser_intensity)]
+            
+            g = sns.JointGrid(
+                data=subset,
+                x="post_velo",
+                y="pre_velo",
+                height=7
+            )
+
+            # scatter by hue
+            sns.scatterplot(
+                data=subset,
+                x="post_velo",
+                y="pre_velo",
+                hue="laser_state",
+                palette=LASER_STATE_PALETTE,
+                ax=g.ax_joint,
+                alpha=0.7
+            )
+
+            # regression per group
+            for name, sub in subset.groupby("laser_state"):
+
+                sns.regplot(
+                    data=sub,
+                    x="post_velo",
+                    y="pre_velo",
+                    scatter=False,
+                    color=LASER_STATE_PALETTE[name],
+                    ax=g.ax_joint,
+                    label=name,
+                )
+
+            # marginals
+            sns.histplot(
+                data=subset,
+                x="post_velo",
+                hue="laser_state",
+                palette=LASER_STATE_PALETTE,
+                ax=g.ax_marg_x,
+                element="step",
+                kde=True,
+                legend=False,
+            )
+
+            sns.histplot(
+                data=subset,
+                y="pre_velo",
+                hue="laser_state",
+                palette=LASER_STATE_PALETTE,
+                ax=g.ax_marg_y,
+                element="step",
+                kde=True,
+                legend=False,
+            )
+
+            sns.move_legend(
+                g.ax_joint,
+                "upper right",
+                title="Laser state"
+            )
+
+            g.set_axis_labels("Post velocity", "Pre velocity")
+            g.figure.suptitle(f"Pre vs Post velocity\nCondition: {condition} - {laser_intensity}", ha="left", x=0.1)
+
+            g.figure.savefig(make_output_path(cfg.paths.analysis / f"pre_post_velocity_scatterplot", f"test_pre_post_velocity_{condition}_{laser_intensity}.png"))
+
+    return 
+
+
+
+
+
+
+def _plot_tendency(data, error_function: str = None, show_zero: bool = False) : 
+    """
+    Plot velocity tendency with error span around the average.
+    Custome error functions available : 
+        - "sem" : Standard Error of the Mean (https://statisticsbyjim.com/hypothesis-testing/standard-error-mean/)
+        How to interprete SEM : 'For a SEM of 3, we know that the typical 
+        difference between a sample mean and the population mean is 3'
+    """
+    from scipy.stats import sem
+
+
+
+    laser_color = "royalblue"
+
+    g = sns.relplot(
+        kind="line",
+        data=data,
+        col="condition",
+        row="laser_intensity",
+        x="t",
+        y="value",
+        hue="laser_state",
+        palette=LASER_STATE_PALETTE,
+        style="laser_state",
+        dashes=dash,
+        estimator="mean" ,
+        errorbar=("pi", 50) if error_function is None else None,   
+        # percentile interval (non parametric) https://seaborn.pydata.org/tutorial/error_bars.html
+        # drawstyle="steps-pre"
+    )
+
+    for row_i, laser_intensity in enumerate(g.row_names):
+        for col_j, condition in enumerate(g.col_names):
+
+            ax = g.axes[row_i, col_j]
+
+            # Vertical line at pad off
+            ax.axvline(
+                0,
+                color="k",
+                alpha=0.5,
+                lw=0.8,
+                ls="--",
+            )
+
+
+            # Vertical line at 0
+            if show_zero: 
+                ax.axhline(
+                    0,
+                    color="k",
+                    alpha=0.5,
+                    lw=0.8,
+                    ls="--",
+                )
+
+
+            # Laser period annotation
+            y = ax.get_ylim()[1] * 0.95
+
+            ax.hlines(
+                y=y,
+                xmin=0.025,
+                xmax=0.325,
+                color=laser_color,
+                linewidth=3
+            )
+
+            ax.text(
+                0.175,
+                y,
+                "Laser period",
+                ha="center",
+                va="bottom",
+                color=laser_color,
+                fontsize=10
+            )
+
+            # Manual SEM shading
+            if error_function == "sem":
+
+                # subset data for this facet
+                facet_df = data[
+                    (data["condition"] == condition) &
+                    (data["laser_intensity"] == laser_intensity)
+                ]
+
+                # do SEM separately for each hue group
+                for laser_state, sub in facet_df.groupby("laser_state"):
+
+                    grouped = (
+                        sub.groupby("t")["value"]
+                        .agg(
+                            mean="mean",
+                            sem=lambda x: sem(x, nan_policy="omit")
+                        )
+                        .reset_index()
+                        .sort_values("t")
+                    )
+
+                    lower = grouped["mean"] - grouped["sem"]
+                    upper = grouped["mean"] + grouped["sem"]
+
+                    color = LASER_STATE_PALETTE[laser_state]
+
+                    ax.fill_between(
+                        grouped["t"].values,
+                        lower.values,
+                        upper.values,
+                        color=color,
+                        alpha=0.20
+                    )
+
+
+            
+    sns.move_legend(g,
+                    borderpad=1,
+                    loc='upper right', 
+                    facecolor="lightgray")
+
+    return g
+
+
+
+def plot_velocity_tendency(data, error_function) : 
+    return _plot_tendency(data, error_function)
+
+
+def plot_acceleration_tendency(data, error_function) : 
+    return _plot_tendency(data, error_function)
+
+
+def plot_relative_velocity(data, error_function, show_zero): 
+    return _plot_tendency(data, error_function, show_zero)
+
+
+
+
+
+def plot_lever_distance(data, error_function) : 
+    laser_color = "royalblue"
+    
+    if error_function is not None : 
+        if error_function == "pi" : 
+            return _plot_tendency(data, None)
+        return _plot_tendency(data, error_function)
+    
+    else : 
+
+        g = sns.relplot(
+            kind="line",
+            data=data,
+            col="condition",
+            row="laser_intensity",
+            x="t",
+            y="value",
+            hue="laser_state",
+            palette=LASER_STATE_PALETTE,
+            style="laser_state",
+            dashes=dash,
+            units="id",
+            estimator=None,
+        )
+
+    for row_i, laser_intensity in enumerate(g.row_names):
+        for col_j, condition in enumerate(g.col_names):
+
+            ax = g.axes[row_i, col_j]
+
+            # Vertical line at pad off
+            ax.axvline(
+                0,
+                color="k",
+                alpha=0.5,
+                lw=0.8,
+                ls="--",
+            )
+
+            # Laser period annotation
+            y = ax.get_ylim()[1] * 0.95
+
+            # sub = data[np.isclose(data["t"], 0.025, atol=0.01)]
+            # y = sub["value"].max()
+
+            ax.hlines(
+                y=y,
+                xmin=0.025,
+                xmax=0.325,
+                color=laser_color,
+                linewidth=3
+            )
+
+            ax.text(
+                0.175,
+                y,
+                "Laser period",
+                ha="center",
+                va="bottom",
+                color=laser_color,
+                fontsize=10
+            )
+
+    sns.move_legend(g,
+                    borderpad=1,
+                    loc='upper right', 
+                    facecolor="lightgray")
+
+    return g

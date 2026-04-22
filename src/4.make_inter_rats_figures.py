@@ -14,6 +14,9 @@ SHOW = True
 cfg = load_config()
 
 file_to_process = ir.filter_contra_trials(cfg, single_rat=False)
+rat_proportion = ir.get_rat_proportion(file_to_process)
+
+print(rat_proportion)
 
 
 print(f"\nThe following files will be used for the inter rat analysis:")
@@ -98,13 +101,17 @@ comparisons = [
             ("Beta_LaserOn.low",    "Beta_LaserOn.high"),
             ("Conti_LaserOff.low",  "Conti_LaserOff.high"),
             ("Conti_LaserOn.low",   "Conti_LaserOn.high"),
+
+            # Beta high ON vs Conti low ON 
+            # (because conti low is suppose to be as damagefull as the beta high)
+            ("Beta_LaserON.high", "Conti_LaserON.low")
         ]
 
 print(f"\n ------ computing statistics on average velocity ------\n")
-ir.plot_statistics(cfg, file_to_process_list, "average_velocity", comparisons)
+ir.plot_statistics(cfg, file_to_process_list, "average_velocity", comparisons, rat_proportion)
 
 print(f"\n ------ computing statistics on tortuosity ------\n")
-ir.plot_statistics(cfg, file_to_process_list, "tortuosity", comparisons)
+ir.plot_statistics(cfg, file_to_process_list, "tortuosity", comparisons, rat_proportion)
 
 
 # ################### permutation

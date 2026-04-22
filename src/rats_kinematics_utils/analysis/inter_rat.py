@@ -59,7 +59,8 @@ def filter_contra_trials(cfg, single_rat: bool = False):
 
 
 
-def _preprocess(cfg, filenames: list[Path], METRIC: str, split_condition: bool = False) -> pd.DataFrame : 
+def _preprocess(cfg, filenames: list[Path], METRIC: str, split_condition: bool = False, 
+                rat_proportion: dict | None = None) -> pd.DataFrame : 
     data = pd.DataFrame()
 
     for i, metrics_path in enumerate(filenames) :
@@ -108,7 +109,6 @@ def inter_rat_metadata_report(cfg, rat_types: list[str], joblib_filenames: list[
 
     noCue_video = pd.DataFrame()
     report = pd.DataFrame()
-    individual_proportion = pd.DataFrame()
 
     for r_type in rat_types : 
 
@@ -124,6 +124,7 @@ def inter_rat_metadata_report(cfg, rat_types: list[str], joblib_filenames: list[
                 view_num = "H001" if t["camera_view"]=="left" else "H002"
 
                 df = pd.DataFrame({
+                        "rat_name": [t["rat_name"]],
                         "condition": [t["condition"]],
                         "view": [t["camera_view"] + f" ({view_num})"],
                         "stim": [t["stim_location"]],
@@ -134,12 +135,6 @@ def inter_rat_metadata_report(cfg, rat_types: list[str], joblib_filenames: list[
                     }
                 )
                 report = pd.concat([report, df], ignore_index=True)
-
-                df = pd.DataFrame({
-                    "rat_name": [t["rat_name"]],
-                    "condition": [t["condition"]]
-                })
-                individual_proportion = pd.concat([individual_proportion, df], ignore_index=True)
 
                 if t["cue_type"] == "NoCue" : 
                     df = pd.DataFrame({
@@ -161,8 +156,12 @@ def inter_rat_metadata_report(cfg, rat_types: list[str], joblib_filenames: list[
         _plot_metadata_report(report, output_dir / f"{r_type}_trial_metadata_report", 
                               rat_type=r_type)
         
-        _plot_metadata_report(individual_proportion, output_dir / f"{r_type}_rat_individual_proportion", 
+        _plot_metadata_report(report, output_dir / f"{r_type}_rat_individual_proportion", 
                               groups=["condition", "rat_name"], 
+                              rat_type=r_type)
+        
+        _plot_metadata_report(report, output_dir / f"{r_type}_rat_proportion", 
+                              groups=["rat_name", "condition", "laser"], 
                               rat_type=r_type)
 
         noCue_filename = output_dir / f"{r_type}_NoCue_video.csv"
@@ -231,11 +230,35 @@ def plot_likelihood_distri_interrat(cfg, joblib_filenames: list[Path]) :
 
 
 
+def get_rat_proportion(rat_filenames: dict[str, Path]): 
+    import joblib
+
+    rat_proportion = {}
+    n = 0
+
+    for rat, joblib_filenames in rat_filenames.items() : 
+        rat_proportion[rat] = 0
+
+        for file in joblib_filenames : 
+            trials = joblib.load(file)
+            n += len(trials)
+
+            rat_proportion[rat] += len(trials)
+
+    
+    print(n)
+    return rat_proportion
 
 
 
-def plot_statistics(cfg, filenames: list[Path], metric: str, comparisons: list[tuple[str, str]]) -> None: 
-    data = _preprocess(cfg, filenames, metric, split_condition=False)  # has to stay false
+
+
+
+def plot_statistics(cfg, filenames: list[Path], metric: str, comparisons: list[tuple[str, str]], 
+                    rat_proportion: dict | None = None) -> None: 
+    
+    data = _preprocess(cfg, filenames, metric, split_condition=False, # has to stay false
+                       rat_proportion=rat_proportion) 
 
     stats_res = compute_statistics(data, comparisons)
     save_stat_results(stats_res, cfg.paths.inter_rat / "metric" / f"{metric}.joblib")

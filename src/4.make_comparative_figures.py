@@ -482,6 +482,196 @@ if plot_choice["plot_velocity_at_padOff"] :
 
 
 
+if plot_choice["plot_pre_post_velocity"] : 
+
+    data = pd.DataFrame()
+
+    for i, metrics_path in enumerate(filenames) :
+        metrics = load_trial_data(Path(metrics_path))
+
+        for trial in metrics : 
+
+            if not trial[cfg.bodypart]["trial_success"] : 
+                continue
+
+            condition = trial["condition"]
+            laser_state = trial["laser_state"]
+
+            pre_velo, post_velo = trial[cfg.bodypart]["pre_post_velocity"]
+
+            if trial["laser_intensity"] == "0,5mW" or trial["laser_intensity"] == "1mW" : laser_intensity = "low" 
+            elif trial["laser_intensity"] == "NOstim" : laser_intensity = "NOstim" 
+            else : laser_intensity = "high"
+
+
+            df = pd.DataFrame({
+                "pre_velo": [pre_velo],
+                "post_velo": [post_velo],
+                "condition": [condition],
+                "laser_state": [laser_state],
+                "laser_intensity": [laser_intensity]
+            })
+
+            data = pd.concat([data, df], ignore_index=True)
+
+    data.to_csv(make_output_path(cfg.paths.analysis / f"pre_post_velocity_scatterplot", f"data.csv"))
+
+    pc.plot_pre_post_velocity(cfg, data)
+
+    # g.figure.suptitle(f"Velocity before and after opto stimulation of rat {cfg.rat_name}\nNumber of trials: {len(data)}", ha='center')
+    # g.figure.subplots_adjust(top=0.88)
+    # g.set_axis_labels("post laser", "pre laser")
+    # g.set_titles(col_template="{col_name}")
+
+    # g.savefig(make_output_path(cfg.paths.analysis / f"pre_post_velocity_scatterplot", f"test_pre_post_velocity_scatterplot.png"))
+
+    # if SHOW : 
+    #     plt.show()
+    # plt.close()
+
+
+
+
+
+
+def _preprocess_tendency(metric: str, metric_vector: str = None) : 
+    from tqdm import tqdm
+    from rats_kinematics_utils.preprocessing.preprocess import crop_xy
+
+    if metric_vector is None: 
+        metric_vector = metric
+
+    data = pd.DataFrame()
+
+    for i, metrics_path in enumerate(filenames) :
+        metrics = load_trial_data(Path(metrics_path))
+
+        for j, trial in tqdm(enumerate(metrics)) : 
+
+            if not trial[cfg.bodypart]["trial_success"] : 
+                continue
+
+            condition = trial["condition"]
+            laser_state = trial["laser_state"]
+            pad_off = trial["pad_off"]
+            value = trial[cfg.bodypart][metric]
+
+            # crop around the pad off
+            val = crop_xy(value, 
+                           start=pad_off - 0.1, 
+                           end=pad_off + 0.4)
+            # val = value
+            relative_time = val["t"] - pad_off
+
+
+            if trial["laser_intensity"] == "0,5mW" or trial["laser_intensity"] == "1mW" : laser_intensity = "low" 
+            elif trial["laser_intensity"] == "NOstim" : laser_intensity = "NOstim" 
+            else : laser_intensity = "high"
+
+
+            df = pd.DataFrame({
+                "t": round(relative_time, 2),
+                "value": val[metric_vector],
+                "condition": condition,
+                "laser_state": laser_state,
+                "laser_intensity": laser_intensity,
+                "id": f"{i}_{j}",
+            })
+
+            data = pd.concat([data, df], ignore_index=True)
+
+    data.to_csv(make_output_path(cfg.paths.analysis / f"tendency", f"{metric}_data.csv"))
+
+    return data
+
+
+
+if plot_choice["plot_velocity_tendency"] : 
+
+    data = _preprocess_tendency("instant_velocity", "velocity")
+
+    for error_function in [None, "sem"] :
+        error_name = error_function if error_function is not None else "percentile intervale"
+        g = pc.plot_velocity_tendency(data, error_function)
+
+        g.figure.suptitle(f"Velocity tendency of rat {cfg.rat_name} - (error: {error_name})\nNumber of trials: {len(data.groupby('id'))}", ha='center')
+        g.figure.subplots_adjust(top=0.88)
+        g.set_axis_labels("Time (sec)", "Velocity (cm.s$^{-1}$)")
+        g.set_titles(col_template="{col_name}", row_template="{row_name}")
+
+        g.savefig(make_output_path(cfg.paths.analysis / f"tendency", f"velocity_tendency_{error_name}.png"))
+
+        if SHOW : 
+            plt.show()
+        plt.close()
+
+
+if plot_choice["plot_acceleration_tendency"]: 
+
+    data = _preprocess_tendency("acceleration", None)
+
+    for error_function in [None, "sem"] :
+        error_name = error_function if error_function is not None else "percentile intervale"
+        g = pc.plot_velocity_tendency(data, error_function)
+
+        g.figure.suptitle(f"Acceleration tendency of rat {cfg.rat_name} - (error: {error_name})\nNumber of trials: {len(data.groupby('id'))}", ha='center')
+        g.figure.subplots_adjust(top=0.88)
+        g.set_axis_labels("Time (sec)", "Acceleration (cm.s$^{-2}$)")
+        g.set_titles(col_template="{col_name}", row_template="{row_name}")
+
+        g.savefig(make_output_path(cfg.paths.analysis / f"tendency", f"acceleration_tendency_{error_name}.png"))
+
+        if SHOW : 
+            plt.show()
+        plt.close()
+
+
+
+if plot_choice["plot_relative_velocity"]: 
+
+    data = _preprocess_tendency("relative_velocity", "velocity")
+
+    for error_function in [None, "sem"] :
+        error_name = error_function if error_function is not None else "percentile intervale"
+        g = pc.plot_relative_velocity(data, error_function, show_zero=True)
+
+        g.figure.suptitle(f"Relative velocity of rat {cfg.rat_name} - (error: {error_name})\nNumber of trials: {len(data.groupby('id'))}", ha='center')
+        g.figure.subplots_adjust(top=0.88)
+        g.set_axis_labels("Time (sec)", "Velocity (cm.s$^{-1}$)")
+        g.set_titles(col_template="{col_name}", row_template="{row_name}")
+
+        g.savefig(make_output_path(cfg.paths.analysis / f"tendency", f"relative_velocity_{error_name}.png"))
+
+        if SHOW : 
+            plt.show()
+        plt.close()
+
+
+
+
+
+if plot_choice["plot_lever_distance"] : 
+
+    data = _preprocess_tendency("lever_distance", "distance")
+
+    for error_function in [None, "sem", "pi"] :
+        error_name = error_function if error_function is not None else ""
+        g = pc.plot_lever_distance(data, error_function)
+
+        g.figure.suptitle(f"Distance between lever and {cfg.bodypart} of rat {cfg.rat_name} {error_name}\nNumber of trials: {len(data.groupby('id'))}", ha='center')
+        g.figure.subplots_adjust(top=0.88)
+        g.set_axis_labels("Time (sec)", "Distance (cm)")
+        g.set_titles(col_template="{col_name}", row_template="{row_name}")
+
+        # g.set(ylim=(0, 6))
+
+        g.savefig(make_output_path(cfg.paths.analysis / f"lever_distance", f"lever_distance_{error_name}.png"))
+
+    if SHOW : 
+        plt.show()
+    plt.close()
+
+
 
 
 print("Done ! ")
