@@ -112,15 +112,19 @@ for file in tqdm(file_to_compute):
             xy_laserOn = None
 
         # compute metrics
-        Traj_full = Trajectory(xy, cm_per_pixel=cfg.cm_per_pixel)
+        Traj_full = Trajectory(xy, cm_per_pixel=cfg.cm_per_pixel, lever_position=cfg.lever_position)
         Traj_pad_off = Trajectory(xy_pad_off, cm_per_pixel=cfg.cm_per_pixel)
         
         trial[cfg.bodypart]["average_velocity"] = Traj_pad_off.mean_speed()
         trial[cfg.bodypart]["peak_velocity"] = Traj_pad_off.peak_speed()
         trial[cfg.bodypart]["tortuosity"] = Traj_pad_off.tortuosity()
+        trial[cfg.bodypart]["relative_mean_velocity"] = Traj_pad_off.relative_mean_speed()
+        trial[cfg.bodypart]["pre_post_velocity"] = Traj_pad_off.pre_post_velocity(time_pad_off=time_pad_off)
 
         trial[cfg.bodypart]["instant_velocity"] = Traj_full.instant_velocity()
         trial[cfg.bodypart]["acceleration"] = Traj_full.acceleration()
+        trial[cfg.bodypart]["lever_distance"] = Traj_full.lever_bodypart_distance()
+        trial[cfg.bodypart]["relative_velocity"] = Traj_full.relative_speed()
 
         trial[cfg.bodypart]["xy_pad_off"] = xy_pad_off
         trial[cfg.bodypart]["xy_laser_on"] = xy_laserOn
