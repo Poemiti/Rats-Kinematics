@@ -75,6 +75,7 @@ class Config(BaseModel):
     laser_on_duration: float = Field(..., gt=0)
     max_lost_coords: int = Field(..., ge=0)
     frame_width_px: int = Field(..., gt=0)
+    lever_position: list[int] = Field(..., min_length=2, max_length=2)
 
     laser_intensities: dict[str, list[str]]
 

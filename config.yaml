@@ -13,6 +13,7 @@ clip_length: 12.5       # sec
 laser_on_duration: 0.3  # sec 
 max_lost_coords: 10
 frame_width_px: 512     # pixels
+lever_position: [55, 230]   # pixel position (x, y)
 
 # parameter for inter rat analysis
 inter_rat:
@@ -20,11 +21,13 @@ inter_rat:
     - "#525"
     - "#521"
     - "#517"
+    - "#531"
 
   contra_hemi: 
     "#517": "RightHemi"
     "#521": "LeftHemi"
     "#525": "RightHemi"
+    "#531": "RightHemi"
 
 
 laser_intensities: 
