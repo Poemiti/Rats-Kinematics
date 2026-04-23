@@ -14,7 +14,7 @@ from rats_kinematics_utils.analysis.statistics import compute_statistics, save_s
 
 # ------------------------------------ setup ---------------------------------------
 
-SHOW = True
+SHOW = False
 cfg = load_config()
 print_analysis_info(cfg, "Making comparative figures")
 
@@ -590,8 +590,8 @@ if plot_choice["plot_velocity_tendency"] :
 
     data = _preprocess_tendency("instant_velocity", "velocity")
 
-    for error_function in [None, "sem"] :
-        error_name = error_function if error_function is not None else "percentile intervale"
+    for error_function in [None, "pi","sem"] :
+        error_name = error_function if error_function is not None else ""
         g = pc.plot_velocity_tendency(data, error_function)
 
         g.figure.suptitle(f"Velocity tendency of rat {cfg.rat_name} - (error: {error_name})\nNumber of trials: {len(data.groupby('id'))}", ha='center')
@@ -610,8 +610,8 @@ if plot_choice["plot_acceleration_tendency"]:
 
     data = _preprocess_tendency("acceleration", None)
 
-    for error_function in [None, "sem"] :
-        error_name = error_function if error_function is not None else "percentile intervale"
+    for error_function in [None, "pi", "sem"] :
+        error_name = error_function if error_function is not None else ""
         g = pc.plot_velocity_tendency(data, error_function)
 
         g.figure.suptitle(f"Acceleration tendency of rat {cfg.rat_name} - (error: {error_name})\nNumber of trials: {len(data.groupby('id'))}", ha='center')
@@ -631,8 +631,8 @@ if plot_choice["plot_relative_velocity"]:
 
     data = _preprocess_tendency("relative_velocity", "velocity")
 
-    for error_function in [None, "sem"] :
-        error_name = error_function if error_function is not None else "percentile intervale"
+    for error_function in [None, "pi", "sem"] :
+        error_name = error_function if error_function is not None else ""
         g = pc.plot_relative_velocity(data, error_function, show_zero=True)
 
         g.figure.suptitle(f"Relative velocity of rat {cfg.rat_name} - (error: {error_name})\nNumber of trials: {len(data.groupby('id'))}", ha='center')

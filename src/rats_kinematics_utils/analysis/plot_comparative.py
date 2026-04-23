@@ -413,7 +413,8 @@ def _add_stat_annotations(ax, data, statistics, order):
 
 
 
-def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = None, strip: bool = True) : 
+def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = None, strip: bool = True,
+                           order: list[str] = ["Conti_LaserOff", "Beta_LaserOff", "Conti_LaserOn", "Beta_LaserOn"]) : 
 
     print(len(data))
     data_trimmed = _trim_extremes_iqr(data, k=1.5)
@@ -422,8 +423,6 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
     if data_trimmed["condition"].str.contains("NOstim").any() and statistics is not None:
         data_trimmed = data_trimmed.loc[~data_trimmed["condition"].str.contains("NOstim")]
         data = data.loc[~data["condition"].str.contains("NOstim")]
-
-    order = ["Conti_LaserOff", "Beta_LaserOff", "Conti_LaserOn", "Beta_LaserOn"]
 
     fig, ax = plt.subplots(figsize=[10,5])
 
@@ -828,26 +827,43 @@ def _plot_tendency(data, error_function: str = None, show_zero: bool = False) :
     """
     from scipy.stats import sem
 
-
-
     laser_color = "royalblue"
 
-    g = sns.relplot(
-        kind="line",
-        data=data,
-        col="condition",
-        row="laser_intensity",
-        x="t",
-        y="value",
-        hue="laser_state",
-        palette=LASER_STATE_PALETTE,
-        style="laser_state",
-        dashes=dash,
-        estimator="mean" ,
-        errorbar=("pi", 50) if error_function is None else None,   
-        # percentile interval (non parametric) https://seaborn.pydata.org/tutorial/error_bars.html
-        # drawstyle="steps-pre"
-    )
+    if error_function is None: 
+
+        g = sns.relplot(
+            kind="line",
+            data=data,
+            col="condition",
+            row="laser_intensity",
+            x="t",
+            y="value",
+            hue="laser_state",
+            palette=LASER_STATE_PALETTE,
+            style="laser_state",
+            dashes=dash,
+            units="id",
+            estimator=None,
+        )
+
+    else : 
+
+        g = sns.relplot(
+            kind="line",
+            data=data,
+            col="condition",
+            row="laser_intensity",
+            x="t",
+            y="value",
+            hue="laser_state",
+            palette=LASER_STATE_PALETTE,
+            style="laser_state",
+            dashes=dash,
+            estimator="mean" ,
+            errorbar=("pi", 50) if error_function == "pi" else None,   
+            # percentile interval (non parametric) https://seaborn.pydata.org/tutorial/error_bars.html
+            # drawstyle="steps-pre"
+        )
 
     for row_i, laser_intensity in enumerate(g.row_names):
         for col_j, condition in enumerate(g.col_names):
@@ -958,71 +974,4 @@ def plot_relative_velocity(data, error_function, show_zero):
 
 
 def plot_lever_distance(data, error_function) : 
-    laser_color = "royalblue"
-    
-    if error_function is not None : 
-        if error_function == "pi" : 
-            return _plot_tendency(data, None)
-        return _plot_tendency(data, error_function)
-    
-    else : 
-
-        g = sns.relplot(
-            kind="line",
-            data=data,
-            col="condition",
-            row="laser_intensity",
-            x="t",
-            y="value",
-            hue="laser_state",
-            palette=LASER_STATE_PALETTE,
-            style="laser_state",
-            dashes=dash,
-            units="id",
-            estimator=None,
-        )
-
-    for row_i, laser_intensity in enumerate(g.row_names):
-        for col_j, condition in enumerate(g.col_names):
-
-            ax = g.axes[row_i, col_j]
-
-            # Vertical line at pad off
-            ax.axvline(
-                0,
-                color="k",
-                alpha=0.5,
-                lw=0.8,
-                ls="--",
-            )
-
-            # Laser period annotation
-            y = ax.get_ylim()[1] * 0.95
-
-            # sub = data[np.isclose(data["t"], 0.025, atol=0.01)]
-            # y = sub["value"].max()
-
-            ax.hlines(
-                y=y,
-                xmin=0.025,
-                xmax=0.325,
-                color=laser_color,
-                linewidth=3
-            )
-
-            ax.text(
-                0.175,
-                y,
-                "Laser period",
-                ha="center",
-                va="bottom",
-                color=laser_color,
-                fontsize=10
-            )
-
-    sns.move_legend(g,
-                    borderpad=1,
-                    loc='upper right', 
-                    facecolor="lightgray")
-
-    return g
+    return _plot_tendency(data, error_function)

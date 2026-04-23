@@ -7,12 +7,55 @@ import matplotlib.pyplot as plt
 import inspect
 import re, yaml
 import seaborn as sns
+import matplotlib.colors as mcolors
 
 import rats_kinematics_utils.analysis.plot_comparative as plot_comparative
 from rats_kinematics_utils.core.config import load_config
 from rats_kinematics_utils.analysis.plot_comparative import _plot_violin_statistic
 from rats_kinematics_utils.core.file_utils import load_trial_data, make_output_path, check_analysis_choice, print_analysis_info, dataframe_report, parse_filename
 from rats_kinematics_utils.analysis.statistics import compute_statistics, save_stat_results, LMM, compute_permutation_effect_size, transform_data
+
+
+# ==================================== display hyperparameter ===========================================
+
+
+custom_params = {"axes.spines.right": False, "axes.spines.top": False}
+sns.set_theme("paper", style="ticks", rc=custom_params, palette="pastel")
+
+
+def rat_colorpalette(data, rat_only: bool = False) : 
+    # define colors of each rats
+    rats = data["rat"].unique()
+    rats = sorted(rats)
+    base_colors = sns.color_palette("tab10", len(rats))
+
+    def lighten(color, amount=0.45):
+        c = mcolors.to_rgb(color)
+        return tuple(1 - amount*(1 - x) for x in c)
+
+    pal = {}
+
+    if rat_only : 
+        for rat, base in zip(rats, base_colors):
+            pal[f"{rat}"] = base
+    else :
+        for rat, base in zip(rats, base_colors):
+            pal[f"{rat}_LaserOn"] = base
+            pal[f"{rat}_LaserOff"] = lighten(base)
+
+    return pal
+
+dash = {
+    "LaserOff" : (2,1),
+    "LaserOn" : ""
+}
+
+laser_color = "royalblue"
+
+
+# ==================================== Plots for inter analysis ===========================================
+
+
 
 
 def filter_contra_trials(cfg, single_rat: bool = False): 
@@ -60,7 +103,7 @@ def filter_contra_trials(cfg, single_rat: bool = False):
 
 
 def _preprocess(cfg, filenames: list[Path], METRIC: str, split_condition: bool = False, 
-                rat_proportion: dict | None = None) -> pd.DataFrame : 
+                merge_laserOff: bool = False) -> pd.DataFrame : 
     data = pd.DataFrame()
 
     for i, metrics_path in enumerate(filenames) :
@@ -69,15 +112,24 @@ def _preprocess(cfg, filenames: list[Path], METRIC: str, split_condition: bool =
         for trial in metrics : 
             if not trial[cfg.bodypart]["trial_success"] : 
                 continue
-
+            
+            condition = trial["condition"]
+            laser_state = trial["laser_state"]
             name = trial["filename_clips"].stem
             rat = name[4:8]
-            
-            if split_condition : 
-                condition = trial["condition"]
-                laser_state = trial["laser_state"]
+
+            if merge_laserOff and not split_condition: 
+                if laser_state == "LaserOff" : 
+                    condition = "LaserOff"
+                else : 
+                    condition = condition
+
+            elif not merge_laserOff and not split_condition : 
+                condition = condition + "_" + laser_state
+
             else : 
-                condition = trial["condition"] + "_" + trial["laser_state"]
+                raise ValueError(f"ERROR : impossible combinaison of split condition: {split_condition}, and merge laserOff: {merge_laserOff}")
+
             reward = "yes" if trial["reward"] else "no"
 
             if trial["laser_intensity"] == "0,5mW" or trial["laser_intensity"] == "1mW" : laser_intensity = "low" 
@@ -162,6 +214,10 @@ def inter_rat_metadata_report(cfg, rat_types: list[str], joblib_filenames: list[
         
         _plot_metadata_report(report, output_dir / f"{r_type}_rat_proportion", 
                               groups=["rat_name", "condition", "laser"], 
+                              rat_type=r_type)
+
+        _plot_metadata_report(report, output_dir / f"{r_type}_rat_only", 
+                              groups=["rat_name"], 
                               rat_type=r_type)
 
         noCue_filename = output_dir / f"{r_type}_NoCue_video.csv"
@@ -255,28 +311,46 @@ def get_rat_proportion(rat_filenames: dict[str, Path]):
 
 
 def plot_statistics(cfg, filenames: list[Path], metric: str, comparisons: list[tuple[str, str]], 
-                    rat_proportion: dict | None = None) -> None: 
+                    merge_laserOff: bool = False, per_rats: bool = False) -> None: 
     
     data = _preprocess(cfg, filenames, metric, split_condition=False, # has to stay false
-                       rat_proportion=rat_proportion) 
+                       merge_laserOff=merge_laserOff) 
 
-    stats_res = compute_statistics(data, comparisons)
-    save_stat_results(stats_res, cfg.paths.inter_rat / "metric" / f"{metric}.joblib")
+    if merge_laserOff : 
+        merged = "_laserOff_merged" 
+        order = ["LaserOff", "Beta", "Conti"]
+    else : 
+        merged = "" 
+        order = ["Conti_LaserOff", "Beta_LaserOff", "Conti_LaserOn", "Beta_LaserOn"]
 
-    if "mann_whitney" in stats_res.keys() :
-        pairwise_results = stats_res["mann_whitney"] 
-        significant_pair = pairwise_results[pairwise_results["p_value"] < 0.05]
-
-        if len(significant_pair) > 0 : 
-            fig = _plot_violin_statistic(cfg, data, significant_pair, strip=True)
-            fig.suptitle(f"{metric} distribution across all trials of rat :\n{cfg.inter_rat.rats}")
-            fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"violin_{metric}_dots.png"))
-
-            plt.show()
-            plt.close()
+    if per_rats: 
+        per_rats = "_per_rats"
+        fig = plot_violin_per_rat(cfg, data, strip=False, order=order)
+        fig.subplots_adjust(top=0.88)
+        fig.suptitle(f"{metric} distribution across all trials of rat :\n{cfg.inter_rat.rats}")
+        fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"violin_{metric}{merged}{per_rats}.png"))
 
     else : 
-         print("stop!")
+        per_rats = ""
+
+        stats_res = compute_statistics(data, comparisons)
+        save_stat_results(stats_res, cfg.paths.inter_rat / "metric" / f"{metric}.joblib")
+
+        if "mann_whitney" in stats_res.keys() :
+            pairwise_results = stats_res["mann_whitney"] 
+            significant_pair = pairwise_results[pairwise_results["p_value"] < 0.05]
+
+            if len(significant_pair) > 0 : 
+                fig = _plot_violin_statistic(cfg, data, significant_pair, strip=True, 
+                                            order=order)
+                fig.suptitle(f"{metric} distribution across all trials of rat :\n{cfg.inter_rat.rats}")
+                fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"violin_{metric}{merged}{per_rats}.png"))
+
+                plt.show()
+                plt.close()
+
+        else : 
+            print("stop!")
 
 
 def _displot_stat(perm_data) : 
@@ -358,3 +432,276 @@ def plot_permutation(cfg, filenames: list[Path], metric: str, intensity: str, n_
     fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_permutation", f"NostimePerCondition_notransform_{metric}_{intensity}Intensities_{n_perm}.png"))
     plt.show()
     plt.close()
+
+
+
+
+
+
+
+
+
+def _preprocess_tendency(cfg, filenames: list[Path], metric: str, metric_vector: str = None) : 
+    from tqdm import tqdm
+    from rats_kinematics_utils.preprocessing.preprocess import crop_xy
+
+    if metric_vector is None: 
+        metric_vector = metric
+
+    data = pd.DataFrame()
+
+    for i, metrics_path in enumerate(filenames) :
+        metrics = load_trial_data(Path(metrics_path))
+
+        for j, trial in tqdm(enumerate(metrics)) : 
+
+            if not trial[cfg.bodypart]["trial_success"] or \
+                trial["laser_intensity"] == "NOstim": 
+                continue
+
+            condition = trial["condition"]
+            laser_state = trial["laser_state"]
+            pad_off = trial["pad_off"]
+            value = trial[cfg.bodypart][metric]
+            rat = trial["rat_name"]
+
+            # crop around the pad off
+            val = crop_xy(value, 
+                           start=pad_off - 0.1, 
+                           end=pad_off + 0.4)
+            # val = value
+            relative_time = val["t"] - pad_off
+
+
+            if trial["laser_intensity"] == "0,5mW" or trial["laser_intensity"] == "1mW" : laser_intensity = "low" 
+            else : laser_intensity = "high"
+
+
+            df = pd.DataFrame({
+                "t": round(relative_time, 2),
+                "rat": rat,
+                "rat_laser": rat + "_" + laser_state,
+                "value": val[metric_vector],
+                "condition": condition,
+                "laser_state": laser_state,
+                "laser_intensity": laser_intensity,
+                "id": f"{i}_{j}",
+            })
+
+            data = pd.concat([data, df], ignore_index=True)
+
+    data.to_csv(make_output_path(cfg.paths.inter_rat / f"tendency", f"{metric}_data.csv"))
+
+    return data
+
+
+
+def plot_tendency_per_rat(cfg, data, error_function: str) :
+    from scipy.stats import sem
+    
+    if error_function is None: 
+        error_function = "pi" 
+
+    pal = rat_colorpalette(data)
+
+    g = sns.relplot(
+        kind="line",
+        data=data,
+        col="condition",
+        row="laser_intensity",
+        x="t",
+        y="value",
+        hue="rat_laser",
+        palette=pal,
+        style="laser_state",
+        dashes=dash,
+        row_order=["low", "high"],
+        estimator="mean" ,
+        errorbar=("pi", 50) if error_function == "pi" else None,   
+        # percentile interval (non parametric) https://seaborn.pydata.org/tutorial/error_bars.html
+        # drawstyle="steps-pre"
+    )
+
+
+    for row_i, laser_intensity in enumerate(g.row_names):
+        for col_j, condition in enumerate(g.col_names):
+
+            ax = g.axes[row_i, col_j]
+
+            # Vertical line at pad off
+            ax.axvline(
+                0,
+                color="k",
+                alpha=0.5,
+                lw=0.8,
+                ls="--",
+            )
+
+            # Laser period annotation
+            y = ax.get_ylim()[1] * 0.95
+
+            ax.hlines(
+                y=y,
+                xmin=0.025,
+                xmax=0.325,
+                color=laser_color,
+                linewidth=3
+            )
+
+            ax.text(
+                0.175,
+                y,
+                "Laser period",
+                ha="center",
+                va="bottom",
+                color=laser_color,
+                fontsize=10
+            )
+
+            # Manual SEM shading
+            if error_function == "sem":
+
+                # subset data for this facet
+                facet_df = data[
+                    (data["condition"] == condition) &
+                    (data["laser_intensity"] == laser_intensity)
+                ]
+
+                # do SEM separately for each hue group
+                for (rat, laser_state), sub in facet_df.groupby(["rat", "laser_state"]):
+
+                    grouped = (
+                        sub.groupby("t")["value"]
+                        .agg(
+                            mean="mean",
+                            sem=lambda x: sem(x, nan_policy="omit")
+                        )
+                        .reset_index()
+                        .sort_values("t")
+                    )
+
+                    lower = grouped["mean"] - grouped["sem"]
+                    upper = grouped["mean"] + grouped["sem"]
+
+                    color = pal[f"{rat}_{laser_state}"]
+
+                    ax.fill_between(
+                        grouped["t"].values,
+                        lower.values,
+                        upper.values,
+                        color=color,
+                        alpha=0.20
+                    )
+
+    sns.move_legend(g,
+                    borderpad=1,
+                    loc='upper right', 
+                    facecolor="lightgray")
+
+    return g
+
+
+
+def plot_violin_per_rat(cfg, data: pd.DataFrame, strip: bool = True,
+                           order: list[str] = ["Conti_LaserOff", "Beta_LaserOff", "Conti_LaserOn", "Beta_LaserOn"]) : 
+    from rats_kinematics_utils.analysis.plot_comparative import _trim_extremes_iqr
+
+    pal = rat_colorpalette(data, rat_only=True)
+
+    print(len(data))
+    data_trimmed = _trim_extremes_iqr(data, k=1.5)
+    print(f"\nNumber of removed outliers : {len(data) - len(data_trimmed)}")
+
+    if data_trimmed["condition"].str.contains("NOstim").any() :
+        data_trimmed = data_trimmed.loc[~data_trimmed["condition"].str.contains("NOstim")]
+        data = data.loc[~data["condition"].str.contains("NOstim")]
+
+    g = sns.catplot(
+        kind="violin",
+        data=data_trimmed,
+        row="laser_intensity",
+        row_order=["low", "high"],
+        x="condition",
+        y="value",
+        hue="rat",
+        order=order,
+        hue_order=cfg.inter_rat.rats,
+        palette=pal,
+        legend=True,
+        dodge=True,
+        height=4,
+        aspect=1.6,
+        inner="quartile",   
+        linewidth=1,
+    )
+
+    if strip:
+        for i, intensity in enumerate(["low", "high"]):
+            ax = g.axes[i, 0]
+
+            sub = data_trimmed[data_trimmed["laser_intensity"] == intensity]
+
+            sns.stripplot(
+                data=sub,
+                x="condition",
+                y="value",
+                hue="rat",
+                order=order,
+                hue_order=cfg.inter_rat.rats,
+                palette=pal,
+                marker="X",
+                size=3,
+                alpha=0.7,
+                dodge=True,
+                ax=ax,
+                legend=False,
+            )
+
+
+    count = (
+        data.groupby(["laser_intensity", "condition", "rat"])
+        .size()
+        .reset_index(name="N")
+    )
+
+    x_positions = {cond: i for i, cond in enumerate(order)}
+    rats = list(cfg.inter_rat.rats)
+
+    total_width = 0.8
+    step = total_width / len(rats)
+
+    for i, intensity in enumerate(["low", "high"]):
+
+        ax = g.axes[i, 0]
+
+        sub_count = count[count["laser_intensity"] == intensity]
+
+        ymin, ymax = ax.get_ylim()
+        y_text = ymin + 0.02 * (ymax - ymin)
+
+        for _, row in sub_count.iterrows():
+
+            cond = row["condition"]
+            rat = row["rat"]
+            N = row["N"]
+
+            if cond not in x_positions or rat not in rats:
+                continue
+
+            x = x_positions[cond]
+            j = rats.index(rat)
+
+            x_shifted = x - total_width / 2 + step / 2 + j * step
+
+            ax.text(
+                x_shifted,
+                y_text,
+                f"{N}",
+                ha="center",
+                va="bottom",
+                color="black",
+                fontsize=8,
+                fontweight="bold",
+            )
+    
+    return g.figure
