@@ -17,6 +17,8 @@ src/test.*
 notes.txt
 old_course/
 
+*.mp4
+*.zip
 *.out
 *.logexploration/
 
