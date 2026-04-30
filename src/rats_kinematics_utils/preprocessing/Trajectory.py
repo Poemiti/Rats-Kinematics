@@ -6,12 +6,13 @@ from scipy.signal import find_peaks
 
 class Trajectory:
     def __init__(
-        self,
-        coords: pd.DataFrame,
-        fps: int = 125,
-        cm_per_pixel: float | None = None,
-        lever_position: float | None = None, 
-    ):
+                self,
+                coords: pd.DataFrame,
+                fps: int = 125,
+                frame_width: float = 512,
+                cm_per_pixel: float | None = None,
+                lever_position: float | None = None, 
+            ):
         """
         Parameters
         ----------
@@ -27,6 +28,7 @@ class Trajectory:
         self.dt = 1 / fps
         self.cm_per_pixel = cm_per_pixel
         self.lever_position = lever_position if lever_position is not None else (55, 230)
+        self.frame_width = frame_width  # in pixel
 
     # ------------------- internal helpers -------------------
 
@@ -39,6 +41,21 @@ class Trajectory:
         diffs = coords[["x", "y"]].diff()
         step_dist = np.sqrt((diffs**2).sum(axis=1))
         return self._scale(step_dist)
+    
+    def _cartesian_xy(self, view: str, coords: pd.DataFrame) : 
+        """change to a correct cartesian axis
+        If the camera view is left : 
+            (0, 0) becomes the bottom left corner
+        Elif the camera view is right :
+            (0, 0) becomes the bottom right corner
+        """
+        if view == "left" :  # invert y axis
+            y = self.frame_width - coords["y"]
+            x = coords["x"]
+        else :              # invert both x and y axis
+            y = self.frame_width - coords["y"]
+            x = self.frame_width - coords["x"]
+        return x, y
 
     # ------------------- geometric metrics -------------------
 
@@ -103,7 +120,7 @@ class Trajectory:
                              "velocity": velo})
     
 
-    def relative_mean_speed(self, coords: pd.DataFrame | None = None) -> float: 
+    def relative_mean_speed(self, view: str, coords: pd.DataFrame | None = None) -> float: 
         """
         Relative Average speed = sum(relative distance between eeach points) / duration
         The distance between each point takes into account if the paw goes up or down
@@ -114,9 +131,11 @@ class Trajectory:
         if len(coords) < 2:
             return 0.0
 
+        x, y = self._cartesian_xy(view, coords)
+
         # Cmpute distance between each points
-        dx = coords["x"].diff()
-        dy = coords["y"].diff()
+        dx = x.diff()
+        dy = y.diff()
         dx = self._scale(dx)
         dy = self._scale(dy)
 
@@ -131,7 +150,7 @@ class Trajectory:
         return length / self.duration(coords)
     
 
-    def relative_speed(self, coords: pd.DataFrame | None = None) -> pd.DataFrame: 
+    def relative_speed(self, view: str, coords: pd.DataFrame | None = None) -> pd.DataFrame: 
         """
         Relative speed :
         The distance between each point takes into account if the paw goes up or down
@@ -142,12 +161,15 @@ class Trajectory:
         if len(coords) < 2:
             return pd.DataFrame({"t": [], "velocity": []})
 
-        dx = coords["x"].diff()
-        dy = coords["y"].diff()
+        x, y = self._cartesian_xy(view, coords)
+
+        # Cmpute distance between each points
+        dx = x.diff()
+        dy = y.diff()
         dt = coords["t"].diff()
 
         dx = self._scale(dx)
-        dy = self._scale(-dy)
+        dy = self._scale(dy)
 
         # signed displacement (direction preserved)
         displacement = dx + dy  
@@ -263,3 +285,6 @@ class Trajectory:
                 "t": coords["t"],
                 "distance": distance,
         })
+    
+
+

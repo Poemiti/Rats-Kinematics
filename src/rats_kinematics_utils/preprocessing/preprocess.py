@@ -92,7 +92,7 @@ def check_reward(time_reward) :
 # ------------------------------------------ function for trajectory processing ------------------------------------
 
 
-def crop_xy(xy: pd.DataFrame, start: float, end: float) :  
+def crop_xy(xy: pd.DataFrame, start: float, end: float) -> pd.DataFrame :  
     """
     Crop coordinates from [start : end]
     
