@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 
-import joblib
+import joblib, yaml
 import sys, time
 from tqdm import tqdm
+from datetime import datetime
 
 from rats_kinematics_utils.preprocessing.Trajectory import Trajectory
-from rats_kinematics_utils.core.config import load_config
+from rats_kinematics_utils.preprocessing.BehaviorBox import BehaviorBox
+
+from rats_kinematics_utils.core.config import load_config, match_rule
 from rats_kinematics_utils.core.file_utils import print_analysis_info
 from rats_kinematics_utils.preprocessing.preprocess import check_reward, crop_xy
 
@@ -112,23 +115,42 @@ for file in tqdm(file_to_compute):
             xy_laserOn = None
 
         # compute metrics
-        Traj_full = Trajectory(xy, cm_per_pixel=cfg.cm_per_pixel, lever_position=cfg.lever_position)
-        Traj_pad_off = Trajectory(xy_pad_off, cm_per_pixel=cfg.cm_per_pixel)
+        Traj_full = Trajectory(xy, cm_per_pixel=cfg.cm_per_pixel, lever_position=cfg.lever_position, frame_width=cfg.frame_width_px)
+        Traj_pad_off = Trajectory(xy_pad_off, cm_per_pixel=cfg.cm_per_pixel, frame_width=cfg.frame_width_px)
+        
         
         trial[cfg.bodypart]["average_velocity"] = Traj_pad_off.mean_speed()
         trial[cfg.bodypart]["peak_velocity"] = Traj_pad_off.peak_speed()
         trial[cfg.bodypart]["tortuosity"] = Traj_pad_off.tortuosity()
-        trial[cfg.bodypart]["relative_mean_velocity"] = Traj_pad_off.relative_mean_speed()
+        trial[cfg.bodypart]["relative_mean_velocity"] = Traj_pad_off.relative_mean_speed(view=trial["camera_view"])
         trial[cfg.bodypart]["pre_post_velocity"] = Traj_pad_off.pre_post_velocity(time_pad_off=time_pad_off)
 
         trial[cfg.bodypart]["instant_velocity"] = Traj_full.instant_velocity()
         trial[cfg.bodypart]["acceleration"] = Traj_full.acceleration()
         trial[cfg.bodypart]["lever_distance"] = Traj_full.lever_bodypart_distance()
-        trial[cfg.bodypart]["relative_velocity"] = Traj_full.relative_speed()
+        trial[cfg.bodypart]["relative_velocity"] = Traj_full.relative_speed(view=trial["camera_view"])
 
         trial[cfg.bodypart]["xy_pad_off"] = xy_pad_off
         trial[cfg.bodypart]["xy_laser_on"] = xy_laserOn
         trial[cfg.bodypart]["xy_reward"] = xy_reward
+
+
+        # compute the behavioral metrics
+        with open("ethology_rules.yaml", "r") as f: 
+            etho_rules = yaml.safe_load(f)
+
+        etho_meta = {
+            "view": trial["camera_view"],
+            "month": datetime.fromisoformat(trial["date"]).month,
+        }
+        anchors_position = match_rule(etho_meta, etho_rules)
+
+        Boxes = BehaviorBox(xy_lever=anchors_position["lever"],
+                            xy_pad=anchors_position["pad"],
+                            view=trial["camera_view"],
+                            frame_width=cfg.frame_width_px)
+
+        trial[cfg.bodypart]["xy_etho"] = Boxes.classify_trajectory(xy)
         
     # save updated metadata + metrics and trajectories
     joblib.dump(data, cfg.paths.metrics / f"{filename}.joblib")

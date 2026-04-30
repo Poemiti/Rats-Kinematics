@@ -182,7 +182,8 @@ def inter_rat_metadata_report(cfg, rat_types: list[str], joblib_filenames: list[
                         "stim": [t["stim_location"]],
                         "cue": [t["cue_type"]],
                         "laser": [t["laser_state"]],
-                        "intensity": [t["laser_intensity"]]
+                        "intensity": [t["laser_intensity"]],
+                        "date": [t["date"]]
 
                     }
                 )
@@ -205,19 +206,19 @@ def inter_rat_metadata_report(cfg, rat_types: list[str], joblib_filenames: list[
             break
 
         # plot reports
-        _plot_metadata_report(report, output_dir / f"{r_type}_trial_metadata_report", 
-                              rat_type=r_type)
+        # _plot_metadata_report(report, output_dir / f"{r_type}_trial_metadata_report", 
+        #                       rat_type=r_type)
         
-        _plot_metadata_report(report, output_dir / f"{r_type}_rat_individual_proportion", 
-                              groups=["condition", "rat_name"], 
-                              rat_type=r_type)
+        # _plot_metadata_report(report, output_dir / f"{r_type}_rat_individual_proportion", 
+        #                       groups=["condition", "rat_name"], 
+        #                       rat_type=r_type)
         
-        _plot_metadata_report(report, output_dir / f"{r_type}_rat_proportion", 
-                              groups=["rat_name", "condition", "laser"], 
-                              rat_type=r_type)
+        # _plot_metadata_report(report, output_dir / f"{r_type}_rat_proportion", 
+        #                       groups=["rat_name", "condition", "laser"], 
+        #                       rat_type=r_type)
 
-        _plot_metadata_report(report, output_dir / f"{r_type}_rat_only", 
-                              groups=["rat_name"], 
+        _plot_metadata_report(report, output_dir / f"{r_type}_rat_date", 
+                              groups=["date", "rat_name"], 
                               rat_type=r_type)
 
         noCue_filename = output_dir / f"{r_type}_NoCue_video.csv"

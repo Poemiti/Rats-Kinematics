@@ -429,6 +429,226 @@ def annotate_single_bodypart(video_path: Path,
 
 
 
+
+
+
+def annotate_behavior_box(csv_path, video_path, bodypart_name, output_path, boxes, lever_pos, pad_pos):
+
+    # Load CSV
+    df = pd.read_csv(csv_path, header=[0, 1, 2])
+
+    # clean dataframe
+    df.columns = df.columns.droplevel(0)  # remove scorer row
+    df = df.iloc[1:].reset_index(drop=True)
+
+    if bodypart_name not in df:
+        raise ValueError(f"{bodypart_name} not found in CSV")
+
+    num_frames = len(df)
+
+    # Extract only the selected bodypart
+    x = df[bodypart_name]["x"].to_numpy().astype(int)
+    y = df[bodypart_name]["y"].to_numpy().astype(int)
+    p = df[bodypart_name]["likelihood"].to_numpy()
+
+
+    cap = cv2.VideoCapture(video_path)
+
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+
+    # persistent trajectory canvas (IMPORTANT)
+    traj_overlay = np.zeros((height, width, 3), dtype=np.uint8)
+
+    radius = 3
+    alpha = 1
+    color = np.array([0, 0, 255], dtype=np.uint8)  # red (BGR)
+
+    def circle_offsets(radius):
+        y, x = np.ogrid[-radius:radius+1, -radius:radius+1]
+        mask = x**2 + y**2 <= radius**2
+        ys, xs = np.where(mask)
+        return np.column_stack((xs - radius, ys - radius))
+
+    circle_coords = circle_offsets(radius)
+
+    @numba.njit
+    def stamp_circle(frame, cx, cy, prob, coords, color, threshold):
+        if prob < threshold or cx < 0 or cy < 0:
+            return
+
+        h, w, _ = frame.shape
+
+        for k in range(coords.shape[0]):
+            xi = cx + coords[k, 0]
+            yi = cy + coords[k, 1]
+
+            if 0 <= xi < w and 0 <= yi < h:
+                frame[yi, xi, 0] = color[0]
+                frame[yi, xi, 1] = color[1]
+                frame[yi, xi, 2] = color[2]
+
+
+    def draw_alpha_rect(img, pt1, pt2, color, alpha):
+        overlay = img.copy()
+
+        cv2.rectangle(overlay, pt1, pt2, color, -1)
+        cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0, img)
+
+
+    i = 0
+
+    while True:
+        ret, frame = cap.read()
+        if not ret or i >= num_frames:
+            break
+
+        overlay = frame.copy()
+
+        # ---------------------------------------------------
+        # static UI overlays
+        # ---------------------------------------------------
+        cv2.drawMarker(overlay, lever_pos, (100, 0, 255), cv2.MARKER_TILTED_CROSS, 8, 3)
+        cv2.drawMarker(overlay, pad_pos, (100, 0, 255), cv2.MARKER_TILTED_CROSS, 8, 3)
+
+        reach = boxes["reach"]
+        open = boxes["open"]
+        grasp = boxes["grasp"]
+        press = boxes["press"]
+
+        draw_alpha_rect(overlay, reach[0:2], reach[2:4], (0, 255, 255), 0.2)  # reach
+        draw_alpha_rect(overlay, open[0:2], open[2:4], (0, 165, 255), 0.2)    # open
+        draw_alpha_rect(overlay, grasp[0:2], grasp[2:4], (255, 0, 0), 0.2)    # grasp
+        draw_alpha_rect(overlay, press[0:2], press[2:4], (0, 255, 0), 0.2)    # press
+
+        # frame = cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0)
+        frame = cv2.addWeighted(overlay, 1.0, frame, 1.0, 0)
+
+        # ---------------------------------------------------
+        # trajectory stamping (FIXED)
+        # ---------------------------------------------------
+        stamp_circle(
+            traj_overlay,
+            int(x[i]),
+            int(y[i]),
+            float(p[i]),
+            circle_coords,
+            color,
+            0.1,
+        )
+
+        output_frame = cv2.addWeighted(frame, 1.0, traj_overlay, 1.0, 0)
+
+        out.write(output_frame)
+
+        i += 1
+
+    cap.release()
+    out.release()
+
+    # print("Saved:", output_path)
+
+
+
+
+
+
+
+def annotate_traj_with_laser(coords: pd.DataFrame, 
+                             laser_on: bool, 
+                             time_pad_off: float, 
+                             video_path: Path, 
+                             output_path: Path): 
+    
+    num_frames = len(coords)
+    frame_laser_start = int((time_pad_off + 0.025) * 125)
+    frame_laser_end = int((time_pad_off + 0.3) * 125)
+
+    # Extract only the selected bodypart
+    x = coords["x"].to_numpy().astype(int)
+    y = coords["y"].to_numpy().astype(int)
+
+    # Video IO
+    cap = cv2.VideoCapture(str(video_path))
+    fps = int(cap.get(cv2.CAP_PROP_FPS))
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    out = cv2.VideoWriter(
+        str(output_path), fourcc, fps, (frame_width, frame_height)
+    )
+
+    # Fixed color for the trajectory
+    radius=3
+    default_color = np.array([255, 0, 0], dtype=np.uint8)  # Blue (BGR)
+    laserOFF_color = np.array([0, 0, 255], dtype=np.uint8)  # Red (BGR) -> Laser Off
+    laserON_color = np.array([0, 255, 0], dtype=np.uint8)  # Green (BGR) -> Laser On
+
+    # Persistent overlay (trajectory)
+    overlay = np.zeros((frame_height, frame_width, 3), dtype=np.uint8)
+
+    # Circle offsets
+    def circle_offsets(radius):
+        y, x = np.ogrid[-radius:radius+1, -radius:radius+1]
+        mask = x**2 + y**2 <= radius**2
+        ys, xs = np.where(mask)
+        return np.column_stack((xs - radius, ys - radius))
+
+    circle_coords = circle_offsets(radius)
+
+    @numba.njit
+    def stamp_circle(frame, cx, cy, circle_coords, color):
+        h, w, _ = frame.shape
+
+        for k in range(circle_coords.shape[0]):
+            xi = cx + circle_coords[k, 0]
+            yi = cy + circle_coords[k, 1]
+
+            if 0 <= xi < w and 0 <= yi < h:
+                frame[yi, xi, 0] = color[0]
+                frame[yi, xi, 1] = color[1]
+                frame[yi, xi, 2] = color[2]
+
+    # Main loop
+    for i in range(num_frames):
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        if laser_on and frame_laser_start <= i <= frame_laser_end: 
+            color = laserON_color
+        elif not laser_on and frame_laser_start <= i <= frame_laser_end: 
+            color = laserOFF_color
+        else : 
+            color = default_color
+
+        # Stamp onto the persistent overlay
+        stamp_circle(
+            overlay,
+            x[i],
+            y[i],
+            circle_coords,
+            color,
+        )
+
+        # Combine original frame + trajectory (overlay)
+        output_frame = cv2.addWeighted(frame, 1.0, overlay, 1.0, 0)
+
+        out.write(output_frame)
+
+    cap.release()
+    out.release()
+
+
+
+
+
 if __name__ == "__main__" : 
 
     print("no main")
