@@ -18,8 +18,8 @@ import rats_kinematics_utils.analysis.behavior_plot as bp
 
 # ---------------------------- setup ----------------------------------
 
-TRAJ = True
-VELO = False
+TRAJ = False
+VELO = True
 BEHA = False
 
 
@@ -34,14 +34,14 @@ filenames = sorted(filenames)
 if TRAJ : 
     data_traj = bp.preprocess_trajectory_behavior(cfg, filenames)
 
-    # bp.plot_time_in_behavior_space(cfg, data_traj)
+    bp.plot_time_in_behavior_space(cfg, data_traj)
     bp.plot_trajectory_behavior(cfg, data_traj, crop=True)
 
 
 # --------------------------------- velocity and y pos analysis ----------------------------------
 
 if VELO : 
-    data_velocity = bp.preprocess_velocity_behavior(cfg, filenames)
+    data_velocity = bp.preprocess_metric_behavior(cfg, filenames)
 
     bp.plot_metric_behavior(cfg, data_velocity, metric="velocity")
     bp.plot_metric_behavior(cfg, data_velocity, metric="y_pos")

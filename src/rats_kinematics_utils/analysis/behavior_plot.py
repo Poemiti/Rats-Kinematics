@@ -233,7 +233,9 @@ def preprocess_trial_behavior(cfg, filenames: list[Path]):
 
 
 
-def preprocess_velocity_behavior(cfg, filenames: list[Path]):
+def preprocess_metric_behavior(cfg, filenames: list[Path]):
+    n=0
+    data = pd.DataFrame()
 
     for i, metrics_path in enumerate(filenames) :
         metrics = load_trial_data(Path(metrics_path))
@@ -335,93 +337,92 @@ def preprocess_trajectory_behavior(cfg, filenames: list[Path]):
 
 def plot_metric_behavior(cfg, data: pd.DataFrame, metric: str) :
 
-    g = sns.FacetGrid(
-            data=data,
-            col="condition",
-            row="laser_state",
-            margin_titles=True,
-            height=4,      # size of each facet
-            aspect=1.2     # width/height ratio
-    )
+    for laser_intensity, subset in data.groupby("laser_intensity"): 
 
-    g.map_dataframe(
-            sns.lineplot, 
-            x="relative_time",
-            y=metric, 
-            estimator=None, 
-            errorbar=None,
-            color="black",
-            alpha=0.05,
-            units="id",
-            sort=False,
-            lw=.8
-    )
+        g = sns.FacetGrid(
+                data=subset,
+                col="condition",
+                row="laser_state",
+                margin_titles=True,
+                height=4,      # size of each facet
+                aspect=1.2     # width/height ratio
+        )
 
-
-    g.map_dataframe(
-            sns.scatterplot, 
-            x="relative_time",
-            y=metric, 
-            hue="velocity_behavior",
-            palette=behavior_palette,
-            s=8
-    )
-
-    laser_color = "royalblue"
-
-    for row_i, laser_intensity in enumerate(g.row_names):
-        for col_j, condition in enumerate(g.col_names):
-
-            ax = g.axes[row_i, col_j]
-            ax.set_ylim(-5, 80)
-
-            # Vertical line at pad off
-            ax.axvline(
-                0,
-                color="k",
-                alpha=0.5,
-                lw=0.8,
-                ls="--",
-            )
+        g.map_dataframe(
+                sns.lineplot, 
+                x="relative_time",
+                y=metric, 
+                estimator=None, 
+                errorbar=None,
+                color="black",
+                alpha=0.05,
+                units="id",
+                sort=False,
+                lw=.8
+        )
 
 
-            # Laser period annotation
-            y = ax.get_ylim()[1] * 0.95
+        g.map_dataframe(
+                sns.scatterplot, 
+                x="relative_time",
+                y=metric, 
+                hue="velocity_behavior",
+                palette=behavior_palette,
+                s=8
+        )
 
-            ax.hlines(
-                y=y,
-                xmin=0.025,
-                xmax=0.325,
-                color=laser_color,
-                linewidth=3
-            )
+        laser_color = "royalblue"
 
-            ax.text(
-                0.175,
-                y,
-                "Laser period",
-                ha="center",
-                va="bottom",
-                color=laser_color,
-                fontsize=10
-            )
+        for row_i, laser_state in enumerate(g.row_names):
+            for col_j, condition in enumerate(g.col_names):
 
-    g.add_legend(title="Behavior")
-    g.set_titles(row_template="{row_name}", col_template="{col_name}")
-    g.figure.subplots_adjust(top=0.88)
-    g.figure.suptitle(f"Behavioral analysis of the {metric} during the laser stimulation of rat {cfg.rat_name}\nNumber of trials: {len(data.groupby('id'))}", ha='center')
+                ax = g.axes[row_i, col_j]
+                # ax.set_ylim(-5, 80)
 
-    sns.move_legend(g,
-                        borderpad=1,
-                        loc='upper right', 
-                        facecolor="lightgray")
-
-    g.savefig(make_output_path(cfg.paths.analysis / f"behavior", f"{metric}.png"))
+                # Vertical line at pad off
+                ax.axvline(
+                    0,
+                    color="k",
+                    alpha=0.5,
+                    lw=0.8,
+                    ls="--",
+                )
 
 
-    fig = g.figure
-    fig.tight_layout()
-    plt.show()
+                # Laser period annotation
+                y = ax.get_ylim()[1] * 0.95
+
+                ax.hlines(
+                    y=y,
+                    xmin=0.025,
+                    xmax=0.325,
+                    color=laser_color,
+                    linewidth=3
+                )
+
+                ax.text(
+                    0.175,
+                    y,
+                    "Laser period",
+                    ha="center",
+                    va="bottom",
+                    color=laser_color,
+                    fontsize=10
+                )
+
+        g.add_legend(title="Behavior")
+        g.set_titles(row_template="{row_name}", col_template="{col_name}")
+        g.figure.subplots_adjust(top=0.88)
+        g.figure.suptitle(f"Behavioral analysis of the {metric} during the laser stimulation of rat {cfg.rat_name}\nNumber of trials: {len(subset.groupby('id'))}", ha='center')
+
+        sns.move_legend(g,
+                            borderpad=1,
+                            loc='upper right', 
+                            facecolor="lightgray")
+
+        g.savefig(make_output_path(cfg.paths.analysis / f"behavior" / "metrics_across_time", f"{metric}_{laser_intensity}.png"))
+
+        plt.close()
 
 
 
