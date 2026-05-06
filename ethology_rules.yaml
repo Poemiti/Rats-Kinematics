@@ -4,13 +4,36 @@ default: {lever: [55, 230], pad: [315, 355]}
 # ----------------------------------- LEFT ----------------------------------------
 rules:
   - when:
-      rat: 351, 317, 525
+      rat: 531
+      view: left
+    value: {lever: [55, 230], pad: [315, 355]}
+
+  - when:
+      rat: 317
+      view: left
+    value: {lever: [55, 230], pad: [315, 355]}
+
+  - when:
+      rat: 525
       view: left
     value: {lever: [55, 230], pad: [315, 355]}
 
 # may
   - when:
-      rat: 531, 517, 525(05/27)
+      rat: 517
+      month: 5
+      view: left
+    value: {lever: [80, 210], pad: [353, 335]}
+
+  - when:
+      rat: 531
+      month: 5
+      view: left
+    value: {lever: [80, 210], pad: [353, 335]}
+
+  - when:
+      rat: 525
+      day: 27
       month: 5
       view: left
     value: {lever: [80, 210], pad: [353, 335]}
@@ -34,14 +57,26 @@ rules:
 # ----------------------------------- RIGHT ----------------------------------------
 
   - when:
-      rat: 351, 317
+      rat: 317
+      view: right
+    value: {lever: [457, 230], pad: [197, 355]}
+
+  - when:
+      rat: 531
       view: right
     value: {lever: [457, 230], pad: [197, 355]}
 
 # may
   - when:
       rat: 521
-      date: 21, 22
+      day: 21
+      month: 5
+      view: right
+    value: {lever: [445, 205], pad: [170, 345]}
+
+  - when:
+      rat: 521
+      day: 22
       month: 5
       view: right
     value: {lever: [445, 205], pad: [170, 345]}
@@ -49,7 +84,14 @@ rules:
 
   - when:
       rat: 521
-      date: 24, 28
+      day: 28
+      month: 5
+      view: right
+    value: {lever: [445, 210], pad: [175, 335]}
+
+  - when:
+      rat: 521
+      day: 24
       month: 5
       view: right
     value: {lever: [445, 210], pad: [175, 335]}
