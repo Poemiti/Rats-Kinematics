@@ -451,6 +451,111 @@ def plot_trial_success_distri(cfg, filenames) :
 
 
 
+def plot_manual_clip_success_distri(cfg, filenames) : 
+
+    all_state = {"keep_all" : 0,
+                "keep_laser": 0,
+                "crossed_paw": 0, 
+                "None": 0}
+
+    for session in filenames :
+        
+        for trial in joblib.load(session) :
+            body = trial.get(cfg.bodypart)
+
+            if body is None : 
+                print("BODY NONE")
+                continue
+
+            success = body.get("trial_success")
+            state = body.get("behavior_state")
+
+            if not success : 
+                continue
+
+            if state is None : 
+                print(trial["name"])
+                all_state["None"] += 1
+                continue
+
+            all_state[state] += 1
+
+    df = pd.DataFrame({
+        "State": list(all_state.keys()),
+        "Count": list(all_state.values())
+    })
+
+    order = ["crossed_paw", "keep_laser", "keep_all", "None"]
+
+    fig = plt.figure(figsize=(8, 5))
+
+    ax = sns.barplot(
+        data=df,
+        x="State",
+        y="Count",
+        palette="pastel",
+        order=order,
+    )
+
+    for container in ax.containers:
+        ax.bar_label(container, fmt='%d')
+
+    ax.set_title(f"Clip behavioral success distribution of Rat {cfg.rat_name}")
+    ax.set_xlabel("State")
+    ax.set_ylabel("Number of Trials")
+
+    plt.tight_layout()
+    fig.savefig(make_output_path(cfg.paths.analysis, f"{cfg.rat_name}_manual_clip_success.png"))
+    plt.show()
+    plt.close()
+
+
+
+
+
+def clip_behavior_rate(cfg, joblib_filenames) : 
+
+    output_dir = cfg.paths.analysis
+
+    rat_types = ["CHR", "CTRL"]
+
+    for r_type in rat_types : 
+
+        report = pd.DataFrame()
+
+        for file in joblib_filenames:
+            trials = joblib.load(file)
+
+            for t in trials: 
+
+                if t['rat_type'] != r_type: 
+                    continue
+
+                view_num = "H001" if t["camera_view"]=="left" else "H002"
+
+                df = pd.DataFrame({
+                        "condition": [t["condition"]],
+                        "view": [t["camera_view"] + f" ({view_num})"],
+                        "stim": [t["stim_location"]],
+                        "cue": [t["cue_type"]],
+                        "laser": [t["laser_state"]],
+                        "intensity": [t["laser_intensity"]],
+                        "behavior_state": t[cfg.bodypart]["behavior_state"]
+                    }
+                )
+                report = pd.concat([report, df], ignore_index=True)
+
+        print("True number of trials :", len(report))
+            
+        if len(report) == 0  : 
+            print(f"\”No data for this rat type : {r_type}")
+            break
+
+        # plot report
+        _plot_metadata_report(report, output_dir / f"{r_type}_{cfg.rat_name}_clip_behavior_rate",
+                              groups=["condition", "laser", "intensity", "behavior_state"],
+                              rat_name=cfg.rat_name, rat_type=r_type)
+
 
 
 

@@ -133,12 +133,18 @@ def load_config(path: str = "config.yaml") -> Config:
 
 
 def match_rule(meta, rules):
-    value = rules.get("default")
+    best_match = None
+    best_score = -1
 
     for rule in rules.get("rules"):
         conditions = rule.get("when", {})
     
         if all(meta.get(k) == v for k, v in conditions.items()):
-            value = rule["value"]
+            print(f"COMPLET CONDITION: {conditions}")
+            score = len(conditions)
+            if score > best_score:
+                best_match = rule["value"]
+                best_score = score
 
-    return value
+    return best_match if best_match else rules.get("default")
+
