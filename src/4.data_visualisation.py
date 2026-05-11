@@ -42,6 +42,11 @@ print("\nPlotting the distribution of clip success\n")
 pp.plot_manual_clip_success_distri(cfg, filenames)
 
 
+print("\nAnnotating video to verify Behavior Boxes\n")
+pp.verify_behavior_box(cfg, filenames)
+
+
+
 ###############################
 
 ### verify if all the condition are right

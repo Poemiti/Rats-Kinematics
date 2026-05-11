@@ -1030,3 +1030,69 @@ def plot_trial_failure_reason_detail(cfg, joblib_filenames) :
                             report, 
                             output_dir / f"{cfg.rat_name}_{r_type}_failure_reason_detail")
         
+
+
+
+from rats_kinematics_utils.preprocessing.BehaviorBox import BehaviorBox
+from rats_kinematics_utils.analysis.video_annotation import annotate_behavior_box, annotate_traj_with_laser
+from rats_kinematics_utils.core.file_utils import load_trial_data
+from rats_kinematics_utils.core.config import match_rule
+
+
+def verify_behavior_box(cfg, filenames): 
+
+    for file in filenames: 
+
+        data = load_trial_data(file)
+        session_name = file.stem
+
+        for i, trial in enumerate(data): 
+
+            if i == 0 :
+                old_trial_session = trial["filename_clips"].stem[:-22]
+
+            if not trial[cfg.bodypart]["trial_success"] : 
+                continue
+
+            trial_name = trial["filename_clips"].stem
+            trial_session = trial_name[:-22]
+
+            if trial_session == old_trial_session : 
+                continue
+
+            print(f"\n{trial_session}")
+            old_trial_session = trial_session
+            
+
+            # compute the behavioral metrics
+            with open("ethology_rules.yaml", "r") as f: 
+                etho_rules = yaml.safe_load(f)
+
+            etho_meta = {
+                "rat": int(trial["rat_name"][1:]),
+                "day": trial["date"].day,
+                "condition": trial["condition"],
+                "view": trial["camera_view"],
+                "month": trial["date"].month,
+            }
+            anchors_position = match_rule(etho_meta, etho_rules)
+            
+            print(etho_meta)
+            for anchor, pos in anchors_position.items(): 
+                print(anchor, pos)
+
+            Boxes = BehaviorBox(xy_lever=anchors_position["lever"],
+                                xy_pad=anchors_position["pad"],
+                                view=trial["camera_view"],
+                                frame_width=cfg.frame_width_px)
+            
+            boxes_dict = Boxes.boxes
+            output_path = make_output_path(cfg.paths.analysis / session_name / "annotated_behavior_clip", f"{trial_name}_annotated.mp4")
+
+            annotate_behavior_box(csv_path=trial["filename_coords"],
+                                video_path=trial["filename_clips"],
+                                bodypart_name=cfg.bodypart,
+                                boxes=boxes_dict,
+                                lever_pos=anchors_position["lever"],
+                                pad_pos=anchors_position["pad"],
+                                output_path=output_path)

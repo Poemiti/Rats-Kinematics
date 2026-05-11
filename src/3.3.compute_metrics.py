@@ -11,6 +11,7 @@ from rats_kinematics_utils.preprocessing.BehaviorBox import BehaviorBox
 from rats_kinematics_utils.core.config import load_config, match_rule
 from rats_kinematics_utils.core.file_utils import print_analysis_info
 from rats_kinematics_utils.preprocessing.preprocess import check_reward, crop_xy
+from rats_kinematics_utils.preprocessing.plot_preprocess import verify_behavior_box
 
 # ------------------------------------ setup ---------------------------------------
 
@@ -161,4 +162,9 @@ process_time = (end - start) # sec
 
 print(f"\nNumber of trial processed: {nb}")
 print(f"Computation time: {process_time:.2f} s")
+
+
+print("\nAnnotating video to verify Behavior Boxes\n")
+verify_behavior_box(cfg, file_to_compute)
+
 print("Done !")
