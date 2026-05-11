@@ -139,6 +139,8 @@ class View(tk.Tk):
                 self.after_id = self.video_label.after(30, update_frame)
 
         update_frame()
+
+        update_frame()
         self.info.config(text=f"{name}\n{index+1}/{total}")
 
 
