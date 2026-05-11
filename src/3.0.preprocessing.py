@@ -32,6 +32,10 @@ for file in filenames:
         print(f"\nNOT THE RIGHT VIEW (!={cfg.view}):", file.stem, "\n")
         continue
 
+    if not cfg.rat_type in  (file.stem).split("_") : 
+        print(f"\nNOT THE RIGHT RAT TYPE (!={cfg.rat_type}):", file.stem, "\n")
+        continue
+
     session = joblib.load(file)
 
     already_preprocess = all(

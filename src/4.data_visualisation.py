@@ -18,34 +18,34 @@ print_analysis_info(cfg, "Preprocessing")
 filenames = list((cfg.paths.metrics).glob("*.joblib"))
 yaml_filenames = list((cfg.paths.raw_clips).rglob("*.yaml"))
 
-print("\nPlotting behavior rate\n")
-pp.clip_behavior_rate(cfg, filenames)
+# print("\nPlotting behavior rate\n")
+# pp.clip_behavior_rate(cfg, filenames)
 
-sys.exit()
+# sys.exit()
 
-print("\nPlotting likelihood distribution of all bodyparts\n")
-pp.plot_likelihood_distribution(cfg, yaml_filenames)
+# print("\nPlotting likelihood distribution of all bodyparts\n")
+# pp.plot_likelihood_distribution(cfg, yaml_filenames)
 
-print("\nPlotting metadata report\n")
-pp.metadata_report(cfg, yaml_filenames)
+# print("\nPlotting metadata report\n")
+# pp.metadata_report(cfg, yaml_filenames)
 
-print("\nPlotting likelihood across frame of each trials\n")
-pp.plot_likelihood_across_frames(cfg, filenames)
+# print("\nPlotting likelihood across frame of each trials\n")
+# pp.plot_likelihood_across_frames(cfg, filenames)
 
-print("\nPlotting the distribution of the failure reason\n")
-pp.plot_trial_failure_reason(cfg, filenames)
+# print("\nPlotting the distribution of the failure reason\n")
+# pp.plot_trial_failure_reason(cfg, filenames)
 
-print("\nPlotting the distribution of the failure reason DETAIL VERSION\n")
-pp.plot_trial_failure_reason_detail(cfg, filenames)
+# print("\nPlotting the distribution of the failure reason DETAIL VERSION\n")
+# pp.plot_trial_failure_reason_detail(cfg, filenames)
 
-print("\nPlotting the distribution of clip success\n")
-pp.plot_manual_clip_success_distri(cfg, filenames)
+# print("\nPlotting the distribution of clip success\n")
+# pp.plot_manual_clip_success_distri(cfg, filenames)
 
 
 print("\nAnnotating video to verify Behavior Boxes\n")
 pp.verify_behavior_box(cfg, filenames)
 
-
+sys.exit()
 
 ###############################
 

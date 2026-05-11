@@ -23,21 +23,13 @@ rules:
       rat: 517
       month: 5
       view: left
-    value: {lever: [80, 210], pad: [353, 335]}
+    value: {lever: [80, 205], pad: [353, 335]}
 
   - when:
       rat: 531
       month: 5
       view: left
     value: {lever: [80, 210], pad: [353, 335]}
-
-  - when:
-      rat: 525
-      day: 27
-      month: 5
-      view: left
-    value: {lever: [80, 210], pad: [353, 335]}
-
 
   - when:
       rat: 525
@@ -52,6 +44,15 @@ rules:
       condition: NOstim
       view: left
     value: {lever: [80, 210], pad: [328, 340]}
+
+  - when:
+      rat: 525
+      day: 27
+      month: 5
+      view: left
+    value: {lever: [80, 205], pad: [353, 335]}
+
+
 
 
 # ----------------------------------- RIGHT ----------------------------------------

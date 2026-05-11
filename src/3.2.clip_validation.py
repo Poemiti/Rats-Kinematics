@@ -6,7 +6,7 @@ import sys
 from rats_kinematics_utils.core.config import load_config
 from rats_kinematics_utils.core.file_utils import print_analysis_info
 from rats_kinematics_utils.preprocessing.preprocess import check_times
-from rats_kinematics_utils.preprocessing.plot_preprocess import plot_manual_clip_success_distri
+from rats_kinematics_utils.preprocessing.plot_preprocess import plot_manual_clip_success_distri, make_clip_annotation_for_validation
 from rats_kinematics_utils.gui.clip_validator import load_clip_validator
 
 """
@@ -39,10 +39,11 @@ for file in filenames:
         print(f"\nNOT THE RIGHT VIEW (!={cfg.view}):", file.stem, "\n")
         continue
 
-    metadata = joblib.load(file)
+    if not cfg.rat_type in  (file.stem).split("_") : 
+        print(f"\nNOT THE RIGHT RAT TYPE (!={cfg.rat_type}):", file.stem, "\n")
+        continue
 
-    for trial in metadata: 
-        print(trial[cfg.bodypart].get("behavior_state"))
+    metadata = joblib.load(file)
 
     already_validated = all(
          trial[cfg.bodypart].get("behavior_state") is not None
@@ -81,9 +82,18 @@ if res == "q" or res=="Q":
     print("quit!")
     sys.exit()
 
+# -------------------------------- annotate videos ------------------------------------
+
+if (cfg.paths.processed / "annotated_clips").exists() :
+    res = input("\nClips are already annotated, do you want to overwrite ? (y/n): ")
+    if res == "y" : 
+        make_clip_annotation_for_validation(cfg, file_to_validate)
+
+# ------------------------------- validator ---------------------------------------
+
 validation_data = {}
 
-for file in filenames:
+for file in file_to_validate:
     val = load_clip_validator(cfg.paths.processed / "annotated_clips" / file.stem)
     if not val : 
         break
@@ -95,7 +105,7 @@ for k, v in validation_data.items():
     print(k, v)
 print(f"\n.joblib files Outputs :")
 
-for i, file in enumerate(filenames): 
+for i, file in enumerate(file_to_validate): 
 
     filename = file.stem
     print(filename)

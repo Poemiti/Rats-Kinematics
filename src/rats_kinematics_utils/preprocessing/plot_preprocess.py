@@ -1042,6 +1042,7 @@ from rats_kinematics_utils.core.config import match_rule
 def verify_behavior_box(cfg, filenames): 
 
     for file in filenames: 
+        trial_session_list = set()
 
         data = load_trial_data(file)
         session_name = file.stem
@@ -1057,27 +1058,14 @@ def verify_behavior_box(cfg, filenames):
             trial_name = trial["filename_clips"].stem
             trial_session = trial_name[:-22]
 
-            if trial_session == old_trial_session : 
+            if trial_session in trial_session_list : 
                 continue
 
             print(f"\n{trial_session}")
-            old_trial_session = trial_session
+            trial_session_list.add(trial_session)
             
-
-            # compute the behavioral metrics
-            with open("ethology_rules.yaml", "r") as f: 
-                etho_rules = yaml.safe_load(f)
-
-            etho_meta = {
-                "rat": int(trial["rat_name"][1:]),
-                "day": trial["date"].day,
-                "condition": trial["condition"],
-                "view": trial["camera_view"],
-                "month": trial["date"].month,
-            }
-            anchors_position = match_rule(etho_meta, etho_rules)
+            anchors_position = trial["behavior_anchors"]
             
-            print(etho_meta)
             for anchor, pos in anchors_position.items(): 
                 print(anchor, pos)
 
@@ -1096,3 +1084,37 @@ def verify_behavior_box(cfg, filenames):
                                 lever_pos=anchors_position["lever"],
                                 pad_pos=anchors_position["pad"],
                                 output_path=output_path)
+            
+
+
+
+
+
+
+def make_clip_annotation_for_validation(cfg, filenames) : 
+
+    for file in filenames: 
+
+        data = load_trial_data(file)
+        session_name = file.stem
+        print(session_name)
+
+        for trial in data: 
+
+            if not trial[cfg.bodypart]["trial_success"] : 
+                continue
+
+            trial_name = trial["filename_clips"].stem
+            time_pad_off = trial["pad_off"]
+            laser_on = True if trial["laser_state"] == "LaserOn" else False
+            coords = trial[cfg.bodypart]["xy_raw"]
+            output_video_path = make_output_path(cfg.paths.processed / "annotated_clips" / session_name, f"{trial_name}_annotated.mp4")
+
+            annotate_traj_with_laser(coords, 
+                                        laser_on,
+                                        time_pad_off,
+                                        trial["filename_clips"],
+                                        output_video_path)
+
+
+

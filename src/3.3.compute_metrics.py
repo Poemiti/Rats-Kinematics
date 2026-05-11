@@ -36,6 +36,10 @@ for file in filenames:
         print(f"\nNOT THE RIGHT VIEW (!={cfg.view}):", file.stem, "\n")
         continue
 
+    if not cfg.rat_type in  (file.stem).split("_") : 
+        print(f"\nNOT THE RIGHT RAT TYPE (!={cfg.rat_type}):", file.stem, "\n")
+        continue
+
     metadata = joblib.load(file)
 
     is_validated = all(
@@ -140,10 +144,15 @@ for file in tqdm(file_to_compute):
         with open("ethology_rules.yaml", "r") as f: 
             etho_rules = yaml.safe_load(f)
 
+        date = datetime.fromisoformat(trial["date"])
         etho_meta = {
-            "view": trial["camera_view"],
-            "month": datetime.fromisoformat(trial["date"]).month,
-        }
+                "rat": int(trial["rat_name"][1:]),
+                "day": date.day,
+                "condition": trial["condition"],
+                "view": trial["camera_view"],
+                "month": date.month,
+            }
+        
         anchors_position = match_rule(etho_meta, etho_rules)
 
         Boxes = BehaviorBox(xy_lever=anchors_position["lever"],
@@ -152,6 +161,7 @@ for file in tqdm(file_to_compute):
                             frame_width=cfg.frame_width_px)
 
         trial[cfg.bodypart]["xy_etho"] = Boxes.classify_trajectory(xy)
+        trial["behavior_anchors"] = anchors_position
         
     # save updated metadata + metrics and trajectories
     joblib.dump(data, cfg.paths.metrics / f"{filename}.joblib")

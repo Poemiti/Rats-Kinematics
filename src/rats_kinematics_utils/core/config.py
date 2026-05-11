@@ -140,9 +140,8 @@ def match_rule(meta, rules):
         conditions = rule.get("when", {})
     
         if all(meta.get(k) == v for k, v in conditions.items()):
-            print(f"COMPLET CONDITION: {conditions}")
             score = len(conditions)
-            if score > best_score:
+            if score >= best_score:             # >= because we follow the order of the rules document, and the last one has higher priority
                 best_match = rule["value"]
                 best_score = score
 
