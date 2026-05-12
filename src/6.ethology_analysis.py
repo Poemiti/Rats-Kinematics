@@ -19,9 +19,9 @@ import rats_kinematics_utils.analysis.behavior_plot as bp
 # ---------------------------- setup ----------------------------------
 
 TRAJ = False
-VELO = True
+VELO = False
 BEHA = False
-
+PROBA = True
 
 cfg = load_config()
 print_analysis_info(cfg, "Ethology Analysis")
@@ -34,7 +34,7 @@ filenames = sorted(filenames)
 if TRAJ : 
     data_traj = bp.preprocess_trajectory_behavior(cfg, filenames)
 
-    bp.plot_time_in_behavior_space(cfg, data_traj)
+    # bp.plot_time_in_behavior_space(cfg, data_traj)
     bp.plot_trajectory_behavior(cfg, data_traj, crop=True)
 
 
@@ -54,17 +54,21 @@ if BEHA :
     biggest_condition, _ = bp.get_biggest_condition(cfg, filenames)
 
     data_behavior = data_behavior.merge(time_stamps, on="id", how="left")
-    bp.ethogram_by_condition(cfg, data_behavior, biggest_condition, align_by="pad_off")
-    bp.ethogram_by_condition(cfg, data_behavior, biggest_condition, align_by="first_reach")
-    bp.ethogram_by_condition(cfg, data_behavior, biggest_condition, align_by="first_open")
-    bp.ethogram_by_condition(cfg, data_behavior, biggest_condition, align_by="first_grasp")
-    bp.ethogram_by_condition(cfg, data_behavior, biggest_condition, align_by="first_press")
-
+    # bp.ethogram_by_condition(cfg, data_behavior, biggest_condition, align_by="pad_off")
+    # bp.ethogram_by_condition(cfg, data_behavior, biggest_condition, align_by="first_reach")
+    # bp.ethogram_by_condition(cfg, data_behavior, biggest_condition, align_by="first_open")
+    # bp.ethogram_by_condition(cfg, data_behavior, biggest_condition, align_by="first_grasp")
+    # bp.ethogram_by_condition(cfg, data_behavior, biggest_condition, align_by="first_press")
 
     # bp.behavior_proba_all(cfg, data_behavior )
     bp.behavior_proba_per_condition(cfg, data_behavior, align_by="pad_off")
 
 
+
+if PROBA: 
+
+    data_proba = bp.preprocess_proba(cfg, filenames)
+    bp.behavior_proba_per_behavior(cfg, data_proba)
 
 
 print("Done !")

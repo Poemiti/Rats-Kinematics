@@ -9,6 +9,8 @@ import joblib
 import time
 import seaborn as sns
 import sys
+import matplotlib.colors as mcolors
+
 
 from rats_kinematics_utils.core.config import load_config
 from rats_kinematics_utils.core.file_utils import print_analysis_info, make_output_path, load_trial_data
@@ -18,6 +20,25 @@ from rats_kinematics_utils.preprocessing.preprocess import crop_xy
 
 custom_params = {"axes.spines.right": False, "axes.spines.top": False}
 sns.set_theme("paper", style="ticks", rc=custom_params, palette="pastel")
+
+def on_off_palette(data) : 
+    # define colors of each rats
+    cond = data["condition"].unique()
+    cond = sorted(cond)
+    base_colors = sns.color_palette("tab10", len(cond))
+
+    def lighten(color, amount=0.45):
+        c = mcolors.to_rgb(color)
+        return tuple(1 - amount*(1 - x) for x in c)
+
+    pal = {}
+
+    for c, base in zip(cond, base_colors):
+        pal[f"{c}_LaserOn"] = base
+        pal[f"{c}_LaserOff"] = lighten(base)
+
+    return pal
+
 
 LASER_COLOR = "coral"
 LINE_COLOR = "gray"
@@ -44,9 +65,13 @@ LASER_STATE_PALETTE = {
     "LaserOff" :"slategray",
     "LaserOn" : "tomato"
 }
+CONDITION_PALETTE = {
+    "Beta": "forestgreen",
+    "Conti": "orange" 
+}
 
 dash = {
-    "LaserOff" : (4,2),
+    "LaserOff" : (2,2),
     "LaserOn" : ""
 }
 
@@ -112,14 +137,14 @@ def add_pad_off(ax, x_pad_off, label: str = 'Pad off') -> None:
 
 
 
-def add_laser_period(ax, y, x_min, x_max, color: str, show_limits: bool=False) -> None: 
+def add_laser_period(ax, y, x_min, x_max, color: str= "red", show_limits: bool=False) -> None: 
 
     ax.hlines(
         y=y,
         xmin=x_min ,
         xmax=x_max,
         color=color,
-        linewidth=4,
+        linewidth=5,
         label="Laser period",
         clip_on=False
     )
@@ -166,6 +191,7 @@ def get_biggest_condition(cfg, filenames: list[Path]) -> int:
     return biggest_condition, bad_trials
 
 
+# -------------------------------------------------------- preprocessing --------------------------------------
 
 
 def preprocess_trial_behavior(cfg, filenames: list[Path]): 
@@ -318,6 +344,7 @@ def preprocess_trajectory_behavior(cfg, filenames: list[Path]):
                     "y": y,
                     "t": etho["t"],
                     "behavior": etho["label"],
+                    "pad_off": trial["pad_off"],
 
                     "condition": condition,
                     "laser_state": laser_state,
@@ -333,6 +360,54 @@ def preprocess_trajectory_behavior(cfg, filenames: list[Path]):
     return data
 
 
+
+
+def preprocess_proba(cfg, filenames): 
+    data = pd.DataFrame()
+    n = 0 
+
+    for i, metrics_path in enumerate(filenames) :
+        metrics = load_trial_data(Path(metrics_path))
+
+        for j, trial in enumerate(metrics) : 
+
+            if not trial[cfg.bodypart]["trial_success"] or \
+                trial["date"].month == 5 or \
+                trial[cfg.bodypart]["behavior_state"] != "keep_all": 
+                continue
+            
+            # extract information 
+            condition = trial["condition"]
+            laser_state = trial["laser_state"]
+
+            if trial["laser_intensity"] == "0,5mW" or trial["laser_intensity"] == "1mW" : laser_intensity = "low" 
+            elif trial["laser_intensity"] == "NOstim" : laser_intensity = "NOstim" 
+            else : laser_intensity = "high"
+
+            etho = trial[cfg.bodypart]["xy_etho"]
+            pad_off = trial["pad_off"]
+
+            # behavior time line
+            etho_labels = etho["label"].map(behavior_to_int).to_list()
+
+            df_beha = pd.DataFrame({
+                "t" : etho["t"] - pad_off,
+                "behavior": etho_labels,
+                "id": n,
+
+                "condition": condition,
+                "laser_state": laser_state,
+                "laser_intensity": laser_intensity,
+            })
+            data = pd.concat([data, df_beha], ignore_index=True)
+
+            n+=1
+
+    return data
+
+
+
+# -------------------------------------------------------- plotting --------------------------------------
 
 
 def plot_metric_behavior(cfg, data: pd.DataFrame, metric: str) :
@@ -431,7 +506,7 @@ def plot_trajectory_behavior(cfg, data, crop: bool = False):
     
     # crop 
     if crop: 
-        data = data[(data["t"] >= 0.3) & (data["t"] <= 1)] 
+        data = data[(data["t"] >= 0.3) & (data["t"] <= data["pad_off"] + 0.325)] 
         crop_name = "_cropped"
     else : 
         crop_name = ""
@@ -838,3 +913,126 @@ def behavior_proba_per_condition(cfg, behavior, align_by: str = "pad_off"):
         plt.savefig(make_output_path(cfg.paths.analysis / "behavior" / "probability" / f"ci-50", f"behavior_probability_{condition}.png"))
 
         plt.close()
+
+
+
+
+
+
+def behavior_proba_per_behavior(cfg, data): 
+
+    print(data)
+    data["t"] = data["t"].round(3)
+
+    pal = on_off_palette(data)
+
+    for state, beha in int_to_behavior.items():
+
+        if state == 0 : 
+            continue
+
+        records = []
+
+        for (cond, l_state, l_intensity), subset in data.groupby(["condition", "laser_state", "laser_intensity"]): 
+
+            mat_subset = subset.pivot(
+                index="t",
+                columns="id",
+                values="behavior"
+            ).sort_index()
+
+
+            arr = mat_subset.to_numpy()
+            time_values = mat_subset.index.to_numpy()
+
+            prob_per_id = (arr == state) 
+
+            df_prob_per_id = pd.DataFrame(
+                prob_per_id,
+                index=time_values,
+                columns=mat_subset.columns
+            )
+
+            df_prob_per_id = (
+                df_prob_per_id
+                .reset_index(names="t")
+                .melt(
+                    id_vars="t",
+                    var_name="id",
+                    value_name="probability"
+                )
+            )
+
+            df_prob_per_id["behavior"] = beha
+            df_prob_per_id["condition"] = cond + "_" + l_state
+            df_prob_per_id["laser state"] = l_state
+            df_prob_per_id["l_intensity"] = l_intensity
+
+            records.append(df_prob_per_id)
+
+        df_records = pd.concat(records, ignore_index=True)
+        print(df_records)
+
+        # count the number of trials
+        n_trials = df_records["id"].nunique()
+        trial_counts = (df_records.groupby("l_intensity")["id"].nunique())
+
+        # plot
+        g = sns.relplot(
+            kind="line",
+            data=df_records,
+            col="l_intensity",
+            col_order=["low", "high"],
+
+            x="t",
+            y="probability",
+            hue="condition",
+            style="laser state",
+
+            palette=pal,
+            dashes=dash,
+            estimator="mean",
+            errorbar=("ci", 50),
+        )
+
+        axes = np.ravel(g.axes)
+
+        # add pad off, laser period and labels
+        for ax in axes:
+
+            ax.set_ylim(-0.05, 1.05)
+            ax.set_xlim(-0.2, 3)
+
+            add_pad_off(ax, 0)
+            add_laser_period(ax, y=1.01, x_min=0.025, x_max=0.325, color="royalblue")
+
+            ax.set_xlabel("Time (s)")
+            ax.set_ylabel("Probability")
+
+        # add laser intensity label and counts
+        for ax, intensity in zip(g.axes.flat, g.col_names):
+
+            n = trial_counts.get(intensity, 0)
+            ax.set_title(f"{intensity} - N trials: {n}" )
+
+
+        g.figure.suptitle(
+            f"{beha} probability over time\n"
+            f"Rat: {cfg.rat_name} - "
+            f"Trials: {n_trials}",
+        )
+
+        g.tight_layout()
+        output = make_output_path(cfg.paths.analysis / "behavior" / "probability" / "per_behavior",f"probability_{beha}.png")
+
+        g.savefig(output, dpi=300)
+        plt.close(g.figure)
+
+
+
+
+
+
+
+
+

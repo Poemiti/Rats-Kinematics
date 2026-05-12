@@ -11,6 +11,8 @@ from rats_kinematics_utils.core.config import load_config
 from rats_kinematics_utils.gui.figures_maker import load_figure_maker
 from rats_kinematics_utils.analysis.statistics import compute_statistics, save_stat_results
 
+CONTEXT= "paper"
+pc.set_plot_style(CONTEXT)
 
 # ------------------------------------ setup ---------------------------------------
 
@@ -57,7 +59,7 @@ if plot_choice["plot_stacked_velocity"] :
         ax.set_ylim(-10, 150)
 
         fig = ax.figure
-        fig.savefig(make_output_path(output_fig_dir, f"stacked_velocity.png"))
+        fig.savefig(make_output_path(output_fig_dir, f"stacked_velocity_{CONTEXT}.png"))
 
         if SHOW : 
             plt.show()
@@ -102,7 +104,7 @@ if plot_choice["plot_stacked_Yposition"] :
         ax.set_xlim(-0.1, 0.5)
 
         fig = ax.figure
-        fig.savefig(make_output_path(output_fig_dir, f"stacked_Y_position_3sec.png"))
+        fig.savefig(make_output_path(output_fig_dir, f"stacked_Y_position_3sec_{CONTEXT}.png"))
 
         if SHOW : 
             plt.show()
@@ -150,7 +152,7 @@ if plot_choice["plot_stacked_trajectories"] :
         ax.invert_xaxis()
 
         fig = ax.figure
-        fig.savefig(make_output_path(output_fig_dir, f"stacked_trajectories.png"))
+        fig.savefig(make_output_path(output_fig_dir, f"stacked_trajectories_{CONTEXT}.png"))
 
         if SHOW : 
             plt.show()
@@ -189,7 +191,7 @@ if plot_choice["plot_stacked_acceleration"] :
         ax.set_ylim(-10, 10000)
 
         fig = ax.figure
-        fig.savefig(make_output_path(output_fig_dir, f"stacked_acceleration.png"))
+        fig.savefig(make_output_path(output_fig_dir, f"stacked_acceleration_{CONTEXT}.png"))
 
         if SHOW : 
             plt.show()
@@ -245,7 +247,7 @@ def _make_violin(cfg, data, metric) :
     
     fig.set_label(metric)
     fig.suptitle(f"{metric} distribution for rat {cfg.rat_name}")
-    fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution", f"violin_{metric}_left_CHR_L1.png"))
+    fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution", f"violin_{metric}_left_CHR_L1_{CONTEXT}.png"))
 
     if SHOW : 
         plt.show()
@@ -303,14 +305,14 @@ def _make_violin_stat(data, metric) :
 
         fig = pc._plot_violin_statistic(cfg, data, significant_pair, strip=True)
         fig.suptitle(f"{metric} distribution for rat {cfg.rat_name}")
-        fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution",  f"stat_violin_{metric}_{cfg.rat_name}.png"))
+        fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution",  f"stat_violin_{metric}_{cfg.rat_name}_{CONTEXT}.png"))
     else : 
 
         print("\nNo Mann Whitney came significant !")
 
         fig = pc._plot_violin_statistic(cfg, data, statistics=None, strip=True)
         fig.suptitle(f"{metric} distribution for rat {cfg.rat_name}")
-        fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution",  f"stat_violin_{metric}_{cfg.rat_name}.png"))
+        fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution",  f"stat_violin_{metric}_{cfg.rat_name}_{CONTEXT}.png"))
 
     if SHOW : 
             plt.show()
@@ -351,7 +353,7 @@ def _make_displot(cfg, data, metric) :
     g.figure.subplots_adjust(top=0.88)
     g.set_axis_labels(metric, "Density (KDE)")
     g.set_titles(col_template="{col_name}", row_template="{row_name}")
-    g.savefig(make_output_path(cfg.paths.analysis / "violin_distribution", f"displot_{metric}.png"))
+    g.savefig(make_output_path(cfg.paths.analysis / "violin_distribution", f"displot_{metric}_{CONTEXT}.png"))
 
     if SHOW : 
         plt.show()
@@ -410,7 +412,7 @@ if plot_choice['plot_velocity_over_cliptime'] :
     final_data.to_csv(make_output_path(cfg.paths.analysis / "metrics_by_sessions", f"data.csv"))
 
     fig = pc.plot_velocity_over_cliptime(final_data)
-    fig.savefig(make_output_path(cfg.paths.analysis / "metrics_by_sessions", f"velocity_overclip_LeftHemi_CHR_L1.png"))
+    fig.savefig(make_output_path(cfg.paths.analysis / "metrics_by_sessions", f"velocity_overclip_LeftHemi_CHR_L1_{CONTEXT}.png"))
 
     if SHOW : 
         plt.show()
@@ -469,13 +471,13 @@ if plot_choice["plot_velocity_at_padOff"] :
     fig_violin = pc._metric_at_padOff(data, type=forme)
     fig_violin.set_titles(col_template="{col_name}", row_template="{row_name}")
     fig_violin.set_axis_labels("", "Velocity (cm.s$^{-1}$)")
-    fig_violin.savefig(make_output_path(cfg.paths.analysis / "metrics_at_padOff_laseron", f"velocity_{forme}_at_padoff_only.png"))
+    fig_violin.savefig(make_output_path(cfg.paths.analysis / "metrics_at_padOff_laseron", f"velocity_{forme}_at_padoff_only_{CONTEXT}.png"))
 
     forme = "boxplot"  # boxplot or violin
     fig_box = pc._metric_at_padOff(data, type=forme)
     fig_box.set_titles(col_template="{col_name}", row_template="{row_name}")
     fig_box.set_axis_labels("", "Velocity (cm.s$^{-1}$)")
-    fig_box.savefig(make_output_path(cfg.paths.analysis / "metrics_at_padOff_on", f"velocity_{forme}_at_padoff_only.png"))
+    fig_box.savefig(make_output_path(cfg.paths.analysis / "metrics_at_padOff_on", f"velocity_{forme}_at_padoff_only_{CONTEXT}.png"))
 
     
 
@@ -523,7 +525,7 @@ if plot_choice["plot_pre_post_velocity"] :
     # g.set_axis_labels("post laser", "pre laser")
     # g.set_titles(col_template="{col_name}")
 
-    # g.savefig(make_output_path(cfg.paths.analysis / f"pre_post_velocity_scatterplot", f"test_pre_post_velocity_scatterplot.png"))
+    # g.savefig(make_output_path(cfg.paths.analysis / f"pre_post_velocity_scatterplot", f"test_pre_post_velocity_scatterplot_{CONTEXT}.png"))
 
     # if SHOW : 
     #     plt.show()
@@ -599,7 +601,7 @@ if plot_choice["plot_velocity_tendency"] :
         g.set_axis_labels("Time (sec)", "Velocity (cm.s$^{-1}$)")
         g.set_titles(col_template="{col_name}", row_template="{row_name}")
 
-        g.savefig(make_output_path(cfg.paths.analysis / f"tendency", f"velocity_tendency_{error_name}.png"))
+        g.savefig(make_output_path(cfg.paths.analysis / f"tendency", f"velocity_tendency_{error_name}_{CONTEXT}.png"))
 
         if SHOW : 
             plt.show()
@@ -619,7 +621,7 @@ if plot_choice["plot_acceleration_tendency"]:
         g.set_axis_labels("Time (sec)", "Acceleration (cm.s$^{-2}$)")
         g.set_titles(col_template="{col_name}", row_template="{row_name}")
 
-        g.savefig(make_output_path(cfg.paths.analysis / f"tendency", f"acceleration_tendency_{error_name}.png"))
+        g.savefig(make_output_path(cfg.paths.analysis / f"tendency", f"acceleration_tendency_{error_name}_{CONTEXT}.png"))
 
         if SHOW : 
             plt.show()
@@ -640,7 +642,7 @@ if plot_choice["plot_relative_velocity"]:
         g.set_axis_labels("Time (sec)", "Velocity (cm.s$^{-1}$)")
         g.set_titles(col_template="{col_name}", row_template="{row_name}")
 
-        g.savefig(make_output_path(cfg.paths.analysis / f"tendency", f"relative_velocity_{error_name}.png"))
+        g.savefig(make_output_path(cfg.paths.analysis / f"tendency", f"relative_velocity_{error_name}_{CONTEXT}.png"))
 
         if SHOW : 
             plt.show()
@@ -665,11 +667,63 @@ if plot_choice["plot_lever_distance"] :
 
         # g.set(ylim=(0, 6))
 
-        g.savefig(make_output_path(cfg.paths.analysis / f"lever_distance", f"lever_distance_{error_name}.png"))
+        g.savefig(make_output_path(cfg.paths.analysis / f"lever_distance", f"lever_distance_{error_name}_{CONTEXT}.png"))
 
     if SHOW : 
         plt.show()
     plt.close()
+
+
+
+
+
+
+if plot_choice["plot_rewarded_bar"]: 
+
+    from tqdm import tqdm
+    from rats_kinematics_utils.preprocessing.preprocess import crop_xy
+
+    data = pd.DataFrame()
+    n=0
+
+    for i, metrics_path in enumerate(filenames) :
+        metrics = load_trial_data(Path(metrics_path))
+
+        for j, trial in tqdm(enumerate(metrics)) : 
+
+            if not trial[cfg.bodypart]["trial_success"] : 
+                continue
+
+            condition = trial["condition"]
+            laser_state = trial["laser_state"]
+            pad_off = trial["pad_off"]
+
+            if trial["laser_intensity"] == "0,5mW" or trial["laser_intensity"] == "1mW" : laser_intensity = "low" 
+            elif trial["laser_intensity"] == "NOstim" : laser_intensity = "NOstim" 
+            else : laser_intensity = "high"
+
+            reward = trial["reward"] is not None
+
+            df = pd.DataFrame({
+                "rewarded": [reward],
+                "cond_state": [condition + "_" + laser_state],
+                "condition": [condition],
+                "laser_state": [laser_state],
+                "laser_intensity": [laser_intensity],
+                "id": [n],
+            })
+
+            data = pd.concat([data, df], ignore_index=True)
+
+            n+=1
+
+    g = pc.plot_rewarded_bar(data)
+    g.set_titles(row_template="{row_name}", col_template="{col_name}")
+    g.figure.subplots_adjust(top=0.88)
+    g.figure.suptitle(f"Rewarded trial proportion on of rat {cfg.rat_name}\nNumber of trials: {len(data.groupby('id'))}", ha='center')
+    g.savefig(make_output_path(cfg.paths.analysis / f"reward", f"rewarded_proportion_{CONTEXT}.png"))
+    g.savefig(make_output_path(cfg.paths.analysis / f"reward", f"rewarded_proportion_{CONTEXT}.svg"))
+
 
 
 

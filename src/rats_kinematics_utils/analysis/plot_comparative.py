@@ -4,13 +4,44 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from statannotations.Annotator import Annotator
+import matplotlib.colors as mcolors
 
 
 # ==================================== display hyperparameter ===========================================
 
+def set_plot_style(context):
 
-custom_params = {"axes.spines.right": False, "axes.spines.top": False}
-sns.set_theme("paper", style="ticks", rc=custom_params, palette="pastel")
+    custom_params = {
+        "axes.spines.right": False,
+        "axes.spines.top": False,
+    }
+
+    sns.set_theme(
+        context=context,
+        style="ticks",
+        palette="pastel",
+        rc=custom_params,
+    )
+
+
+def on_off_palette(data) : 
+    # define colors of each rats
+    cond = data["condition"].unique()
+    cond = sorted(cond)
+    base_colors = sns.color_palette("tab10", len(cond))
+
+    def lighten(color, amount=0.45):
+        c = mcolors.to_rgb(color)
+        return tuple(1 - amount*(1 - x) for x in c)
+
+    pal = {}
+
+    for c, base in zip(cond, base_colors):
+        pal[f"{c}_LaserOn"] = base
+        pal[f"{c}_LaserOff"] = lighten(base)
+
+    return pal
+
 
 LASER_COLOR = "coral"
 LINE_COLOR = "gray"
@@ -34,6 +65,7 @@ LASER_STATE_MARKER = {
 }
 
 LASER_STATE_PALETTE = {
+    "NOstim": "slategray",
     "LaserOff" :"slategray",
     "LaserOn" : "tomato"
 }
@@ -975,3 +1007,65 @@ def plot_relative_velocity(data, error_function, show_zero):
 
 def plot_lever_distance(data, error_function) : 
     return _plot_tendency(data, error_function)
+
+
+
+
+
+
+
+
+
+
+
+def plot_rewarded_bar(data): 
+
+    count = (
+        data
+        .groupby(
+            ["laser_intensity", "condition", "laser_state"]
+        )
+        .size()
+        .reset_index(name="n")
+    )
+
+    count["proportion"] = (
+        count
+        .groupby(["laser_intensity"])["n"]
+        .transform(lambda x: ((x / x.sum()) * 100).round(1))
+    )
+
+    count["cond_state"] = (count["condition"]+ "_"+ count["laser_state"])
+    print(count)
+
+    g = sns.catplot(
+        kind="bar",
+        data=count,
+        
+        col="laser_intensity",
+        col_order=["low", "high"],
+
+        y="proportion",
+        x="condition",
+        hue="laser_state",
+        palette=LASER_STATE_PALETTE,
+    )
+
+    for ax, (_, subdf) in zip(g.axes.flat, count.groupby("laser_intensity")):
+
+        for container in ax.containers:
+
+            labels = []
+
+            for bar, (_, row) in zip(container, subdf.iterrows()):
+                
+                labels.append(f"{row['proportion']:.1f}%\n(n: {row['n']})")
+
+            ax.bar_label(
+                container,
+                labels=labels,
+            )
+        ax.set_ylabel("proportion (%)")
+        ax.set_ylim(0, 100)
+
+    return g

@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 
 import sys
+from pathlib import Path
 import pandas as pd
 
 import rats_kinematics_utils.preprocessing.plot_preprocess as pp
 
 from rats_kinematics_utils.core.config import load_config
-from rats_kinematics_utils.core.file_utils import dataframe_report, make_output_path
+from rats_kinematics_utils.core.file_utils import dataframe_report, make_output_path, load_trial_data
 import rats_kinematics_utils.analysis.inter_rat as ir
 import rats_kinematics_utils.analysis.plot_comparative as pc
+
 
 # ------------------------------------ setup ---------------------------------------
 
@@ -122,81 +124,127 @@ elif res not in ["y", "n", "Y", "N"] :
 
 ################# normal statistics
 
-# merged laserOff
-comparisons = [
-            # conti vs beta
-            ("Conti.low",  "Beta.low"),
-            ("Conti.high", "Beta.high"),
+# # merged laserOff
+# comparisons = [
+#             # conti vs beta
+#             ("Conti.low",  "Beta.low"),
+#             ("Conti.high", "Beta.high"),
 
-            # low vs high
-            ("LaserOff.high", "Conti.high"),
-            ("LaserOff.high",  "Beta.high"),
-            ("LaserOff.low",    "Beta.low"),
-            ("LaserOff.low",   "Conti.low"),
+#             # low vs high
+#             ("LaserOff.high", "Conti.high"),
+#             ("LaserOff.high",  "Beta.high"),
+#             ("LaserOff.low",    "Beta.low"),
+#             ("LaserOff.low",   "Conti.low"),
 
-            # condition high vs condition low
-            ("Conti.low", "Conti.high"),
-            ("Beta.low",  "Beta.high"),
+#             # condition high vs condition low
+#             ("Conti.low", "Conti.high"),
+#             ("Beta.low",  "Beta.high"),
 
-            # Beta high ON vs Conti low ON 
-            # (because conti low is suppose to be as damagefull as the beta high)
-            ("Beta.high", "Conti.low")
-        ]
+#             # Beta high ON vs Conti low ON 
+#             # (because conti low is suppose to be as damagefull as the beta high)
+#             ("Beta.high", "Conti.low")
+#         ]
 
-print(f"\n ------ computing statistics on average velocity ------\n")
-ir.plot_statistics(cfg, file_to_process_list, "average_velocity", comparisons, 
-                   merge_laserOff=True, per_rats=True)
+# print(f"\n ------ computing statistics on average velocity ------\n")
+# ir.plot_statistics(cfg, file_to_process_list, "average_velocity", comparisons, 
+#                    merge_laserOff=True, per_rats=True)
+
+# # print(f"\n ------ computing statistics on tortuosity ------\n")
+# # ir.plot_statistics(cfg, file_to_process_list, "tortuosity", comparisons, merge_laserOff=True)
+
+
+# sys.exit()
+
+
+# comparisons = [
+#             # Conti vs Beta
+#             ("Conti_LaserOff.low",  "Beta_LaserOff.low"),
+#             ("Conti_LaserOff.high", "Beta_LaserOff.high"),
+#             ("Conti_LaserOn.low",   "Beta_LaserOn.low"),
+#             ("Conti_LaserOn.high",  "Beta_LaserOn.high"),
+
+#             # Off vs On
+#             ("Conti_LaserOff.low",  "Conti_LaserOn.low"),
+#             ("Conti_LaserOff.high", "Conti_LaserOn.high"),
+#             ("Beta_LaserOff.low",   "Beta_LaserOn.low"),
+#             ("Beta_LaserOff.high",  "Beta_LaserOn.high"),
+
+#             # low vs high
+#             ("Beta_LaserOff.low",   "Beta_LaserOff.high"),
+#             ("Beta_LaserOn.low",    "Beta_LaserOn.high"),
+#             ("Conti_LaserOff.low",  "Conti_LaserOff.high"),
+#             ("Conti_LaserOn.low",   "Conti_LaserOn.high"),
+
+#             # Beta high ON vs Conti low ON 
+#             # (because conti low is suppose to be as damagefull as the beta high)
+#             ("Beta_LaserON.high", "Conti_LaserON.low")
+#         ]
+
+# print(f"\n ------ computing statistics on average velocity ------\n")
+# ir.plot_statistics(cfg, file_to_process_list, "average_velocity", comparisons, rat_proportion)
 
 # print(f"\n ------ computing statistics on tortuosity ------\n")
-# ir.plot_statistics(cfg, file_to_process_list, "tortuosity", comparisons, merge_laserOff=True)
+# ir.plot_statistics(cfg, file_to_process_list, "tortuosity", comparisons, rat_proportion)
 
 
-sys.exit()
+# # ################### permutation
+
+# n_perm = 100000
+
+# for metric in ["average_velocity", "tortuosity"] :
+
+#     print("="*60)
+#     print(f"\nSize effect of LOW laser intensity, metric={metric} :")
+#     ir.plot_permutation(cfg, file_to_process_list, metric, "low", n_perm)
+
+#     print("="*60)
+#     print(f"\nSize effect of HIGH laser intensity, metric={metric} :")
+#     ir.plot_permutation(cfg, file_to_process_list, metric, "high", n_perm)
 
 
-comparisons = [
-            # Conti vs Beta
-            ("Conti_LaserOff.low",  "Beta_LaserOff.low"),
-            ("Conti_LaserOff.high", "Beta_LaserOff.high"),
-            ("Conti_LaserOn.low",   "Beta_LaserOn.low"),
-            ("Conti_LaserOn.high",  "Beta_LaserOn.high"),
-
-            # Off vs On
-            ("Conti_LaserOff.low",  "Conti_LaserOn.low"),
-            ("Conti_LaserOff.high", "Conti_LaserOn.high"),
-            ("Beta_LaserOff.low",   "Beta_LaserOn.low"),
-            ("Beta_LaserOff.high",  "Beta_LaserOn.high"),
-
-            # low vs high
-            ("Beta_LaserOff.low",   "Beta_LaserOff.high"),
-            ("Beta_LaserOn.low",    "Beta_LaserOn.high"),
-            ("Conti_LaserOff.low",  "Conti_LaserOff.high"),
-            ("Conti_LaserOn.low",   "Conti_LaserOn.high"),
-
-            # Beta high ON vs Conti low ON 
-            # (because conti low is suppose to be as damagefull as the beta high)
-            ("Beta_LaserON.high", "Conti_LaserON.low")
-        ]
-
-print(f"\n ------ computing statistics on average velocity ------\n")
-ir.plot_statistics(cfg, file_to_process_list, "average_velocity", comparisons, rat_proportion)
-
-print(f"\n ------ computing statistics on tortuosity ------\n")
-ir.plot_statistics(cfg, file_to_process_list, "tortuosity", comparisons, rat_proportion)
 
 
-# ################### permutation
+data = pd.DataFrame()
+n=0
 
-n_perm = 100000
+for i, metrics_path in enumerate(file_to_process_list) :
+    metrics = load_trial_data(Path(metrics_path))
 
-for metric in ["average_velocity", "tortuosity"] :
+    for j, trial in enumerate(metrics) : 
 
-    print("="*60)
-    print(f"\nSize effect of LOW laser intensity, metric={metric} :")
-    ir.plot_permutation(cfg, file_to_process_list, metric, "low", n_perm)
+        if not trial[cfg.bodypart]["trial_success"] or trial["laser_intensity"] == "NOstim": 
+            continue
 
-    print("="*60)
-    print(f"\nSize effect of HIGH laser intensity, metric={metric} :")
-    ir.plot_permutation(cfg, file_to_process_list, metric, "high", n_perm)
+        condition = trial["condition"]
+        laser_state = trial["laser_state"]
+        pad_off = trial["pad_off"]
+
+        if trial["laser_intensity"] == "0,5mW" or trial["laser_intensity"] == "1mW" : laser_intensity = "low" 
+        elif trial["laser_intensity"] == "NOstim" : laser_intensity = "NOstim" 
+        else : laser_intensity = "high"
+
+        reward = trial["reward"] is not None
+
+        df = pd.DataFrame({
+            "rewarded": [reward],
+            "cond_state": [condition + "_" + laser_state],
+            "condition": [condition],
+            "laser_state": [laser_state],
+            "laser_intensity": [laser_intensity],
+            "id": [n],
+        })
+
+        data = pd.concat([data, df], ignore_index=True)
+
+        n+=1
+
+g = pc.plot_rewarded_bar(data)
+g.set_titles(row_template="{row_name}", col_template="{col_name}")
+g.figure.subplots_adjust(top=0.88)
+g.figure.suptitle(f"Rewarded trial proportion on of rat {cfg.inter_rat.rats}\nNumber of trials: {len(data.groupby('id'))}", ha='center')
+g.savefig(make_output_path(cfg.paths.inter_rat / f"reward", f"rewarded_proportion.png"))
+g.savefig(make_output_path(cfg.paths.inter_rat / f"reward", f"rewarded_proportion.svg"))
 
 
+
+print("Done !")
