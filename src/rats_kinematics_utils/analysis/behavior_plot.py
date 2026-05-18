@@ -168,33 +168,23 @@ def add_laser_period(ax, y, x_min, x_max, color: str= "red", show_limits: bool=F
 
 
 
-def get_biggest_condition(cfg, filenames: list[Path]) -> int: 
-    bad_trials = {}
-    biggest_condition = 0
+def get_biggest_condition(cfg, data) -> str:
 
-    for i, metrics_path in enumerate(filenames) :
-        metrics = load_trial_data(Path(metrics_path))
-        bad_trials[metrics_path.stem] = 0
+    count = (
+        data.groupby("condition")["id"]
+        .nunique()
+    )
 
-        for j, trial in enumerate(metrics) : 
+    biggest_condition = count.idxmax()
+    n_trials = count.max()
 
-            if not trial[cfg.bodypart]["trial_success"] or \
-                trial["date"].month == 5 or \
-                trial[cfg.bodypart]["behavior_state"] != "keep_all": 
-                bad_trials[metrics_path.stem] += 1
-                continue
-
-        nb_good_trials = len(metrics) - bad_trials[metrics_path.stem]
-        if nb_good_trials > biggest_condition : 
-            biggest_condition = nb_good_trials
-
-    return biggest_condition, bad_trials
+    return int_to_condition[biggest_condition], n_trials
 
 
 # -------------------------------------------------------- preprocessing --------------------------------------
 
 
-def preprocess_trial_behavior(cfg, filenames: list[Path]): 
+def preprocess_trial_behavior(cfg, filenames: list[Path], remove_may: bool= True): 
 
     behavior = pd.DataFrame()
     time_stamps = pd.DataFrame()
@@ -207,8 +197,10 @@ def preprocess_trial_behavior(cfg, filenames: list[Path]):
         for j, trial in enumerate(metrics) : 
 
             if not trial[cfg.bodypart]["trial_success"] or \
-                trial["date"].month == 5 or \
-                trial[cfg.bodypart]["behavior_state"] != "keep_all": 
+                trial[cfg.bodypart].get("behavior_state", "keep_all") != "keep_all": 
+                continue
+
+            if remove_may and trial["date"].month == 5 : 
                 continue
             
             # extract information 
@@ -247,7 +239,7 @@ def preprocess_trial_behavior(cfg, filenames: list[Path]):
                 "pad_off": [pad_off],
                 "first_reach": [first_reach["t"][0]],
                 "first_open": [first_open["t"][0] if not first_open.empty else 0],
-                "first_grasp": [first_grasp["t"][0]],
+                "first_grasp": [first_grasp["t"][0] if not first_press.empty else 0],
                 "first_press": [first_press["t"][0] if not first_press.empty else 0],
             })
             time_stamps = pd.concat([time_stamps, df_time], ignore_index=True)
@@ -270,7 +262,7 @@ def preprocess_metric_behavior(cfg, filenames: list[Path]):
 
             if not trial[cfg.bodypart]["trial_success"] or \
                 trial["date"].month == 5 or \
-                trial[cfg.bodypart]["behavior_state"] != "keep_all": 
+                trial[cfg.bodypart].get("behavior_state", "keep_all") != "keep_all": 
                 continue
             
             condition = trial["condition"]
@@ -325,7 +317,7 @@ def preprocess_trajectory_behavior(cfg, filenames: list[Path]):
 
             if not trial[cfg.bodypart]["trial_success"] or \
                 trial["date"].month == 5 or \
-                trial[cfg.bodypart]["behavior_state"] != "keep_all": 
+                trial[cfg.bodypart].get("behavior_state", "keep_all") != "keep_all": 
                 continue
             
             condition = trial["condition"]
@@ -362,7 +354,7 @@ def preprocess_trajectory_behavior(cfg, filenames: list[Path]):
 
 
 
-def preprocess_proba(cfg, filenames): 
+def preprocess_proba(cfg, filenames, remove_may: bool = True, reward: str= "both"): 
     data = pd.DataFrame()
     n = 0 
 
@@ -372,9 +364,17 @@ def preprocess_proba(cfg, filenames):
         for j, trial in enumerate(metrics) : 
 
             if not trial[cfg.bodypart]["trial_success"] or \
-                trial["date"].month == 5 or \
-                trial[cfg.bodypart]["behavior_state"] != "keep_all": 
+                trial[cfg.bodypart].get("behavior_state", "keep_all") != "keep_all": 
                 continue
+
+            if remove_may and trial["date"].month == 5: 
+                continue
+
+            if reward == "reward_only" and trial["reward"] is None: 
+                continue
+            elif reward == "non_reward_only" and trial["reward"] is not None: 
+                continue
+
             
             # extract information 
             condition = trial["condition"]
@@ -716,7 +716,7 @@ def ethogram_by_condition(cfg, behavior, biggest_condition, align_by: str = "pad
 
         # set limits
         lim_min = np.argmin(np.abs(time_values)) - 125
-        lim_max = np.argmin(np.abs(time_values - 3))
+        lim_max = np.argmin(np.abs(time_values - 2))
 
         # set ticks
         ax.set_xticks(tick_idx)
@@ -734,14 +734,16 @@ def ethogram_by_condition(cfg, behavior, biggest_condition, align_by: str = "pad
         if align_by == "pad_off": 
             laser_start = np.argmin(np.abs(time_values - 0.025))
             laser_end   = np.argmin(np.abs(time_values - 0.325))
-            add_laser_period(ax, ymax-1, laser_start, laser_end, color="red", show_limits=True)
+            add_laser_period(ax, biggest_condition, laser_start, laser_end, color="red", show_limits=True)
 
         ax.legend(loc="upper left")
 
-        plt.suptitle(f"Ethogram across frames for rat {cfg.rat_name}\nCondition: {condition}, Number of trials: {len(subset.groupby('id'))}", y=0.98)
+        plt.suptitle(f"Ethogram across frames for rat {cfg.inter_rat.rats}\nCondition: {condition}, Number of trials: {len(subset.groupby('id'))}", y=0.98)
         plt.tight_layout()
 
-        plt.savefig(make_output_path(cfg.paths.analysis / "behavior" / f"ethogram" / f"_align_to_{align_by}", f"ethogram_{condition}.png"))
+        plt.savefig(make_output_path(cfg.paths.inter_rat / "behavior" / f"ethogram" / f"_align_to_{align_by}", f"ethogram_{condition}.png"))
+        plt.savefig(make_output_path(cfg.paths.inter_rat / "behavior" / f"ethogram" / f"_align_to_{align_by}", f"ethogram_{condition}.svg"))
+
         plt.close()
 
 
@@ -893,27 +895,27 @@ def behavior_proba_per_condition(cfg, behavior, align_by: str = "pad_off"):
         #         alpha=0.3
         #     )
 
-        ax.set_ylim(-0.05, 1)
-        ax.set_ybound(-0.05, 1)
+        ax.set_ylim(-0.02, 1)
+        ax.set_ybound(-0.02, 1)
 
-        ax.set_xlim(-1, 3)
-        ax.set_xbound(-1, 3)
+        ax.set_xlim(-0.2, 2)
+        ax.set_xbound(-0.2, 2)
 
 
         add_pad_off(ax, 0)
         add_laser_period(ax, y=1, x_min=0.025, x_max=0.325, color="red", show_limits=True)
 
-        ax.legend()
+        # ax.legend(loc="upper right")
 
         plt.xlabel("time (s)")
         plt.ylabel("Probability")
-        plt.title(f"Behavior probability over time of rat {cfg.rat_name}\nCondition: {condition} - Number of trial: {len(subset.groupby('id'))}")
+        plt.title(f"Behavior probability over time of rat {cfg.inter_rat.rats}\nCondition: {condition} - Number of trial: {len(subset.groupby('id'))}")
         plt.tight_layout()
 
-        plt.savefig(make_output_path(cfg.paths.analysis / "behavior" / "probability" / f"ci-50", f"behavior_probability_{condition}.png"))
+        plt.savefig(make_output_path(cfg.paths.inter_rat / "behavior" / "probability" / f"ci-50", f"behavior_probability_{condition}.png"))
+        plt.savefig(make_output_path(cfg.paths.inter_rat / "behavior" / "probability" / f"ci-50", f"behavior_probability_{condition}.svg"))
 
         plt.close()
-
 
 
 
@@ -1001,7 +1003,7 @@ def behavior_proba_per_behavior(cfg, data):
         for ax in axes:
 
             ax.set_ylim(-0.05, 1.05)
-            ax.set_xlim(-0.2, 3)
+            ax.set_xlim(-0.2, 2)
 
             add_pad_off(ax, 0)
             add_laser_period(ax, y=1.01, x_min=0.025, x_max=0.325, color="royalblue")
@@ -1016,16 +1018,21 @@ def behavior_proba_per_behavior(cfg, data):
             ax.set_title(f"{intensity} - N trials: {n}" )
 
 
+
         g.figure.suptitle(
             f"{beha} probability over time\n"
-            f"Rat: {cfg.rat_name} - "
+            f"Rat: {cfg.inter_rat.rats} - "
             f"Trials: {n_trials}",
         )
 
         g.tight_layout()
-        output = make_output_path(cfg.paths.analysis / "behavior" / "probability" / "per_behavior",f"probability_{beha}.png")
+        g.figure.subplots_adjust(top=0.78)
 
+        output = make_output_path(cfg.paths.inter_rat / "behavior" / "probability" / "per_behavior",f"probability_{beha}.png")
         g.savefig(output, dpi=300)
+        output = make_output_path(cfg.paths.inter_rat / "behavior" / "probability" / "per_behavior",f"probability_{beha}.svg")
+        g.savefig(output, dpi=300)
+
         plt.close(g.figure)
 
 
@@ -1034,5 +1041,189 @@ def behavior_proba_per_behavior(cfg, data):
 
 
 
+def plot_rewarded_bar(cfg, data): 
+
+    pass
 
 
+
+
+def plot_transition_matrix(cfg, data): 
+
+        # Ensure proper ordering
+    data = data.sort_values(["id", "t"])
+
+    # Next behavior within each trial
+    data["next_behavior"] = (
+        data.groupby("id")["behavior"]
+        .shift(-1)
+    )
+
+    print(data)
+
+    # Remove last frame of each trial because we shifted on the left
+    transitions = data.dropna(subset=["next_behavior"]).copy()
+
+    transitions["next_behavior"] = (
+        transitions["next_behavior"]
+        .astype(int)
+    )
+
+    print(transitions)
+    # Count transitions
+    trans_mat = pd.crosstab(
+        transitions["behavior"],
+        transitions["next_behavior"],
+        normalize="index"   # row-wise probabilities
+    )
+
+    print(trans_mat)
+
+    # Ensure all behaviors exist
+    behaviors = [1, 2, 3, 4]
+
+    trans_mat = trans_mat.reindex(
+        index=behaviors,
+        columns=behaviors,
+        fill_value=0
+    )
+
+    # rename behavior with real name
+    trans_mat = trans_mat.rename(
+        index=int_to_behavior,
+        columns=int_to_behavior,
+    )
+
+    print(trans_mat)
+
+    # Plot
+    ax = sns.heatmap(
+        trans_mat,
+
+        annot=True,
+        fmt=".2f",
+
+        cmap="Reds",
+
+        vmin=0,
+        vmax=1,
+        square=True,
+        cbar_kws={
+            "label": "Transition probability"
+        }
+    )
+
+    return ax
+
+
+
+
+def proportion_behavior_combinaison(cfg ,data): 
+    n_trials = len(data.groupby('id'))
+
+    # ---------- unique behaviors per trial ----------
+    combo = (
+        data.groupby(["id", "laser_state"])["behavior"]
+        .unique()
+        .apply(lambda x: sorted(set(x) - {0}))
+        .reset_index(name="behaviors")
+    )
+
+    # Remove empty trials
+    combo = combo[
+        combo["behaviors"].apply(len) > 0
+    ]
+
+    # Convert to readable string
+    combo["combination"] = combo["behaviors"].apply(
+        lambda x: "+".join(map(str, x))
+    )
+
+    # ---------- counts ----------
+    count = (
+        combo.groupby(["laser_state", "combination"])
+        .size()
+        .reset_index(name="n")
+    )
+
+    # Create all possible combinations
+    all_idx = pd.MultiIndex.from_product(
+        [
+            combo["laser_state"].unique(),
+            combo["combination"].unique()
+        ],
+        names=["laser_state", "combination"]
+    )
+
+    # Reindex and fill missing with 0
+    count = (
+        count.set_index(["laser_state", "combination"])
+        .reindex(all_idx, fill_value=0)
+        .reset_index()
+    )
+
+
+    # ---------- proportions ----------
+
+    count["proportion"] = count["n"]* 100 / n_trials
+    
+
+    # ---------- complexity ----------
+    count["n_behaviors"] = (
+        count["combination"]
+        .str.count(r"\+") + 1
+    )
+
+    # ---------- sorting ----------
+    count = count.sort_values(
+        ["n_behaviors", "n"],
+        ascending=[True, True]
+    )
+
+    print(count)
+
+    # ---------- plotting ----------
+    g = sns.catplot(
+        kind="bar",
+        data=count,
+
+        x="combination",
+        y="proportion",
+
+        hue="laser_state",
+        palette=LASER_STATE_PALETTE,
+        hue_order=["LaserOff", "LaserOn"],
+
+        height=6,
+        aspect=1.5,
+    )
+
+    # ---------- labels ----------
+    for ax in g.axes.flat:
+
+        for c, (_, row_subset) in zip(
+            ax.containers,
+            count.groupby("laser_state")
+        ):
+            labels = [
+                f"{p:.1f}%\n(n: {int(n)})"
+                for p, n in zip(
+                    c.datavalues,
+                    row_subset["n"].values
+                )
+            ]
+            print(labels)
+
+            ax.bar_label(
+                c,
+                labels=labels,
+                fontsize=11,
+                padding=3,
+            )
+
+        ax.set_xlabel("Behavior combinations")
+        ax.set_ylabel("Proportion (%)")
+
+        ax.set_ylim(0, 50)
+
+    return ax

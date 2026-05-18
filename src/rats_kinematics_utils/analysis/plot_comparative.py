@@ -841,6 +841,7 @@ def plot_pre_post_velocity(cfg, data) -> plt.axes :
             g.figure.suptitle(f"Pre vs Post velocity\nCondition: {condition} - {laser_intensity}", ha="left", x=0.1)
 
             g.figure.savefig(make_output_path(cfg.paths.analysis / f"pre_post_velocity_scatterplot", f"test_pre_post_velocity_{condition}_{laser_intensity}.png"))
+            g.figure.savefig(make_output_path(cfg.paths.analysis / f"pre_post_velocity_scatterplot", f"test_pre_post_velocity_{condition}_{laser_intensity}.svg"))
 
     return 
 
@@ -1031,7 +1032,7 @@ def plot_rewarded_bar(data):
 
     count["proportion"] = (
         count
-        .groupby(["laser_intensity"])["n"]
+        .groupby(["laser_intensity", "condition"])["n"]
         .transform(lambda x: ((x / x.sum()) * 100).round(1))
     )
 
@@ -1051,21 +1052,23 @@ def plot_rewarded_bar(data):
         palette=LASER_STATE_PALETTE,
     )
 
-    for ax, (_, subdf) in zip(g.axes.flat, count.groupby("laser_intensity")):
+    for ax, intensity in zip(g.axes.flat, ["low", "high"]):
 
-        for container in ax.containers:
+        subdf = count[count["laser_intensity"] == intensity]
 
-            labels = []
+        for c, (_, row_subset) in zip(ax.containers, subdf.groupby("laser_state")):
 
-            for bar, (_, row) in zip(container, subdf.iterrows()):
-                
-                labels.append(f"{row['proportion']:.1f}%\n(n: {row['n']})")
+            labels = [
+                f"{p:.1f}%\n(n: {int(n)})"
+                for p, n in zip(
+                    c.datavalues,
+                    row_subset["n"].values
+                )
+            ]
 
-            ax.bar_label(
-                container,
-                labels=labels,
-            )
-        ax.set_ylabel("proportion (%)")
+            ax.bar_label(c, labels=labels, fontsize=12,)
+
+        ax.set_ylabel("Proportion (%)")
         ax.set_ylim(0, 100)
 
     return g

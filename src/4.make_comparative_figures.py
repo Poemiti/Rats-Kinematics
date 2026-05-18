@@ -11,7 +11,7 @@ from rats_kinematics_utils.core.config import load_config
 from rats_kinematics_utils.gui.figures_maker import load_figure_maker
 from rats_kinematics_utils.analysis.statistics import compute_statistics, save_stat_results
 
-CONTEXT= "paper"
+CONTEXT= "talk"
 pc.set_plot_style(CONTEXT)
 
 # ------------------------------------ setup ---------------------------------------

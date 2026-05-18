@@ -3,6 +3,7 @@
 import sys
 from pathlib import Path
 import pandas as pd
+import matplotlib.pyplot as plt
 
 import rats_kinematics_utils.preprocessing.plot_preprocess as pp
 
@@ -10,7 +11,10 @@ from rats_kinematics_utils.core.config import load_config
 from rats_kinematics_utils.core.file_utils import dataframe_report, make_output_path, load_trial_data
 import rats_kinematics_utils.analysis.inter_rat as ir
 import rats_kinematics_utils.analysis.plot_comparative as pc
+import rats_kinematics_utils.analysis.behavior_plot as bp
 
+CONTEXT= "talk"
+pc.set_plot_style(CONTEXT)
 
 # ------------------------------------ setup ---------------------------------------
 
@@ -30,10 +34,10 @@ for r, f_list in file_to_process.items():
         print(f"  {f.stem}")
 print()
 
-res = input("ENTER to launch preprocessing or (q) to quit : ")
-if res == "q" or res=="Q": 
-    print("quit!")
-    sys.exit()
+# res = input("ENTER to launch preprocessing or (q) to quit : ")
+# if res == "q" or res=="Q": 
+#     print("quit!")
+#     sys.exit()
 
 # --------------------------------------- some metadata visualisation -------------------------------------------
 
@@ -41,22 +45,22 @@ file_to_process_list = [item for lst in file_to_process.values() for item in lst
 
 rat_types = ["CHR"]
 
-res = input("Do you want to plot metadata of the whole dataset ? (y/n): ")
-if res == "y": 
+# res = input("Do you want to plot metadata of the whole dataset ? (y/n): ")
+# if res == "y": 
 
-    print(f"\nMaking inter rat metadata report\n")
-    ir.inter_rat_metadata_report(cfg, rat_types, file_to_process_list)
+#     print(f"\nMaking inter rat metadata report\n")
+#     ir.inter_rat_metadata_report(cfg, rat_types, file_to_process_list)
 
-    sys.exit()
+#     sys.exit()
 
-    print(f"\nPlotting overall trials failure reason\n")
-    pp.plot_trial_failure_reason(cfg, file_to_process_list, inter_rat=True)
+#     print(f"\nPlotting overall trials failure reason\n")
+#     pp.plot_trial_failure_reason(cfg, file_to_process_list, inter_rat=True)
 
-    print(f"\nPlotting overall bodyparts likelihood distribution\n")
-    ir.plot_likelihood_distri_interrat(cfg, file_to_process_list)
+#     print(f"\nPlotting overall bodyparts likelihood distribution\n")
+#     ir.plot_likelihood_distri_interrat(cfg, file_to_process_list)
 
-elif res not in ["y", "n", "Y", "N"] : 
-    raise ValueError(f"ERROR, '{res}' is not a valid answer, must be 'y' or 'n'")
+# elif res not in ["y", "n", "Y", "N"] : 
+#     raise ValueError(f"ERROR, '{res}' is not a valid answer, must be 'y' or 'n'")
 
 
 # --------------------------------------- main -------------------------------------------
@@ -78,9 +82,9 @@ elif res not in ["y", "n", "Y", "N"] :
 #             g.set_axis_labels("Time (sec)", "Velocity (cm.s$^{-1}$)")
 #             g.set_titles(col_template="{col_name}", row_template="{row_name}")
 
-#             g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency", f"velocity_tendency_per_rats_{error_name}.png"))
-#             g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency", f"velocity_tendency_per_rats_{error_name}.svg"))
-#             g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency", f"velocity_tendency_per_rats_{error_name}.pdf"))
+#             g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency", f"velocity_tendency_per_rats_{error_name}_{CONTEXT}.png"))
+#             g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency", f"velocity_tendency_per_rats_{error_name}_{CONTEXT}.svg"))
+#             g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency", f"velocity_tendency_per_rats_{error_name}_{CONTEXT}.pdf"))
 
 
         # # lever distance
@@ -92,9 +96,9 @@ elif res not in ["y", "n", "Y", "N"] :
         #     g.set_axis_labels("Time (sec)", "Distance (cm)")
         #     g.set_titles(col_template="{col_name}", row_template="{row_name}")
 
-        #     g.savefig(make_output_path(cfg.paths.inter_rat / f"lever_distance", f"lever_distance_{error_name}.png"))
-        #     g.savefig(make_output_path(cfg.paths.inter_rat / f"lever_distance", f"lever_distance_{error_name}.svg"))
-        #     g.savefig(make_output_path(cfg.paths.inter_rat / f"lever_distance", f"lever_distance_{error_name}.pdf"))
+        #     g.savefig(make_output_path(cfg.paths.inter_rat / f"lever_distance", f"lever_distance_{error_name}_{CONTEXT}.png"))
+        #     g.savefig(make_output_path(cfg.paths.inter_rat / f"lever_distance", f"lever_distance_{error_name}_{CONTEXT}.svg"))
+        #     g.savefig(make_output_path(cfg.paths.inter_rat / f"lever_distance", f"lever_distance_{error_name}_{CONTEXT}.pdf"))
 
 
 ################## setup + print d'info
@@ -203,48 +207,120 @@ elif res not in ["y", "n", "Y", "N"] :
 
 
 
+# --------------------------------------- reward proportion ------------------------------------------
 
-data = pd.DataFrame()
-n=0
+# data = pd.DataFrame()
+# n=0
 
-for i, metrics_path in enumerate(file_to_process_list) :
-    metrics = load_trial_data(Path(metrics_path))
+# for i, metrics_path in enumerate(file_to_process_list) :
+#     metrics = load_trial_data(Path(metrics_path))
 
-    for j, trial in enumerate(metrics) : 
+#     for j, trial in enumerate(metrics) : 
 
-        if not trial[cfg.bodypart]["trial_success"] or trial["laser_intensity"] == "NOstim": 
-            continue
+#         if not trial[cfg.bodypart]["trial_success"] or trial["laser_intensity"] == "NOstim": 
+#             continue
 
-        condition = trial["condition"]
-        laser_state = trial["laser_state"]
-        pad_off = trial["pad_off"]
+#         condition = trial["condition"]
+#         laser_state = trial["laser_state"]
+#         pad_off = trial["pad_off"]
 
-        if trial["laser_intensity"] == "0,5mW" or trial["laser_intensity"] == "1mW" : laser_intensity = "low" 
-        elif trial["laser_intensity"] == "NOstim" : laser_intensity = "NOstim" 
-        else : laser_intensity = "high"
+#         if trial["laser_intensity"] == "0,5mW" or trial["laser_intensity"] == "1mW" : laser_intensity = "low" 
+#         elif trial["laser_intensity"] == "NOstim" : laser_intensity = "NOstim" 
+#         else : laser_intensity = "high"
 
-        reward = trial["reward"] is not None
+#         reward = trial["reward"] is not None
 
-        df = pd.DataFrame({
-            "rewarded": [reward],
-            "cond_state": [condition + "_" + laser_state],
-            "condition": [condition],
-            "laser_state": [laser_state],
-            "laser_intensity": [laser_intensity],
-            "id": [n],
-        })
+#         df = pd.DataFrame({
+#             "rewarded": [reward],
+#             "cond_state": [condition + "_" + laser_state],
+#             "condition": [condition],
+#             "laser_state": [laser_state],
+#             "laser_intensity": [laser_intensity],
+#             "id": [n],
+#         })
 
-        data = pd.concat([data, df], ignore_index=True)
+#         data = pd.concat([data, df], ignore_index=True)
 
-        n+=1
+#         n+=1
 
-g = pc.plot_rewarded_bar(data)
-g.set_titles(row_template="{row_name}", col_template="{col_name}")
-g.figure.subplots_adjust(top=0.88)
-g.figure.suptitle(f"Rewarded trial proportion on of rat {cfg.inter_rat.rats}\nNumber of trials: {len(data.groupby('id'))}", ha='center')
-g.savefig(make_output_path(cfg.paths.inter_rat / f"reward", f"rewarded_proportion.png"))
-g.savefig(make_output_path(cfg.paths.inter_rat / f"reward", f"rewarded_proportion.svg"))
+# g = pc.plot_rewarded_bar(data)
+# g.set_titles(row_template="{row_name}", col_template="{col_name}")
+# g.figure.subplots_adjust(top=0.80)
+
+# g.figure.suptitle(f"Rewarded trial proportion on of rat {cfg.inter_rat.rats}\nNumber of trials: {len(data.groupby('id'))}", ha='center')
+# g.savefig(make_output_path(cfg.paths.inter_rat / f"reward", f"rewarded_proportion_{CONTEXT}.png"))
+# g.savefig(make_output_path(cfg.paths.inter_rat / f"reward", f"rewarded_proportion_{CONTEXT}.svg"))
+
+# plt.close()
+
+# ---------------------------------------------- big ethogram ----------------------------------
+# remove the may trial !!!
+
+# data_behavior, time_stamps = bp.preprocess_trial_behavior(cfg, file_to_process_list, remove_may=False)
+# biggest_condition, n_trials_biggest = bp.get_biggest_condition(cfg, data_behavior)
+
+# print(biggest_condition, n_trials_biggest)
 
 
+# data_behavior = data_behavior.merge(time_stamps, on="id", how="left")
+# bp.ethogram_by_condition(cfg, data_behavior, n_trials_biggest, align_by="pad_off")
+
+# bp.behavior_proba_per_condition(cfg, data_behavior, align_by="pad_off")
+
+# # ------------------------------------------- probability per behavior --------------------------------------------------
+# # remove the may trial !!!
+
+# data = bp.preprocess_proba(cfg, file_to_process_list, remove_may=False)
+# bp.behavior_proba_per_behavior(cfg, data)
+
+# # ------------------------------------------- transition matrix --------------------------------------------------
+# # uses the may trials since we only look at the period of laser
+
+# rewarded = False
+
+# if rewarded: 
+#     r_filter = "reward_only"
+#     r_name = "reward"
+# else : 
+#     r_filter = "non_reward_only"
+#     r_name = "non_reward"
+
+# print(f"\n{r_filter}")
+# data = bp.preprocess_proba(cfg, file_to_process_list, remove_may=False, reward=r_filter)
+# data = data.loc[(data["t"] >= 0) & (data["t"] <= 0.325)]    # crop around laser stim
+
+# for (condition, l_state, l_intensity), subset in data.groupby(["condition", 'laser_state', 'laser_intensity']) :
+    
+#     ax = bp.plot_transition_matrix(cfg, subset)
+
+#     ax.set_xlabel("Next behavior")
+#     ax.set_ylabel("Current behavior")
+#     ax.set_title(f"{condition}_{l_state}_{l_intensity}\n{r_name} - n trial: {len(subset.groupby('id'))}")
+
+#     ax.figure.savefig(make_output_path(cfg.paths.inter_rat / f"reward" / "transition_matrix" / r_name, f"{condition}_{l_state}_{l_intensity}_{r_name}_{CONTEXT}.png"))
+#     ax.figure.savefig(make_output_path(cfg.paths.inter_rat / f"reward" / "transition_matrix" / r_name, f"{condition}_{l_state}_{l_intensity}_{r_name}_{CONTEXT}.svg"))
+
+#     plt.close()
+
+# # ------------------------------------------- combinaison of behavior --------------------------------------------------
+# # uses the may trials since we only look at the period of laser
+
+
+
+data = bp.preprocess_proba(cfg, file_to_process_list, remove_may=False, reward="both")
+data = data.loc[(data["t"] >= 0) & (data["t"] <= 0.325)]    # crop around laser stim
+
+print(data)
+for (condition, l_intensity), subset in data.groupby(["condition", 'laser_intensity']) :
+    
+    print()
+    print(condition, l_intensity)
+    ax = bp.proportion_behavior_combinaison(cfg, subset)
+    ax.set_title(f"{condition}_{l_intensity}\nn trial: {len(subset.groupby('id'))}")
+    ax.figure.subplots_adjust(top=0.88)
+    ax.figure.savefig(make_output_path(cfg.paths.inter_rat / f"behavior" / "behavior_combinaison", f"{condition}_{l_intensity}_{CONTEXT}.png"))
+    ax.figure.savefig(make_output_path(cfg.paths.inter_rat / f"behavior" / "behavior_combinaison", f"{condition}_{l_intensity}_{CONTEXT}.svg"))
+
+    plt.close()
 
 print("Done !")

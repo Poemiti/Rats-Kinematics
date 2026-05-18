@@ -83,6 +83,10 @@ def filter_contra_trials(cfg, single_rat: bool = False):
             l_intensity = meta["laser_intensity"]
             condition = meta["condition"]
 
+            if condition == "NOstim": 
+                print("  ", file.stem, "-NO STIM")
+                continue
+
             if l_intensity not in cfg.laser_intensities[condition]: 
                 print("  ", file.stem, "-NOT RIGHT LASER INTENSITY")
                 continue
