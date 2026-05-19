@@ -3,8 +3,10 @@ import tkinter as tk
 from tkinter import ttk
 import inspect
 
-import rats_kinematics_utils.analysis.plot as plot
-import rats_kinematics_utils.analysis.plot_comparative as plot_comparative
+import rats_kinematics_utils.analysis.plot as p
+import rats_kinematics_utils.analysis.plot_comparative as pc
+import rats_kinematics_utils.analysis.behavior_plot as bp
+import rats_kinematics_utils.analysis.inter_rat as ir
 
 class Controller:
     def __init__(self, model, view):
@@ -105,25 +107,52 @@ class View(tk.Tk):
 
 
 class Model:
-    def __init__(self, metric_dir: Path, single_plot: bool):
-        self.metrics_paths = sorted(metric_dir.glob("*.joblib"))
+    def __init__(self, filenames: list[Path], kind: str = "single"):
+        """
+        Initiate app model
+        filenames: list[Path]: list of all .joblib file to use
+        kind: str: select with ploting script to use: 
+            - single
+            - comparative
+            - inter_rat
+        """
+        self.metrics_paths = filenames
 
-        if single_plot : 
+        if kind == "single" : 
             self.available_functions = {
                 name: func
-                for name, func in inspect.getmembers(plot, inspect.isfunction)
+                for name, func in inspect.getmembers(p, inspect.isfunction)
                 if name.startswith("plot")}
-        else : 
+            
+        elif kind == "comparative" : 
             self.available_functions = {
                 name: func
-                for name, func in inspect.getmembers(plot_comparative, inspect.isfunction)
+                for name, func in inspect.getmembers(pc, inspect.isfunction)
+                if name.startswith("plot")}
+            
+        elif kind == "inter_rat": 
+            self.available_functions = {
+                name: func
+                for name, func in inspect.getmembers(ir, inspect.isfunction)
+                if name.startswith("plot")}
+            
+        elif kind == "behavior": 
+            self.available_functions = {
+                name: func
+                for name, func in inspect.getmembers(bp, inspect.isfunction)
                 if name.startswith("plot")}
             
 
 
-def load_figure_maker(dir, single_plot: bool) : 
-
-    model = Model(dir, single_plot)
+def load_figure_maker(filenames, kind: str) : 
+    """
+    filenames: list[Path]: list of all .joblib file to use
+    kind: str: select with ploting script to use: 
+        - single
+        - comparative
+        - inter_rat
+    """
+    model = Model(filenames, kind)
     view = View()
     controller = Controller(model, view)
     view.mainloop()

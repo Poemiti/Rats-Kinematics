@@ -25,7 +25,7 @@ class BehaviorBox:
         self.lever_right = 40
         self.lever_upper = 10
         self.lever_lower = 18
-        self.pad_upper = 15
+        self.pad_upper = 25
 
         self.frame_width = frame_width
 

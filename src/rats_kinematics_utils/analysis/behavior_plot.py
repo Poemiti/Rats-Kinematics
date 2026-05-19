@@ -13,7 +13,7 @@ import matplotlib.colors as mcolors
 
 
 from rats_kinematics_utils.core.config import load_config
-from rats_kinematics_utils.core.file_utils import print_analysis_info, make_output_path, load_trial_data
+from rats_kinematics_utils.core.file_utils import print_analysis_info, make_output_path, load_trial_data, check_exclusion_rules
 import rats_kinematics_utils.analysis.clustering as c
 from rats_kinematics_utils.preprocessing.preprocess import crop_xy
 
@@ -77,7 +77,7 @@ dash = {
 
 
 behavior_palette = {
-    "none": "k",
+    # "none": "k",
     "reach": "gold",
     "open": "orange",
     "grasp": "cornflowerblue",
@@ -202,6 +202,9 @@ def preprocess_trial_behavior(cfg, filenames: list[Path], remove_may: bool= True
 
             if remove_may and trial["date"].month == 5 : 
                 continue
+
+            if not check_exclusion_rules(trial) : 
+                continue
             
             # extract information 
             condition = trial["condition"]
@@ -264,6 +267,9 @@ def preprocess_metric_behavior(cfg, filenames: list[Path]):
                 trial["date"].month == 5 or \
                 trial[cfg.bodypart].get("behavior_state", "keep_all") != "keep_all": 
                 continue
+
+            if not check_exclusion_rules(trial) : 
+                continue
             
             condition = trial["condition"]
             laser_state = trial["laser_state"]
@@ -306,7 +312,7 @@ def preprocess_metric_behavior(cfg, filenames: list[Path]):
 
 
 
-def preprocess_trajectory_behavior(cfg, filenames: list[Path]):
+def preprocess_trajectory_behavior(cfg, filenames: list[Path], remove_may: bool = False):
     n = 0
     data = pd.DataFrame()
 
@@ -316,8 +322,13 @@ def preprocess_trajectory_behavior(cfg, filenames: list[Path]):
         for j, trial in enumerate(metrics) : 
 
             if not trial[cfg.bodypart]["trial_success"] or \
-                trial["date"].month == 5 or \
                 trial[cfg.bodypart].get("behavior_state", "keep_all") != "keep_all": 
+                continue
+
+            if remove_may and trial["date"].month == 5: 
+                continue
+
+            if not check_exclusion_rules(trial) : 
                 continue
             
             condition = trial["condition"]
@@ -376,6 +387,9 @@ def preprocess_proba(cfg, filenames, remove_may: bool = True, reward: str= "both
                 continue
 
             
+            if not check_exclusion_rules(trial) : 
+                continue
+
             # extract information 
             condition = trial["condition"]
             laser_state = trial["laser_state"]
@@ -405,6 +419,53 @@ def preprocess_proba(cfg, filenames, remove_may: bool = True, reward: str= "both
 
     return data
 
+
+def preprocess_reward(cfg, filenames, remove_may: bool = False): 
+    
+    data = pd.DataFrame()
+    n=0
+
+    for i, metrics_path in enumerate(filenames) :
+        metrics = load_trial_data(Path(metrics_path))
+
+        for j, trial in enumerate(metrics) : 
+
+            if not trial[cfg.bodypart]["trial_success"] or \
+                trial[cfg.bodypart].get("behavior_state", "keep_all") != "keep_all": 
+                continue
+
+            if remove_may and trial["date"].month == 5: 
+                continue
+            
+            if not check_exclusion_rules(trial) : 
+                continue
+
+            condition = trial["condition"]
+            laser_state = trial["laser_state"]
+            pad_off = trial["pad_off"]
+
+            if trial["laser_intensity"] == "0,5mW" or trial["laser_intensity"] == "1mW" : laser_intensity = "low" 
+            elif trial["laser_intensity"] == "NOstim" : laser_intensity = "NOstim" 
+            else : laser_intensity = "high"
+
+            reward = trial["reward"] is not None
+            reward_during_laser = trial["reward"] is not None and pad_off < trial["reward"] < pad_off + 0.325 
+
+            df = pd.DataFrame({
+                "rewarded": [reward],
+                "rewarded_during_laser": [reward_during_laser],
+                "cond_state": [condition + "_" + laser_state],
+                "condition": [condition],
+                "laser_state": [laser_state],
+                "laser_intensity": [laser_intensity],
+                "id": [n],
+            })
+
+            data = pd.concat([data, df], ignore_index=True)
+
+            n+=1
+
+    return data
 
 
 # -------------------------------------------------------- plotting --------------------------------------
@@ -511,16 +572,14 @@ def plot_trajectory_behavior(cfg, data, crop: bool = False):
     else : 
         crop_name = ""
 
-    for laser_intensity, subset in data.groupby("laser_intensity"): 
-
         mean_traj = (
-            subset
+            data
             .groupby(["condition", "laser_state", "t"], as_index=False)
             .agg({"x": "mean", "y": "mean"})
         )
 
         g = sns.FacetGrid(
-                data=subset,
+                data=data,
                 col="condition",
                 row="laser_state",
                 row_order=["LaserOn", "LaserOff"],
@@ -551,13 +610,6 @@ def plot_trajectory_behavior(cfg, data, crop: bool = False):
                 s=8
         )
 
-
-        g.add_legend(title="Behavior")
-        g.set_titles(row_template="{row_name}", col_template="{col_name}")
-        g.set_axis_labels("x (cm)", "y (cm)")
-        g.figure.subplots_adjust(top=0.88)
-        g.figure.suptitle(f"Behavior analysis{cfg.rat_name}\nLaser intensity: {laser_intensity} - Number of trials: {len(subset.groupby('id'))}", ha='center')
-
         sns.move_legend(g,
                             borderpad=1,
                             loc='upper right', 
@@ -567,66 +619,68 @@ def plot_trajectory_behavior(cfg, data, crop: bool = False):
             for ax in g.axes.flat:
                 ax.set_ylim(0, cfg.frame_width_cm)
                 ax.set_xlim(0, cfg.frame_width_cm)
-
-
-        g.savefig(make_output_path(cfg.paths.analysis / f"behavior" / "trajectories", f"trajectories_{laser_intensity}{crop_name}.png"))
-        plt.close()
+        
+        return g, crop_name
 
 
 
 
 def plot_time_in_behavior_space(cfg, data): 
+        
+        print(data)
 
-    for laser_intensity, subset in data.groupby("laser_intensity"): 
-
+        # Raw counts
         count = (
-            subset.groupby(["condition", "laser_state", "behavior"])
-                .size()
-                .groupby(level=[0, 1])          # within each facet
-                .transform(lambda x: ((x / x.sum()) * 100).round(1))
-                .reset_index(name="proportion"))
-
-        g = sns.FacetGrid(
-                data=count,
-                col="condition",
-                row="laser_state",
-                margin_titles=True,
-                height=4,      # size of each facet
-                aspect=1.2     # width/height ratio
+            data.groupby(["condition", "laser_state", "behavior"])
+            .size()
+            .reset_index(name="n")
         )
 
-        g.map_dataframe(
-                sns.barplot,
-                x="behavior",
-                y="proportion",
-                hue="behavior",
-                palette=behavior_palette,
-                order=behavior_palette.keys(),
-                legend=True,
+        # Proportions within each condition + laser_state
+        count["proportion"] = (
+            count.groupby(["condition", "laser_state"])["n"]
+            .transform(lambda x: (x / x.sum()) * 100)
+            .round(1)
         )
 
+        # Remove unwanted behavior
+        count = count[count["behavior"] != 0].reset_index(drop=True)
 
+        print(count)
 
-        g.add_legend(title="Behavior")
-        g.set_titles(row_template="{row_name}", col_template="{col_name}")
-        g.figure.subplots_adjust(top=0.88)
-        g.figure.suptitle(f"Behavior proportion of rat {cfg.rat_name}\nLaser intensity: {laser_intensity} - Number of trials: {len(subset.groupby('id'))}", ha='center')
+        g = sns.catplot(
+            data=count,
+            kind="bar",
+            col="condition",
 
-        sns.move_legend(g,
-                            borderpad=1,
-                            loc='upper right', 
-                            facecolor="lightgray")
+            x="behavior",
+            y="proportion",
+            hue="laser_state",
+            palette=LASER_STATE_PALETTE,
+            order=[1, 2, 3, 4],
+            hue_order=["LaserOff", "LaserOn"],
+        )
 
         for ax in g.axes.flat:
-            for i in range(5): 
-                ax.bar_label(ax.containers[i], fontsize=10)
+            for container in ax.containers:
+
+                labels = []
+
+                for bar in container:
+                    height = bar.get_height()
+
+                    # Match bar -> dataframe row
+                    x = bar.get_x() + bar.get_width() / 2
+
+                    labels.append(f"{height:.1f}%")
+
+                ax.bar_label(container, labels=labels, fontsize=10)
+
             ax.set_ylabel("proportion (%)")
-            ax.set_ylim(0, 53)
+            ax.set_ylim(0,100)
+            ax.set_xlabel(["reach", "open", "grasp", "press"])
 
-
-        g.savefig(make_output_path(cfg.paths.analysis / f"behavior", f"time_spend_per_behavior_{laser_intensity}.png"))
-
-        plt.close()
+        return g
 
 
 
@@ -648,7 +702,7 @@ def longest_run(series, target):
 
 
 
-def ethogram_by_condition(cfg, behavior, biggest_condition, align_by: str = "pad_off"):     
+def plot_ethogram_by_condition(cfg, behavior, biggest_condition, output_dir, align_by: str = "pad_off"):     
     """
     behavior dataframe must contain the folowing columns: 
         id, t, behavior, id, condition, 
@@ -738,11 +792,11 @@ def ethogram_by_condition(cfg, behavior, biggest_condition, align_by: str = "pad
 
         ax.legend(loc="upper left")
 
-        plt.suptitle(f"Ethogram across frames for rat {cfg.inter_rat.rats}\nCondition: {condition}, Number of trials: {len(subset.groupby('id'))}", y=0.98)
+        plt.suptitle(f"Ethogram across frames\nCondition: {condition}, Number of trials: {len(subset.groupby('id'))}", y=0.98)
         plt.tight_layout()
 
-        plt.savefig(make_output_path(cfg.paths.inter_rat / "behavior" / f"ethogram" / f"_align_to_{align_by}", f"ethogram_{condition}.png"))
-        plt.savefig(make_output_path(cfg.paths.inter_rat / "behavior" / f"ethogram" / f"_align_to_{align_by}", f"ethogram_{condition}.svg"))
+        plt.savefig(make_output_path(output_dir / "behavior" / f"ethogram" / f"_align_to_{align_by}", f"ethogram_{condition}.png"))
+        plt.savefig(make_output_path(output_dir / "behavior" / f"ethogram" / f"_align_to_{align_by}", f"ethogram_{condition}.svg"))
 
         plt.close()
 
@@ -750,7 +804,7 @@ def ethogram_by_condition(cfg, behavior, biggest_condition, align_by: str = "pad
 
 
 
-def behavior_proba_all(cfg, behavior): 
+def plot_behavior_proba_all(cfg, behavior): 
 
     mat_behavior = behavior.pivot(
         index="t",
@@ -813,7 +867,7 @@ def behavior_proba_all(cfg, behavior):
 
 
 
-def behavior_proba_per_condition(cfg, behavior, align_by: str = "pad_off"): 
+def plot_behavior_proba_per_condition(cfg, behavior, output_dir: Path, align_by: str = "pad_off"): 
     from scipy.ndimage import gaussian_filter1d
 
     print(f"\nMaking probability aligned to: {align_by}")
@@ -909,19 +963,50 @@ def behavior_proba_per_condition(cfg, behavior, align_by: str = "pad_off"):
 
         plt.xlabel("time (s)")
         plt.ylabel("Probability")
-        plt.title(f"Behavior probability over time of rat {cfg.inter_rat.rats}\nCondition: {condition} - Number of trial: {len(subset.groupby('id'))}")
+        plt.title(f"Behavior probability over time\nCondition: {condition} - Number of trial: {len(subset.groupby('id'))}")
         plt.tight_layout()
 
-        plt.savefig(make_output_path(cfg.paths.inter_rat / "behavior" / "probability" / f"ci-50", f"behavior_probability_{condition}.png"))
-        plt.savefig(make_output_path(cfg.paths.inter_rat / "behavior" / "probability" / f"ci-50", f"behavior_probability_{condition}.svg"))
+        plt.savefig(make_output_path(output_dir / "behavior" / "probability" / f"ci-50", f"behavior_probability_{condition}.png"))
+        plt.savefig(make_output_path(output_dir / "behavior" / "probability" / f"ci-50", f"behavior_probability_{condition}.svg"))
 
         plt.close()
 
 
 
 
+def _behavior_probability_over_time_per_id(state, df: pd.DataFrame) -> pd.DataFrame: 
 
-def behavior_proba_per_behavior(cfg, data): 
+    mat_subset = df.pivot(
+        index="t",
+        columns="id",
+        values="behavior"
+    ).sort_index()
+
+
+    arr = mat_subset.to_numpy()
+    time_values = mat_subset.index.to_numpy()
+
+    prob_per_id = (arr == state) 
+
+    df_prob_per_id = pd.DataFrame(
+        prob_per_id,
+        index=time_values,
+        columns=mat_subset.columns
+    )
+
+    return (
+        df_prob_per_id
+        .reset_index(names="t")
+        .melt(
+            id_vars="t",
+            var_name="id",
+            value_name="probability"
+        )
+    )
+
+
+
+def plot_behavior_proba_per_behavior(cfg, data, output_dir: Path): 
 
     print(data)
     data["t"] = data["t"].round(3)
@@ -937,33 +1022,7 @@ def behavior_proba_per_behavior(cfg, data):
 
         for (cond, l_state, l_intensity), subset in data.groupby(["condition", "laser_state", "laser_intensity"]): 
 
-            mat_subset = subset.pivot(
-                index="t",
-                columns="id",
-                values="behavior"
-            ).sort_index()
-
-
-            arr = mat_subset.to_numpy()
-            time_values = mat_subset.index.to_numpy()
-
-            prob_per_id = (arr == state) 
-
-            df_prob_per_id = pd.DataFrame(
-                prob_per_id,
-                index=time_values,
-                columns=mat_subset.columns
-            )
-
-            df_prob_per_id = (
-                df_prob_per_id
-                .reset_index(names="t")
-                .melt(
-                    id_vars="t",
-                    var_name="id",
-                    value_name="probability"
-                )
-            )
+            df_prob_per_id = _behavior_probability_over_time_per_id(state, subset)
 
             df_prob_per_id["behavior"] = beha
             df_prob_per_id["condition"] = cond + "_" + l_state
@@ -1003,7 +1062,7 @@ def behavior_proba_per_behavior(cfg, data):
         for ax in axes:
 
             ax.set_ylim(-0.05, 1.05)
-            ax.set_xlim(-0.2, 2)
+            ax.set_xlim(-0.2, 0.4)
 
             add_pad_off(ax, 0)
             add_laser_period(ax, y=1.01, x_min=0.025, x_max=0.325, color="royalblue")
@@ -1021,16 +1080,15 @@ def behavior_proba_per_behavior(cfg, data):
 
         g.figure.suptitle(
             f"{beha} probability over time\n"
-            f"Rat: {cfg.inter_rat.rats} - "
             f"Trials: {n_trials}",
         )
 
         g.tight_layout()
         g.figure.subplots_adjust(top=0.78)
 
-        output = make_output_path(cfg.paths.inter_rat / "behavior" / "probability" / "per_behavior",f"probability_{beha}.png")
+        output = make_output_path(output_dir / "behavior" / "probability" / "per_behavior_laser_stim",f"probability_{beha}.png")
         g.savefig(output, dpi=300)
-        output = make_output_path(cfg.paths.inter_rat / "behavior" / "probability" / "per_behavior",f"probability_{beha}.svg")
+        output = make_output_path(output_dir / "behavior" / "probability" / "per_behavior_laser_stim",f"probability_{beha}.svg")
         g.savefig(output, dpi=300)
 
         plt.close(g.figure)
@@ -1038,13 +1096,89 @@ def behavior_proba_per_behavior(cfg, data):
 
 
 
+def plot_mean_proba_per_behavior(cfg, data, output_dir: Path): 
+
+    print(data)
+    data["t"] = data["t"].round(3)
+
+    for state, beha in int_to_behavior.items():
+
+        if state == 0 : 
+            continue
+
+        records = []
+
+        for (cond, l_state, l_intensity), subset in data.groupby(["condition", "laser_state", "laser_intensity"]): 
+
+            df_prob_per_id = _behavior_probability_over_time_per_id(state, subset)
+
+            mean_per_id = (
+                df_prob_per_id.groupby("id")["probability"]
+                .mean()
+                .reset_index(name="mean_proba")
+            )
+
+            print(mean_per_id)
+
+            mean_per_id["behavior"] = beha
+            mean_per_id["condition"] = cond 
+            mean_per_id["laser state"] = l_state
+            mean_per_id["l_intensity"] = l_intensity
+
+            records.append(mean_per_id)
+
+        df_records = pd.concat(records, ignore_index=True)
+        print(df_records)
+
+                # count the number of trials
+        n_trials = df_records["id"].nunique()
+        trial_counts = (df_records.groupby("l_intensity")["id"].nunique())
+
+        # plot
+        g = sns.catplot(
+            kind="bar",
+            data=df_records,
+            col="l_intensity",
+            col_order=["low", "high"],
+
+            x="condition",
+            y="mean_proba",
+            hue="laser state",
+            palette=LASER_STATE_PALETTE,
+
+            estimator="mean",
+            errorbar=("ci", 50),
+        )
+
+        # add laser intensity label and counts
+        for ax, intensity in zip(g.axes.flat, g.col_names):
+
+            n = trial_counts.get(intensity, 0)
+            ax.set_title(f"{intensity} - N trials: {n}" )
+            ax.set_xlabel("Time (s)")
+            ax.set_ylabel("Mean Probability")
+
+            ax.set_ylim(0,1)
+
+            for c in ax.containers: 
+                ax.bar_label(c, labels=np.round(c.datavalues, 2), fontsize=11, padding=5,)
 
 
 
-def plot_rewarded_bar(cfg, data): 
+        g.figure.suptitle(
+            f"Mean probability during laser stim : {beha}\n"
+            f"Trials: {n_trials}",
+        )
 
-    pass
+        g.tight_layout()
+        g.figure.subplots_adjust(top=0.78)
 
+        output = make_output_path(output_dir / "behavior" / "probability" / "mean_proba_per_behavior",f"probability_{beha}.png")
+        g.savefig(output, dpi=300)
+        output = make_output_path(output_dir / "behavior" / "probability" / "mean_proba_per_behavior",f"probability_{beha}.svg")
+        g.savefig(output, dpi=300)
+
+        plt.close(g.figure)
 
 
 
@@ -1118,8 +1252,7 @@ def plot_transition_matrix(cfg, data):
 
 
 
-def proportion_behavior_combinaison(cfg ,data): 
-    n_trials = len(data.groupby('id'))
+def plot_proportion_behavior_combinaison(cfg ,data): 
 
     # ---------- unique behaviors per trial ----------
     combo = (
@@ -1165,7 +1298,11 @@ def proportion_behavior_combinaison(cfg ,data):
 
     # ---------- proportions ----------
 
-    count["proportion"] = count["n"]* 100 / n_trials
+    count["proportion"] = (
+            count.groupby("laser_state")["n"]
+            .transform(lambda x: (x / x.sum()) * 100)
+            .round(1)
+        )
     
 
     # ---------- complexity ----------
@@ -1189,6 +1326,7 @@ def proportion_behavior_combinaison(cfg ,data):
 
         x="combination",
         y="proportion",
+        order=["1", "1+2", "1+3", "1+3+4", "1+2+3", "1+2+3+4"],
 
         hue="laser_state",
         palette=LASER_STATE_PALETTE,
@@ -1224,6 +1362,6 @@ def proportion_behavior_combinaison(cfg ,data):
         ax.set_xlabel("Behavior combinations")
         ax.set_ylabel("Proportion (%)")
 
-        ax.set_ylim(0, 50)
+        ax.set_ylim(0, 60)
 
     return ax

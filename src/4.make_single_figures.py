@@ -18,7 +18,8 @@ from rats_kinematics_utils.core.file_utils import load_trial_data, make_output_p
 cfg = load_config()
 print_analysis_info(cfg, "Making single figures")
 
-filenames, plot_choice = load_figure_maker(cfg.paths.metrics, single_plot=True)
+input_filenames = sorted(cfg.paths.metrics.glob("*.joblib"))
+filenames, plot_choice = load_figure_maker(input_filenames, kind="single")
 
 check_analysis_choice(filenames, plot_choice)
 

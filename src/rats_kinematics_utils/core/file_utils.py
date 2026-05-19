@@ -370,6 +370,25 @@ def dataframe_report(df: pd.DataFrame, include_na=False, sort=True):
 
 
 
+import yaml
+from datetime import datetime
+
+def check_exclusion_rules(trial) -> bool: 
+    date_to_check = trial["date"].date().isoformat()
+    rat_name = int(trial['rat_name'][1:])
+
+    with open("exclusion_rules.yaml", "r") as f: 
+        exclu_rules = yaml.safe_load(f)
+
+    dates_to_exclude = exclu_rules[rat_name]
+
+    if date_to_check in dates_to_exclude: 
+        print(rat_name, date_to_check)
+        return False
+
+    return True 
+
+
 
 if __name__ == "__main__" :
 

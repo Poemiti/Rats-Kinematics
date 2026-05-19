@@ -20,7 +20,8 @@ SHOW = False
 cfg = load_config()
 print_analysis_info(cfg, "Making comparative figures")
 
-filenames, plot_choice = load_figure_maker(cfg.paths.metrics, single_plot=False)
+input_filenames = sorted(cfg.paths.metrics.glob("*.joblib"))
+filenames, plot_choice = load_figure_maker(input_filenames, kind="comparative")
 
 check_analysis_choice(filenames, plot_choice)
  
@@ -723,7 +724,6 @@ if plot_choice["plot_rewarded_bar"]:
     g.figure.suptitle(f"Rewarded trial proportion on of rat {cfg.rat_name}\nNumber of trials: {len(data.groupby('id'))}", ha='center')
     g.savefig(make_output_path(cfg.paths.analysis / f"reward", f"rewarded_proportion_{CONTEXT}.png"))
     g.savefig(make_output_path(cfg.paths.analysis / f"reward", f"rewarded_proportion_{CONTEXT}.svg"))
-
 
 
 

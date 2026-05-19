@@ -1019,24 +1019,24 @@ def plot_lever_distance(data, error_function) :
 
 
 
-def plot_rewarded_bar(data): 
+def plot_rewarded_bar(data, during_laser: bool = False): 
+
+    if during_laser: 
+        rew = "rewarded_during_laser"
+    else : 
+        rew = "rewarded"
 
     count = (
-        data
-        .groupby(
-            ["laser_intensity", "condition", "laser_state"]
+        data.groupby(["condition", "laser_state", "laser_intensity"])
+        .agg(
+            n_rewarded=(rew, "sum"),
+            n_total=(rew, "size"),
         )
-        .size()
-        .reset_index(name="n")
+        .reset_index()
     )
 
-    count["proportion"] = (
-        count
-        .groupby(["laser_intensity", "condition"])["n"]
-        .transform(lambda x: ((x / x.sum()) * 100).round(1))
-    )
+    count["proportion_rewarded"] = (count["n_rewarded"] / count["n_total"] * 100).round(1)
 
-    count["cond_state"] = (count["condition"]+ "_"+ count["laser_state"])
     print(count)
 
     g = sns.catplot(
@@ -1046,13 +1046,13 @@ def plot_rewarded_bar(data):
         col="laser_intensity",
         col_order=["low", "high"],
 
-        y="proportion",
+        y="proportion_rewarded",
         x="condition",
         hue="laser_state",
         palette=LASER_STATE_PALETTE,
     )
 
-    for ax, intensity in zip(g.axes.flat, ["low", "high"]):
+    for ax, intensity in zip(g.axes.flat, g.col_names):
 
         subdf = count[count["laser_intensity"] == intensity]
 
@@ -1062,13 +1062,18 @@ def plot_rewarded_bar(data):
                 f"{p:.1f}%\n(n: {int(n)})"
                 for p, n in zip(
                     c.datavalues,
-                    row_subset["n"].values
+                    row_subset["n_rewarded"].values
                 )
             ]
 
             ax.bar_label(c, labels=labels, fontsize=12,)
 
         ax.set_ylabel("Proportion (%)")
-        ax.set_ylim(0, 100)
+        ax.set_ylim(0, 120)
+        # ax.set_ybound(0, 100)
+
+        # add laser intensity label and counts
+        n = subdf["n_total"].sum()
+        ax.set_title(f"{intensity} - N trials: {n}" )
 
     return g

@@ -157,6 +157,9 @@ def _preprocess(cfg, filenames: list[Path], METRIC: str, split_condition: bool =
 
 # --------------------------------------- plotting -------------------------------------------
 
+def plot_metadata(): 
+    pass
+
 
 def inter_rat_metadata_report(cfg, rat_types: list[str], joblib_filenames: list[Path]) : 
     from rats_kinematics_utils.preprocessing.plot_preprocess import _plot_metadata_report
@@ -313,8 +316,6 @@ def get_rat_proportion(rat_filenames: dict[str, Path]):
 
 
 
-
-
 def plot_statistics(cfg, filenames: list[Path], metric: str, comparisons: list[tuple[str, str]], 
                     merge_laserOff: bool = False, per_rats: bool = False) -> None: 
     
@@ -437,11 +438,6 @@ def plot_permutation(cfg, filenames: list[Path], metric: str, intensity: str, n_
     fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_permutation", f"NostimePerCondition_notransform_{metric}_{intensity}Intensities_{n_perm}.png"))
     plt.show()
     plt.close()
-
-
-
-
-
 
 
 
@@ -710,3 +706,46 @@ def plot_violin_per_rat(cfg, data: pd.DataFrame, strip: bool = True,
             )
     
     return g.figure
+
+
+
+
+def plot_lever_distance(): 
+    pass
+
+
+def plot_velocity_per_rat(): 
+    pass
+
+
+# ------------------------------------------------- behavior ------------------------
+
+
+def plot_reward_proportion(): 
+    pass
+
+
+def plot_ethogram_by_condition(): 
+    pass
+
+
+def plot_behavior_proba_per_behavior(): 
+    pass
+
+def plot_behavior_proba_per_condition(): 
+    pass
+
+
+def plot_transition_matrix(): 
+    pass
+
+def plot_proportion_behavior_combinaison(): 
+    pass
+
+
+def plot_time_in_behavior_space(): 
+    pass
+
+
+def plot_mean_proba_per_behavior(): 
+    pass
