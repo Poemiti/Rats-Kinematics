@@ -335,6 +335,7 @@ def plot_statistics(cfg, filenames: list[Path], metric: str, comparisons: list[t
         fig.subplots_adjust(top=0.88)
         fig.suptitle(f"{metric} distribution across all trials of rat :\n{cfg.inter_rat.rats}")
         fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"violin_{metric}{merged}{per_rats}.png"))
+        fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"violin_{metric}{merged}{per_rats}.svg"))
 
     else : 
         per_rats = ""
@@ -350,7 +351,9 @@ def plot_statistics(cfg, filenames: list[Path], metric: str, comparisons: list[t
                 fig = _plot_violin_statistic(cfg, data, significant_pair, strip=True, 
                                             order=order)
                 fig.suptitle(f"{metric} distribution across all trials of rat :\n{cfg.inter_rat.rats}")
+                fig.subplots_adjust(top=0.80)
                 fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"violin_{metric}{merged}{per_rats}.png"))
+                fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"violin_{metric}{merged}{per_rats}.svg"))
 
                 plt.show()
                 plt.close()

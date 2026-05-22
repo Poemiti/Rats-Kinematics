@@ -456,7 +456,7 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
         data_trimmed = data_trimmed.loc[~data_trimmed["condition"].str.contains("NOstim")]
         data = data.loc[~data["condition"].str.contains("NOstim")]
 
-    fig, ax = plt.subplots(figsize=[10,5])
+    fig, ax = plt.subplots(figsize=[12,7]) #figsize=[10,5]
 
     # VIOLIN
     sns.violinplot(

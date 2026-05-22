@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+from matplotlib.collections import PatchCollection
 import joblib
 import time
 import seaborn as sns
@@ -77,7 +78,7 @@ dash = {
 
 
 behavior_palette = {
-    # "none": "k",
+    "none": "lightgray",
     "reach": "gold",
     "open": "orange",
     "grasp": "cornflowerblue",
@@ -1182,31 +1183,176 @@ def plot_mean_proba_per_behavior(cfg, data, output_dir: Path):
 
 
 
+def _draw_transition_graph(
+            transition_matrix,
+            threshold=0.0,
+        ):
+    """
+    Draw a directed transition graph from a transition matrix.
+
+    Parameters
+    ----------
+    transition_matrix : pd.DataFrame
+        Rows = previous behaviors
+        Columns = next behaviors
+        Values = transition probabilities
+
+    threshold : float
+        Minimum probability to display an edge.
+
+    layout : str
+        'circular', 'spring', or 'kamada_kawai'
+    """
+    import networkx as nx
+
+    # Create directed graph
+    G = nx.DiGraph()
+
+    # Add nodes
+    for node in transition_matrix.index:
+        G.add_node(node)
+
+    # Add weighted edges
+    for prev_behavior in transition_matrix.index:
+        for next_behavior in transition_matrix.columns:
+
+            prob = transition_matrix.loc[prev_behavior, next_behavior]
+
+            if prob >= threshold:
+                G.add_edge(
+                    prev_behavior,
+                    next_behavior,
+                    weight=prob
+                )
+
+
+    #  layout
+    pos = nx.circular_layout(G)
+
+    fig, ax = plt.subplots(constrained_layout=True)
+
+    # Node colors
+    node_colors = [behavior_palette.get(node, "lightgray")
+                    for node in G.nodes()]
+
+    # Draw nodes
+    nx.draw_networkx_nodes(
+        G,
+        pos,
+        node_size=2000,
+        node_color=node_colors,
+        ax=ax
+    )
+
+    # Draw labels
+    nx.draw_networkx_labels(
+        G,
+        pos,
+        font_size=12,
+        font_weight="bold",
+        ax=ax
+    )
+
+    # Edge weights
+    edge_weights = [G[u][v]["weight"] for u, v in G.edges()]
+    edge_widths = [w * 5 for w in edge_weights]
+
+
+    # Group edges between same node pairs
+    seen = {}
+
+    for (u, v, d), w, width in zip(G.edges(data=True), edge_weights, edge_widths):
+
+        # key ignoring direction (to detect A<->B pairs)
+        key = tuple(sorted([u, v]))
+        seen.setdefault(key, 0)
+
+        # curvature: opposite directions get opposite bend
+        rad = 0.2 * (seen[key] + 1)
+
+        # draw edges
+        nx.draw_networkx_edges(
+            G,
+            pos,
+            # width=width,
+            node_size=2000,
+            edgelist=[(u, v)],
+            width=3,
+            edge_color=[w],
+            edge_cmap=plt.cm.Reds,
+            edge_vmin=min(edge_weights),
+            edge_vmax=max(edge_weights),
+            arrows=True,
+            arrowstyle="->",
+            arrowsize=23,
+            connectionstyle=f"arc3,rad={rad}",
+            ax=ax,
+        )
+
+        # draw corresponding labels
+        nx.draw_networkx_edge_labels(
+            G,
+            pos,
+            edge_labels={(u, v): f"{d['weight']:.2f}"},
+            font_size=12,
+            connectionstyle=f"arc3,rad={rad}",
+            ax=ax
+        )
+
+
+    # Optional colorbar
+    sm = plt.cm.ScalarMappable(
+        cmap=plt.cm.Reds,
+        norm=plt.Normalize(
+            vmin=min(edge_weights),
+            vmax=max(edge_weights)
+        )
+    )
+
+    sm.set_array([])
+    plt.colorbar(sm, ax=ax, pad=0.1, shrink=0.85)
+    plt.subplots_adjust(top=0.9, right=0.88)
+    
+    return ax
+
+
+
 def plot_transition_matrix(cfg, data): 
 
-        # Ensure proper ordering
+    # Ensure proper ordering
     data = data.sort_values(["id", "t"])
 
-    # Next behavior within each trial
-    data["next_behavior"] = (
+    # Detect behavior changes within each trial
+    data["behavior_change"] = (
         data.groupby("id")["behavior"]
-        .shift(-1)
+        .diff()
+        .ne(0)
     )
 
-    print(data)
+    # Keep only rows where behavior changes
+    transitions = data[data["behavior_change"]].copy()
 
-    # Remove last frame of each trial because we shifted on the left
-    transitions = data.dropna(subset=["next_behavior"]).copy()
-
-    transitions["next_behavior"] = (
-        transitions["next_behavior"]
-        .astype(int)
+    # Previous behavior before the change
+    transitions["prev_behavior"] = (
+        transitions.groupby("id")["behavior"]
+        .shift(1)
     )
+
+    # Current behavior after the change
+    transitions["next_behavior"] = transitions["behavior"]
+
+    # Remove first rows of trials (where no previous behavior exists)
+    transitions = transitions.dropna(subset=["prev_behavior"])
+
+    # Convert to int if needed
+    transitions["prev_behavior"] = transitions["prev_behavior"].astype(int)
+    transitions["next_behavior"] = transitions["next_behavior"].astype(int)
 
     print(transitions)
+
     # Count transitions
     trans_mat = pd.crosstab(
-        transitions["behavior"],
+        transitions["prev_behavior"],
         transitions["next_behavior"],
         normalize="index"   # row-wise probabilities
     )
@@ -1214,7 +1360,7 @@ def plot_transition_matrix(cfg, data):
     print(trans_mat)
 
     # Ensure all behaviors exist
-    behaviors = [1, 2, 3, 4]
+    behaviors = [0, 1, 2, 3, 4]
 
     trans_mat = trans_mat.reindex(
         index=behaviors,
@@ -1247,7 +1393,7 @@ def plot_transition_matrix(cfg, data):
         }
     )
 
-    return ax
+    return ax, trans_mat
 
 
 

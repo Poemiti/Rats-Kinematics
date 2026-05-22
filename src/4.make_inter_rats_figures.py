@@ -147,10 +147,10 @@ if plot_choice["plot_statistics"] :
 
     print(f"\n ------ computing statistics on average velocity ------\n")
     ir.plot_statistics(cfg, file_to_process_list, "average_velocity", comparisons, 
-                    merge_laserOff=True, per_rats=True)
+                    merge_laserOff=True, per_rats=False)
 
-    print(f"\n ------ computing statistics on tortuosity ------\n")
-    ir.plot_statistics(cfg, file_to_process_list, "tortuosity", comparisons, merge_laserOff=True)
+    # print(f"\n ------ computing statistics on tortuosity ------\n")
+    # ir.plot_statistics(cfg, file_to_process_list, "tortuosity", comparisons, merge_laserOff=True)
 
 
 
@@ -262,12 +262,15 @@ if  plot_choice["plot_mean_proba_per_behavior"] :
 
 if plot_choice["plot_transition_matrix"] : 
 
-    rewarded = False
+    rewarded = None
 
-    if rewarded: 
+    if rewarded is None: 
+        r_filter = "both"
+        r_name = ""
+    elif rewarded == True: 
         r_filter = "reward_only"
         r_name = "reward"
-    else : 
+    elif rewarded == False : 
         r_filter = "non_reward_only"
         r_name = "non_reward"
 
@@ -277,16 +280,28 @@ if plot_choice["plot_transition_matrix"] :
 
     for (condition, l_state, l_intensity), subset in data.groupby(["condition", 'laser_state', 'laser_intensity']) :
         
-        ax = bp.plot_transition_matrix(cfg, subset)
+        # compute transition matrix
+        ax, transition_matrix = bp.plot_transition_matrix(cfg, subset)
 
         ax.set_xlabel("Next behavior")
         ax.set_ylabel("Current behavior")
         ax.set_title(f"{condition}_{l_state}_{l_intensity}\n{r_name} - n trial: {len(subset.groupby('id'))}")
 
-        ax.figure.savefig(make_output_path(cfg.paths.inter_rat / f"reward" / "transition_matrix" / r_name, f"{condition}_{l_state}_{l_intensity}_{r_name}_{CONTEXT}.png"))
-        ax.figure.savefig(make_output_path(cfg.paths.inter_rat / f"reward" / "transition_matrix" / r_name, f"{condition}_{l_state}_{l_intensity}_{r_name}_{CONTEXT}.svg"))
+        ax.figure.savefig(make_output_path(cfg.paths.inter_rat / "transition_matrix" / r_name, f"{condition}_{l_state}_{l_intensity}_{r_name}_{CONTEXT}.png"))
+        ax.figure.savefig(make_output_path(cfg.paths.inter_rat /  "transition_matrix" / r_name, f"{condition}_{l_state}_{l_intensity}_{r_name}_{CONTEXT}.svg"))
+        
+        plt.close(ax.figure)
 
-        plt.close()
+        # draw transition as a graph
+        ax2 = bp._draw_transition_graph(transition_matrix, threshold=0.01)
+
+        ax2.set_title(f"{condition}_{l_state}_{l_intensity}\n{r_name} - n trial: {len(subset.groupby('id'))}")
+        ax2.axis("off")
+
+        ax2.figure.savefig(make_output_path(cfg.paths.inter_rat / "transition_matrix" / "markov_chain" / r_name, f"{condition}_{l_state}_{l_intensity}_{r_name}_{CONTEXT}.png"))
+        ax2.figure.savefig(make_output_path(cfg.paths.inter_rat / "transition_matrix" / "markov_chain" / r_name, f"{condition}_{l_state}_{l_intensity}_{r_name}_{CONTEXT}.svg"))
+
+        plt.close(ax2.figure)
 
 # # ------------------------------------------- combinaison of behavior --------------------------------------------------
 # # uses the may trials since we only look at the period of laser
