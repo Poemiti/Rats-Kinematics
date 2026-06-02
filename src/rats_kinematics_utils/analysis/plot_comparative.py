@@ -19,7 +19,7 @@ def set_plot_style(context):
     sns.set_theme(
         context=context,
         style="ticks",
-        palette="pastel",
+        # palette="pastel",
         rc=custom_params,
     )
 
@@ -557,29 +557,15 @@ def plot_violin_stat_tortuosity() :
 
 
 def _plot_displot(data):
-    from rats_kinematics_utils.analysis.statistics import transform_data
+
+    print(sns.color_palette().as_hex())
 
     print(f"data size before trim = {len(data)}")
-    # log_val = np.log(data["value"])
-    # data["value"] = log_val
-
-    transformed_val = transform_data(data["value"])
-    data["value"] = transformed_val
 
     # data_trimmed = data
     data_trimmed = _trim_extremes_iqr(data, k=1.5)
 
     print(f"\nNumber of removed outliers: {len(data) - len(data_trimmed)}")
-
-    if (data_trimmed["condition"] == "NOstim").sum() == 0:
-        data_trimmed = data_trimmed[data_trimmed["condition"] != "NOstim"]
-        row_order = ["Conti", "Beta"]
-    else:
-        row_order = ["NOstim", "Conti", "Beta"]
-
-    laser_intensity_palette = {"low" : "lightblue",
-                               "high" : "salmon",
-                               "NOstim" : "gray"}
 
     # Remove empty combinations to avoid KDE crash
     data_trimmed = data_trimmed.dropna(subset=["value"])
@@ -587,20 +573,16 @@ def _plot_displot(data):
     g = sns.displot(
         data=data_trimmed,
         x="value",
-        col="laser_state",
-        row="condition",
-        hue="laser_intensity",
+        col="laser_intensity",
+        col_order=["low", "high"],
+        hue="condition",
+        hue_order=["Beta", "Conti", "LaserOff"],
         kind="kde",
-        height=2,
-        aspect=2,
-        fill=True,
-        palette=laser_intensity_palette,
-        row_order=row_order,
+        height=4,
         facet_kws=dict(margin_titles=True),
         common_norm=False  # prevents normalization issues across subsets
     )
 
-    g.add_legend()
 
     return g
 

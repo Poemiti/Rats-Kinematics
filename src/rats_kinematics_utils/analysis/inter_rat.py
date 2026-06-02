@@ -20,7 +20,9 @@ from rats_kinematics_utils.analysis.statistics import compute_statistics, save_s
 
 
 custom_params = {"axes.spines.right": False, "axes.spines.top": False}
-sns.set_theme("paper", style="ticks", rc=custom_params, palette="pastel")
+sns.set_theme("paper", style="ticks", rc=custom_params, 
+            #   palette="pastel"
+              )
 
 
 def rat_colorpalette(data, rat_only: bool = False) : 
@@ -58,53 +60,6 @@ laser_color = "royalblue"
 
 
 
-def filter_contra_trials(cfg, single_rat: bool = False): 
-
-    if single_rat: 
-        file_to_process = []
-    else : 
-        file_to_process = {}
-
-    print(cfg.inter_rat_metrics_paths)
-    for rat, root_path in cfg.inter_rat_metrics_paths.items() : 
-        print()
-        print(rat)
-        if rat not in file_to_process.keys(): 
-            file_to_process[rat] = []
-
-        filenames = list(root_path.glob("*.joblib"))
-
-        for file in filenames: 
-
-            meta = parse_filename(file.stem)
-
-            view = "Left" if meta["view"]=="H001" else "Right"
-            hemi = meta["stim_location"]
-            l_intensity = meta["laser_intensity"]
-            condition = meta["condition"]
-
-            if condition == "NOstim": 
-                print("  ", file.stem, "-NO STIM")
-                continue
-
-            if l_intensity not in cfg.laser_intensities[condition]: 
-                print("  ", file.stem, "-NOT RIGHT LASER INTENSITY")
-                continue
-
-            if cfg.inter_rat.contra_hemi[rat] != hemi: 
-                print("  ", file.stem, "-NOT CONTRA")
-                continue
-
-            if view in hemi :       # view must be contra lateral to the camera view
-                print("  ", file.stem, "-NOT RIGHT VIEW")
-                continue
-            
-            print("  ", file.stem)
-            file_to_process[rat].append(file)
-
-    return file_to_process
-
-
 
 def _preprocess(cfg, filenames: list[Path], METRIC: str, split_condition: bool = False, 
                 merge_laserOff: bool = False) -> pd.DataFrame : 
@@ -131,7 +86,7 @@ def _preprocess(cfg, filenames: list[Path], METRIC: str, split_condition: bool =
             elif not merge_laserOff and not split_condition : 
                 condition = condition + "_" + laser_state
 
-            else : 
+            elif merge_laserOff and split_condition : 
                 raise ValueError(f"ERROR : impossible combinaison of split condition: {split_condition}, and merge laserOff: {merge_laserOff}")
 
             reward = "yes" if trial["reward"] else "no"
@@ -166,10 +121,12 @@ def inter_rat_metadata_report(cfg, rat_types: list[str], joblib_filenames: list[
 
     output_dir = cfg.paths.inter_rat
 
-    noCue_video = pd.DataFrame()
-    report = pd.DataFrame()
-
+    
     for r_type in rat_types : 
+
+        noCue_video = pd.DataFrame()
+        report = pd.DataFrame()
+
 
         for f in joblib_filenames:
                 
@@ -209,7 +166,7 @@ def inter_rat_metadata_report(cfg, rat_types: list[str], joblib_filenames: list[
         print("Number of trials :", len(report))
             
         if len(report) == 0  : 
-            print(f"\”No data for this rat type : {r_type}")
+            print(f"\nNo data for this rat type : {r_type}")
             break
 
         # plot reports
@@ -224,9 +181,14 @@ def inter_rat_metadata_report(cfg, rat_types: list[str], joblib_filenames: list[
         #                       groups=["rat_name", "condition", "laser"], 
         #                       rat_type=r_type)
 
-        _plot_metadata_report(report, output_dir / f"{r_type}_rat_date", 
-                              groups=["date", "rat_name"], 
-                              rat_type=r_type)
+        # _plot_metadata_report(report, output_dir / f"{r_type}_rat_date", 
+        #                       groups=["date", "rat_name"], 
+        #                       rat_type=r_type)
+
+        _plot_metadata_report(report, output_dir / f"{r_type}_failure_reason", 
+                              subfig_group="condition",
+                            groups=["success", "failure_reason"],
+                            rat_type=r_type,)
 
         noCue_filename = output_dir / f"{r_type}_NoCue_video.csv"
         noCue_video.to_csv(noCue_filename)
@@ -378,9 +340,9 @@ def _displot_stat(perm_data) :
             })
     df = pd.DataFrame(rows)
 
-    order = ["Beta vs Conti",
-             "Conti vs NOstim", 
-             "Beta vs NOstim", ]
+    order = ["Beta vs OFF", 
+             "Conti vs OFF", 
+             "Beta vs Conti"]
     
     # Plot
     fig, ax = plt.subplots(figsize=(6,4))
@@ -392,36 +354,65 @@ def _displot_stat(perm_data) :
         hue_order=order,
         common_norm=False,  # keeps separate densities normalized
         alpha=0.5,
-        kde=True
+        kde=True,
+        legend=False,
     )
 
     kde_lines = [line for line in ax.lines]
     print(f"n kde lines {len(kde_lines)}")
 
-    for i, line in enumerate(kde_lines):
-        x_data = line.get_xdata()
-        y_data = line.get_ydata()
+    # for i, line in enumerate(kde_lines):
+    #     print(perm_data[i])
+    #     print(line.get_color())
+    #     x_data = line.get_xdata()
+    #     y_data = line.get_ydata()
         
-        # Find peak of this KDE
-        max_idx = np.argmax(y_data)
-        x_peak = x_data[max_idx]
-        y_peak = y_data[max_idx]
+    #     # Find peak of this KDE
+    #     max_idx = np.argmax(y_data)
+    #     x_peak = x_data[max_idx]
+    #     y_peak = y_data[max_idx]
         
-        ax.text(
-            perm_data[i]['observed mean difference'],
-            y_peak,
-            f"          {perm_data[i]['observed mean difference']:.2f}",
-            color=line.get_color(),
-            ha="center",
-            va="bottom",
-            fontsize=10,
-            fontweight="bold"
+    #     # ax.text(
+        #     perm_data[i]['p_value'],
+        #     y_peak,
+        #     f"          {perm_data[i]['observed mean difference']:.2f}",
+        #     color=line.get_color(),
+        #     ha="center",
+        #     va="bottom",
+        #     fontsize=10,
+        #     fontweight="bold"
+        # )
+
+        # ax.axvline(perm_data[i]["observed mean difference"], 
+        #            color=line.get_color(), 
+        #         #    lw=1, 
+        #            ls='--', label="conti observed")
+
+    perm_dict = {
+        d["Condition"]: d
+        for d in perm_data
+    }
+
+    condi_color = {
+        "Beta vs OFF" : (0.2980392156862745, 0.4470588235294118, 0.6901960784313725, 1), 
+        "Conti vs OFF" : (0.8666666666666667, 0.5176470588235295, 0.3215686274509804, 1), 
+        "Beta vs Conti": (0.3333333333333333, 0.6588235294117647, 0.40784313725490196, 1)
+    }
+
+    for cond, color in condi_color.items():
+
+        obs = perm_dict[cond]["observed mean difference"]
+
+        print()
+        print(cond)
+        print(obs)
+        print(color)
+
+        ax.axvline(
+            obs,
+            color=color,
+            ls='--'
         )
-
-        ax.axvline(perm_data[i]["observed mean difference"], 
-                   color=line.get_color(), 
-                   lw=1, ls='--', label="conti observed")
-
 
     return ax
 
@@ -431,6 +422,8 @@ def plot_permutation(cfg, filenames: list[Path], metric: str, intensity: str, n_
     raw_data = _preprocess(cfg, filenames, metric, split_condition=True)  # has to stay true
 
     data = raw_data[raw_data["laser_intensity"] == intensity]
+
+    print(data)
     res = compute_permutation_effect_size(data, n_perm)
     ax = _displot_stat(res)
     ax.set_title(f"Effect size Distributions of {metric} (n_perm={n_perm})\n({intensity} intensity)")
@@ -438,9 +431,11 @@ def plot_permutation(cfg, filenames: list[Path], metric: str, intensity: str, n_
     ax.set_ylabel("Density")
 
     fig = ax.figure
-    fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_permutation", f"NostimePerCondition_notransform_{metric}_{intensity}Intensities_{n_perm}.png"))
-    plt.show()
-    plt.close()
+    fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_permutation", f"PerCondition_notransform_{metric}_{intensity}Intensities_{n_perm}.png"))
+    fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_permutation", f"PerCondition_notransform_{metric}_{intensity}Intensities_{n_perm}.svg"))
+
+    # plt.show()
+    # plt.close()
 
 
 
@@ -500,7 +495,7 @@ def _preprocess_tendency(cfg, filenames: list[Path], metric: str, metric_vector:
 
 
 
-def plot_tendency_per_rat(cfg, data, error_function: str) :
+def _plot_tendency_per_rat(cfg, data, error_function: str) :
     from scipy.stats import sem
     
     if error_function is None: 
@@ -720,6 +715,8 @@ def plot_lever_distance():
 def plot_velocity_per_rat(): 
     pass
 
+def plot_velocity_mean_tendency(): 
+    pass
 
 # ------------------------------------------------- behavior ------------------------
 
@@ -752,3 +749,12 @@ def plot_time_in_behavior_space():
 
 def plot_mean_proba_per_behavior(): 
     pass
+
+
+
+
+
+
+def plot_velocity_effect_size(): 
+    pass
+

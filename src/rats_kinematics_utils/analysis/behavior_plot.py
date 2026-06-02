@@ -1229,7 +1229,7 @@ def _draw_transition_graph(
     #  layout
     pos = nx.circular_layout(G)
 
-    fig, ax = plt.subplots(constrained_layout=True)
+    fig, ax = plt.subplots()
 
     # Node colors
     node_colors = [behavior_palette.get(node, "lightgray")
@@ -1255,7 +1255,7 @@ def _draw_transition_graph(
 
     # Edge weights
     edge_weights = [G[u][v]["weight"] for u, v in G.edges()]
-    edge_widths = [w * 5 for w in edge_weights]
+    edge_widths = [w * 10 for w in edge_weights]
 
 
     # Group edges between same node pairs
@@ -1274,14 +1274,14 @@ def _draw_transition_graph(
         nx.draw_networkx_edges(
             G,
             pos,
-            # width=width,
+            width=width,
             node_size=2000,
             edgelist=[(u, v)],
-            width=3,
-            edge_color=[w],
-            edge_cmap=plt.cm.Reds,
-            edge_vmin=min(edge_weights),
-            edge_vmax=max(edge_weights),
+            # width=3,
+            edge_color=behavior_palette.get(u, "lightgray"),
+            # edge_cmap=plt.cm.Reds,
+            # edge_vmin=min(edge_weights),
+            # edge_vmax=max(edge_weights),
             arrows=True,
             arrowstyle="->",
             arrowsize=23,
@@ -1301,17 +1301,17 @@ def _draw_transition_graph(
 
 
     # Optional colorbar
-    sm = plt.cm.ScalarMappable(
-        cmap=plt.cm.Reds,
-        norm=plt.Normalize(
-            vmin=min(edge_weights),
-            vmax=max(edge_weights)
-        )
-    )
+    # sm = plt.cm.ScalarMappable(
+    #     cmap=plt.cm.Reds,
+    #     norm=plt.Normalize(
+    #         vmin=min(edge_weights),
+    #         vmax=max(edge_weights)
+    #     )
+    # )
 
-    sm.set_array([])
-    plt.colorbar(sm, ax=ax, pad=0.1, shrink=0.85)
-    plt.subplots_adjust(top=0.9, right=0.88)
+    # sm.set_array([])
+    # plt.colorbar(sm, ax=ax, pad=0.1, shrink=0.85)
+    # plt.subplots_adjust(top=0.9, right=0.88)
     
     return ax
 
