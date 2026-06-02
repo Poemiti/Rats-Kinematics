@@ -6,7 +6,7 @@ from tqdm import tqdm
 import pandas as pd
 
 from rats_kinematics_utils.core.config import load_config, match_rule
-from rats_kinematics_utils.core.file_utils import print_analysis_info, make_output_path, load_trial_data, dataframe_report
+from rats_kinematics_utils.core.file_utils import print_analysis_info, make_output_path, load_trial_data, dataframe_report, filter_contra_trials
 from rats_kinematics_utils.preprocessing.preprocess import check_times, filter_outliers, filter_likelihood, interpolate_data, open_DLC_results
 import rats_kinematics_utils.preprocessing.plot_preprocess as pp
 
@@ -15,7 +15,7 @@ import rats_kinematics_utils.preprocessing.plot_preprocess as pp
 cfg = load_config()
 print_analysis_info(cfg, "Preprocessing")
 
-filenames = list((cfg.paths.metrics).glob("*.joblib"))
+filenames = filter_contra_trials(cfg, single_rat=True)
 yaml_filenames = list((cfg.paths.raw_clips).rglob("*.yaml"))
 
 # print("\nPlotting behavior rate\n")
@@ -32,8 +32,10 @@ yaml_filenames = list((cfg.paths.raw_clips).rglob("*.yaml"))
 # print("\nPlotting likelihood across frame of each trials\n")
 # pp.plot_likelihood_across_frames(cfg, filenames)
 
-# print("\nPlotting the distribution of the failure reason\n")
-# pp.plot_trial_failure_reason(cfg, filenames)
+print("\nPlotting the distribution of the failure reason\n")
+pp.plot_trial_failure_reason(cfg, ["CHR"] ,filenames, inter_rat=False)
+
+sys.exit()
 
 # print("\nPlotting the distribution of the failure reason DETAIL VERSION\n")
 # pp.plot_trial_failure_reason_detail(cfg, filenames)
