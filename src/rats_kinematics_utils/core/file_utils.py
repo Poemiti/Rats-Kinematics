@@ -390,6 +390,67 @@ def check_exclusion_rules(trial) -> bool:
 
 
 
+
+def filter_contra_trials(cfg, single_rat: bool = False): 
+    def _filter(filenames: list[str]) -> list : 
+        filtered_files = []
+        
+        for file in filenames: 
+
+            meta = parse_filename(file.stem)
+
+            view = "Left" if meta["view"]=="H001" else "Right"
+            hemi = meta["stim_location"]
+            l_intensity = meta["laser_intensity"]
+            condition = meta["condition"]
+
+            if condition == "NOstim": 
+                print("  ", file.stem, "-NO STIM")
+                continue
+
+            if l_intensity not in cfg.laser_intensities[condition]: 
+                print("  ", file.stem, "-NOT RIGHT LASER INTENSITY")
+                continue
+
+            if cfg.inter_rat.contra_hemi[rat] != hemi: 
+                print("  ", file.stem, "-NOT CONTRA")
+                continue
+
+            if view in hemi :       # view must be contra lateral to the camera view
+                print("  ", file.stem, "-NOT RIGHT VIEW")
+                continue
+            
+            print("  ", file.stem)
+            filtered_files.append(file)
+
+        return filtered_files
+    
+    # -------- single rat case 
+
+    if single_rat : 
+        rat = cfg.rat_name
+        return _filter(list((cfg.paths.metrics).glob("*.joblib"))) 
+
+    # -------- inter rat case 
+    
+    file_to_process = {}
+
+    for rat, root_path in cfg.inter_rat_metrics_paths.items() : 
+        print()
+        print(rat)
+        if rat not in file_to_process.keys(): 
+            file_to_process[rat] = []
+
+        filenames = list(root_path.glob("*.joblib"))
+
+        filtered_files = _filter(filenames)
+
+        file_to_process[rat].extend(filtered_files)
+
+    return file_to_process
+
+
+
 if __name__ == "__main__" :
 
     print("no main")
