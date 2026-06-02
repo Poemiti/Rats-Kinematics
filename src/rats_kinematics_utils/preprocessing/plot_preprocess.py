@@ -186,38 +186,98 @@ def make_outlier_figures(raw_coords, params, save_as):
 
 
 
-def _plot_metadata_report(data, output_path: Path,
-                          groups: list[str] = ["condition", "view", "stim", "cue", "laser", "intensity"], 
-                          rat_name: str = None, rat_type: str = None):
+def _plot_metadata_report(
+            data,
+            output_path: Path,
+            subfig_group: str = None,
+            groups: list[str] = ["condition", "view", "stim", "cue", "laser", "intensity"],
+            rat_name: str = None,
+            rat_type: str = None,
+            show_total: bool = True
+        ):
     import plotly.express as px
+    from plotly.subplots import make_subplots
 
-    counts = (
-        data
-        .groupby(groups)
-        .size()
-        .reset_index(name="count")
+    def build_title():
+        if rat_name is not None and rat_type is not None:
+            return f"Trial metadata of rat {rat_name}, {rat_type}"
+        elif rat_name is None and rat_type is not None:
+            return f"Trial metadata of rat {rat_type}"
+        return "Trial metadata"
+
+    title = build_title()
+
+    # ---------------- CASE 1: no subfig_groups
+
+    if subfig_group is None:
+        counts = (
+            data
+            .groupby(groups)
+            .size()
+            .reset_index(name="count")
+        )
+
+        fig = px.sunburst(
+            counts,
+            path=groups,
+            values="count"
+        )
+
+        fig.update_layout(title=title)
+
+        fig.update_traces(
+            branchvalues="total" if show_total else "remainder",
+            texttemplate="<b>%{label}</b><br>%{value} (%{percentParent:.0%})",
+            textfont_size=14
+        )
+
+        fig.write_html(str(output_path.with_suffix(".html")))
+        fig.show()
+        return
+
+    # ---------------- CASE 2: subfig_groups
+
+    subgroups = sorted(data[subfig_group].dropna().unique())
+
+    fig = make_subplots(
+        rows=1,
+        cols=len(subgroups),
+        specs=[[{"type": "domain"}] * len(subgroups)],
+        subplot_titles=subgroups
     )
 
-    fig = px.sunburst(
-        counts,
-        path=groups,
-        values="count"
-    )
+    for i, g in enumerate(subgroups, start=1):
 
-    if rat_name is not None and rat_type is not None: 
-        title = f"Trial metadata of rat {rat_name}, {rat_type}"
-    elif rat_name is None and rat_type is not None: 
-        title = f"Trial metadata of rat {rat_type}"
-    else :
-        title = 'Trial metadata'
-        
-    fig.update_layout(title=title)
+        tmp = data[data[subfig_group] == g]
+
+        counts = (
+            tmp
+            .groupby(groups)
+            .size()
+            .reset_index(name="count")
+        )
+
+        pie = px.sunburst(
+            counts,
+            path=groups,
+            values="count",
+            color="condition",
+            color_discrete_sequence=px.colors.qualitative.D3     
+        )
+
+        fig.add_trace(
+            pie.data[0],
+            row=1,
+            col=i
+        )
 
     fig.update_traces(
         branchvalues="total",
         texttemplate="<b>%{label}</b><br>%{value} (%{percentParent:.0%})",
-        textfont_size=14
+        textfont_size=25
     )
+
+    fig.update_layout(title=title)
 
     fig.write_html(str(output_path.with_suffix(".html")))
     fig.show()
@@ -720,201 +780,87 @@ def plot_preprocess_lost_points(cfg, filenames) :
     plt.close()
 
 
+def plot_trial_failure_reason(cfg, rat_types: list[str], joblib_filenames: list[Path], inter_rat: bool = False) : 
 
-def _trial_report(cfg, trials: list[dict]) -> dict:
+    output_dir = cfg.paths.inter_rat if inter_rat else cfg.paths.analysis
 
-    def new_block(intensities):
-        return {
-            "Total": 0,
-            "LaserOn": {"Total": 0, **{i: 0 for i in intensities}},
-            "LaserOff": {"Total": 0, **{i: 0 for i in intensities}},
-        }
+    for r_type in rat_types : 
 
-    def init_group(intensities):
-        return {
-            "Total": 0,
-            "Successful": new_block(intensities),
-            "Unsuccessful": new_block(intensities),
-            "Rejected": new_block(intensities),
-            "No reward -": new_block(intensities),
-            "No reward +": new_block(intensities),
-            "No pad off": new_block(intensities),
-            "No cue": new_block(intensities),
-            "Unknown": new_block(intensities),
-        }
+        report = pd.DataFrame()
+        report_fig_path = make_output_path(output_dir , f"{cfg.rat_type}_")
 
-    def update(group, outcome, laser_state, intensity):
-        group[outcome]["Total"] += 1
-        group[outcome][laser_state]["Total"] += 1
-        group[outcome][laser_state][intensity] += 1
+        for f in joblib_filenames:
+                
+            trials = load_trial_data(f)
 
+            for t in trials: 
 
-    report = {
-        "Total number of trials": len(trials),
-        "Beta": init_group(["1mW", "2,5mW"]),
-        "Conti": init_group(["0,5mW", "0,75mW", "2,5mW"]),
-        "NOstim": init_group(["NOstim"]),
-    }
+                if t['rat_type'] != r_type: 
+                    continue
 
-    #--------------------- loop ---------------------------
+                view_num = "H001" if t["camera_view"]=="left" else "H002"
 
-    for t in trials:
-        condition = t["condition"]
-        intensity = t["laser_intensity"]
+                df = pd.DataFrame({
+                        "rat_type": [r_type],
+                        "rat_name": [t["rat_name"]],
+                        "view": [t["camera_view"] + f" ({view_num})"],
+                        "condition": [t["condition"]],
+                        "stim": [t["stim_location"]],
+                        "cue": [t["cue_type"]],
+                        "laser": [t["laser_state"]],
+                        "intensity": [t["laser_intensity"]],
+                        "date": [t["date"]],
 
-        if "Beta" in condition:
-            group = report["Beta"]
-        elif "Conti" in condition:
-            group = report["Conti"]
-        else : 
-            group = report["NOstim"]
-
-        laser_state = t["laser_state"]
+                        "success": None, 
+                        "failure_reason": None,
+                    })
 
 
-        # Successful
-        if t[cfg.bodypart]["trial_success"]:
-            group["Total"] += 1
-            update(group, "Successful", laser_state, intensity)
+                # Successful
+                if t[cfg.bodypart]["trial_success"]:
+                    df["success"] = "Successful"
+                    df["failure_reason"] = "Successful"
+                
+                # Unsuccessful
+                else : 
+                    df["success"] = "Unsuccessful"
 
-            # No reward
-            if not t["reward"]:
-                update(group, "No reward +", laser_state, intensity)
-        
-        # Unsuccessful
-        else : 
-            group["Total"] += 1
-            update(group, "Unsuccessful", laser_state, intensity)
+                    if not t["pad_off"] :
+                        df["failure_reason"] = "No pad off"
 
-            # No reward
-            if not t["reward"]:
-                update(group, "No reward -", laser_state, intensity)
+                    elif t["cue_type"] == "NoCue":
+                        df["failure_reason"] = "No cue"
 
-            if not t["pad_off"] :
-                update(group, "No pad off", laser_state, intensity)
+                    elif t["pad_off"] and t["cue_type"] != "NoCue" :
+                        df["failure_reason"] = "Manually rejected"
 
-            elif t["cue_type"] == "NoCue":
-                update(group, "No cue", laser_state, intensity)
+                    else : 
+                        df["failure_reason"] = "Unknow"
 
-            elif t["pad_off"] and t["cue_type"] != "NoCue" :
-                update(group, "Rejected", laser_state, intensity)
+                report = pd.concat([report, df], ignore_index=True)
 
-            else : 
-                update(group, "Unknown", laser_state, intensity)
+
+        print("Number of trials :", len(report))
             
+        if len(report) == 0  : 
+            print(f"\nNo data for this rat type : {r_type}")
+            break
 
-    return report
+        # _plot_metadata_report(report, output_dir / f"{r_type}_rat_proportion", 
+        #                       groups=["condition", "rat_name","failure_reason"], 
+        #                       rat_type=r_type)
+        
+        _plot_metadata_report(report, report_fig_path, 
+                                subfig_group="success",
+                            groups=["condition", "rat_name", ], 
+                            rat_name=cfg.rat_name if not inter_rat else None,
+                            rat_type=r_type, show_total=True)
 
-
-
-def _plot_trial_report(cfg, yaml_file: Path, output_path: Path):
-    import plotly.express as px
-    import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
-
-    with open(yaml_file, "r") as f:
-        data = yaml.safe_load(f)
-
-    trial_types = ["Beta", "Conti", "NOstim"]
-
-    fig = make_subplots(
-        rows=1,
-        cols=len(trial_types),
-        specs=[[{"type": "domain"}] * len(trial_types)],
-        subplot_titles=[t for t in trial_types]
-    )
-
-    for i, trial_type in enumerate(trial_types, start=1):
-
-        block = data[trial_type]
-
-        labels = []
-        parents = []
-        values = []
-
-        print()
-        print(trial_type)
-        print(f"Total: ", block["Total"])
-        print(f"Successful total: ", block["Successful"]["Total"])
-        print(f"Unsuccessful total: ", block["Unsuccessful"]["Total"])
-
-        # ---- ROOT ----
-        root_name = trial_type
-        labels.append(root_name)
-        parents.append("")
-        values.append(block["Total"])
-
-        # ---- SUCCESS ----
-        labels.append("Successful")
-        parents.append(root_name)
-        values.append(block["Successful"]["Total"])
-
-        # ---- UNSUCCESSFUL ----
-        labels.append("Unsuccessful")
-        parents.append(root_name)
-        values.append(block["Unsuccessful"]["Total"])
-
-        for reason in ["Rejected", "No pad off", "No cue", "Unknown"]:
-            labels.append(reason)
-            parents.append("Unsuccessful")
-            values.append(block[reason]["Total"])
-
-        fig.add_trace(
-            go.Sunburst(
-                labels=labels,
-                parents=parents,
-                values=values,
-                branchvalues="total",
-                textinfo="label+percent parent+value",
-            ),
-            row=1,
-            col=i
-        )
-
-    fig.update_layout(
-        title=f"Trial success rate of rat {cfg.rat_name}",
-    )
-
-    fig.write_html(str(output_path.with_suffix(".html")))
-    fig.show()
-
-
-
-def plot_trial_failure_reason(cfg, filenames: list[Path], inter_rat: bool = False) : 
-    from rats_kinematics_utils.core.file_utils import load_trial_data
-
-    if inter_rat: 
-        output_dir = cfg.paths.inter_rat
-        report_fig_path = output_dir / f"{cfg.rat_type}_overall_failure_reason"
-    else:
-        output_dir = cfg.paths.analysis
-        output_dir.mkdir(parents=True, exist_ok=True)
-        report_fig_path = output_dir / f"{cfg.rat_name}_overall_failure_reason"
-    
-    report_path = output_dir / "failure_reason_data.yaml"
-    
-
-    all_trials = []
-    for i, metrics_path in enumerate(filenames) :
-        metrics_path = Path(metrics_path) 
-        metrics = load_trial_data(metrics_path)
-        for trial in metrics : 
-            all_trials.append(trial)
-
-    print("Number of trials :", len(all_trials))
-    report = _trial_report(cfg, all_trials)
-
-    # save report
-    with open(output_dir / report_path, "w") as file :
-        yaml.dump(report, file, default_flow_style=False, indent=4, sort_keys=False)
-
-
-    # plot report
-    print(f"Loading {report_path} and plotting")
-    _plot_trial_report(cfg, report_path, report_fig_path)
-
-
-
+        # _plot_metadata_report(report, report_fig_path, 
+        #                         subfig_group="condition",
+        #                     groups=["success", "failure_reason", ], 
+        #                     rat_name=cfg.rat_name if not inter_rat else None,
+        #                     rat_type=r_type, show_total=True)
 
 
  ################### version detail
