@@ -34,6 +34,10 @@ for file in filenames:
         print(f"\nNOT THE RIGHT RAT TYPE (!={cfg.rat_type}):", file.stem, "\n")
         continue
 
+    if "NOstim" in file.stem.split("_") : 
+        print(f"\nNO STIM:", file.stem, "\n")
+        continue
+
     metadata = joblib.load(file)
 
     already_validated = all(
@@ -119,10 +123,10 @@ for i, file in enumerate(file_to_validate):
 # -------------- show report of the successful trials ------------
 
 print("\nPlotting the distribution of trial success\n")
-plot_trial_success_distri(cfg, filenames)
+plot_trial_success_distri(cfg, file_to_validate)
 
 print("\nPlotting the distribution of the failure reason\n")
-plot_trial_failure_reason(cfg, filenames)
+plot_trial_failure_reason(cfg, [cfg.rat_type], file_to_validate)
 
 print("\nPlotting the distribution of the failure reason DETAIL VERSION\n")
-plot_trial_failure_reason_detail(cfg, filenames)
+plot_trial_failure_reason_detail(cfg, file_to_validate)

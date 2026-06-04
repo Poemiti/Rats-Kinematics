@@ -557,7 +557,7 @@ def plot_metric_behavior(cfg, data: pd.DataFrame, metric: str) :
                             loc='upper right', 
                             facecolor="lightgray")
 
-        g.savefig(make_output_path(cfg.paths.analysis / f"behavior" / "metrics_across_time", f"{metric}_{laser_intensity}.png"))
+        g.savefig(make_output_path(cfg.paths.analysis / f"{cfg.rat_type}_behavior" / "metrics_across_time", f"{cfg.rat_type}_{metric}_{laser_intensity}.png"))
 
         plt.close()
 
@@ -796,8 +796,8 @@ def plot_ethogram_by_condition(cfg, behavior, biggest_condition, output_dir, ali
         plt.suptitle(f"Ethogram across frames\nCondition: {condition}, Number of trials: {len(subset.groupby('id'))}", y=0.98)
         plt.tight_layout()
 
-        plt.savefig(make_output_path(output_dir / "behavior" / f"ethogram" / f"_align_to_{align_by}", f"ethogram_{condition}.png"))
-        plt.savefig(make_output_path(output_dir / "behavior" / f"ethogram" / f"_align_to_{align_by}", f"ethogram_{condition}.svg"))
+        plt.savefig(make_output_path(output_dir / f"{cfg.rat_type}_behavior" / f"ethogram" / f"_align_to_{align_by}", f"{cfg.rat_type}_ethogram_{condition}.png"))
+        plt.savefig(make_output_path(output_dir / f"{cfg.rat_type}_behavior" / f"ethogram" / f"_align_to_{align_by}", f"{cfg.rat_type}_ethogram_{condition}.svg"))
 
         plt.close()
 
@@ -864,7 +864,7 @@ def plot_behavior_proba_all(cfg, behavior):
     plt.title(f"Behavior probability over time of rat {cfg.rat_name}\nAll condition mixed - Number of trials: {len(behavior.groupby('id'))}")
     plt.tight_layout()
 
-    plt.savefig(make_output_path(cfg.paths.analysis / "behavior", "behavior_probability_all_condition.png"))
+    plt.savefig(make_output_path(cfg.paths.analysis / f"{cfg.rat_type}_behavior", f"{cfg.rat_type}_behavior_probability_all_condition.png"))
 
 
 
@@ -967,8 +967,8 @@ def plot_behavior_proba_per_condition(cfg, behavior, output_dir: Path, align_by:
         plt.title(f"Behavior probability over time\nCondition: {condition} - Number of trial: {len(subset.groupby('id'))}")
         plt.tight_layout()
 
-        plt.savefig(make_output_path(output_dir / "behavior" / "probability" / f"ci-50", f"behavior_probability_{condition}.png"))
-        plt.savefig(make_output_path(output_dir / "behavior" / "probability" / f"ci-50", f"behavior_probability_{condition}.svg"))
+        plt.savefig(make_output_path(output_dir / f"{cfg.rat_type}_behavior" / "probability" / f"ci-50", f"{cfg.rat_type}_behavior_probability_{condition}.png"))
+        plt.savefig(make_output_path(output_dir / f"{cfg.rat_type}_behavior" / "probability" / f"ci-50", f"{cfg.rat_type}_behavior_probability_{condition}.svg"))
 
         plt.close()
 
@@ -1063,7 +1063,7 @@ def plot_behavior_proba_per_behavior(cfg, data, output_dir: Path):
         for ax in axes:
 
             ax.set_ylim(-0.05, 1.05)
-            ax.set_xlim(-0.2, 0.4)
+            ax.set_xlim(-0.2, 2)
 
             add_pad_off(ax, 0)
             add_laser_period(ax, y=1.01, x_min=0.025, x_max=0.325, color="royalblue")
@@ -1087,9 +1087,9 @@ def plot_behavior_proba_per_behavior(cfg, data, output_dir: Path):
         g.tight_layout()
         g.figure.subplots_adjust(top=0.78)
 
-        output = make_output_path(output_dir / "behavior" / "probability" / "per_behavior_laser_stim",f"probability_{beha}.png")
+        output = make_output_path(output_dir / f"{cfg.rat_type}_behavior" / "probability" / "per_behavior",f"{cfg.rat_type}_probability_{beha}.png")
         g.savefig(output, dpi=300)
-        output = make_output_path(output_dir / "behavior" / "probability" / "per_behavior_laser_stim",f"probability_{beha}.svg")
+        output = make_output_path(output_dir / f"{cfg.rat_type}_behavior" / "probability" / "per_behavior",f"{cfg.rat_type}_probability_{beha}.svg")
         g.savefig(output, dpi=300)
 
         plt.close(g.figure)
@@ -1174,9 +1174,9 @@ def plot_mean_proba_per_behavior(cfg, data, output_dir: Path):
         g.tight_layout()
         g.figure.subplots_adjust(top=0.78)
 
-        output = make_output_path(output_dir / "behavior" / "probability" / "mean_proba_per_behavior",f"probability_{beha}.png")
+        output = make_output_path(output_dir / f"{cfg.rat_type}_behavior" / "probability" / "mean_proba_per_behavior",f"{cfg.rat_type}_probability_{beha}.png")
         g.savefig(output, dpi=300)
-        output = make_output_path(output_dir / "behavior" / "probability" / "mean_proba_per_behavior",f"probability_{beha}.svg")
+        output = make_output_path(output_dir / f"{cfg.rat_type}_behavior" / "probability" / "mean_proba_per_behavior",f"{cfg.rat_type}_probability_{beha}.svg")
         g.savefig(output, dpi=300)
 
         plt.close(g.figure)

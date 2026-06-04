@@ -1,10 +1,10 @@
 
 # parameter for analysis of one individual
 rat_type: "CHR"      # or CTRL 
-rat_name: "#531"
+rat_name: "#516"
 bodypart: finger_3 
-view: right           # camera view
-task: L2            # L1: left lever, L2: right lever
+view: left           # camera view
+task: L1            # L1: left lever, L2: right lever
 
 # hyper parameters
 threshold: 0.7
@@ -21,13 +21,15 @@ inter_rat:
     - "#525"
     - "#521"
     - "#517"
+    # - "#516"
     - "#531"
 
   contra_hemi: 
-    "#517": "RightHemi"
-    "#521": "LeftHemi"
-    "#525": "RightHemi"
-    "#531": "RightHemi"
+    "#517": "RightHemi" # for CHR # "LeftHemi" # for CTRL, 
+    "#521": "LeftHemi" # for CHR
+    "#525": "RightHemi" # for CHR # "LeftHemi" # for CTRL, 
+    "#531": "RightHemi" # for CHR
+    "#516": "RightHemi" # for CTRL
 
 
 laser_intensities: 
@@ -46,7 +48,6 @@ paths:
   # input data
   model: "/media/filer2/T4b/UserFolders/Poemiti/Reaching-DLC-model-main/data/model/DLC-Poe-2026-03-27/"
   raw_videos: "/media/filer2/T4b/UserFolders/Raphael/Raphael_M2_2024/Opto_SkilledReaching_2024_experiments/MOVIES/"
-  # raw_videos: "/media/filer2/T4b/Datasets/Rats/Photron_Video/Raphael2024"
 
   # output folder
   data_root: ./data
@@ -64,5 +65,6 @@ paths:
   metrics: "{processed}/metrics"
   luminosity: "{processed}/luminosity"
   preprocessing: "{processed}/preprocessing"
-
   analysis: "{rat_root}/analysis_{bodypart}"
+  
+  

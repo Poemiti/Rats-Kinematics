@@ -438,7 +438,7 @@ def _add_stat_annotations(ax, data, statistics, order):
     )
 
     # Use adjusted p-values
-    pvalues = stats_subset["p_value"].values
+    pvalues = stats_subset["p_adj"].values
 
     annotator.set_pvalues(pvalues)
     annotator.annotate()

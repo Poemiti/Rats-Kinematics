@@ -248,7 +248,7 @@ def _make_violin(cfg, data, metric) :
     
     fig.set_label(metric)
     fig.suptitle(f"{metric} distribution for rat {cfg.rat_name}")
-    fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution", f"violin_{metric}_left_CHR_L1_{CONTEXT}.png"))
+    fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution", f"{cfg.rat_type}_violin_{metric}_{CONTEXT}.png"))
 
     if SHOW : 
         plt.show()
@@ -306,14 +306,14 @@ def _make_violin_stat(data, metric) :
 
         fig = pc._plot_violin_statistic(cfg, data, significant_pair, strip=True)
         fig.suptitle(f"{metric} distribution for rat {cfg.rat_name}")
-        fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution",  f"stat_violin_{metric}_{cfg.rat_name}_{CONTEXT}.png"))
+        fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution",  f"{cfg.rat_type}_stat_violin_{metric}_{cfg.rat_name}_{CONTEXT}.png"))
     else : 
 
         print("\nNo Mann Whitney came significant !")
 
         fig = pc._plot_violin_statistic(cfg, data, statistics=None, strip=True)
         fig.suptitle(f"{metric} distribution for rat {cfg.rat_name}")
-        fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution",  f"stat_violin_{metric}_{cfg.rat_name}_{CONTEXT}.png"))
+        fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution",  f"{cfg.rat_type}_stat_violin_{metric}_{cfg.rat_name}_{CONTEXT}.png"))
 
     if SHOW : 
             plt.show()
@@ -354,7 +354,7 @@ def _make_displot(cfg, data, metric) :
     g.figure.subplots_adjust(top=0.88)
     g.set_axis_labels(metric, "Density (KDE)")
     g.set_titles(col_template="{col_name}", row_template="{row_name}")
-    g.savefig(make_output_path(cfg.paths.analysis / "violin_distribution", f"displot_{metric}_{CONTEXT}.png"))
+    g.savefig(make_output_path(cfg.paths.analysis / "violin_distribution", f"{cfg.rat_type}_displot_{metric}_{CONTEXT}.png"))
 
     if SHOW : 
         plt.show()
@@ -413,7 +413,7 @@ if plot_choice['plot_velocity_over_cliptime'] :
     final_data.to_csv(make_output_path(cfg.paths.analysis / "metrics_by_sessions", f"data.csv"))
 
     fig = pc.plot_velocity_over_cliptime(final_data)
-    fig.savefig(make_output_path(cfg.paths.analysis / "metrics_by_sessions", f"velocity_overclip_LeftHemi_CHR_L1_{CONTEXT}.png"))
+    fig.savefig(make_output_path(cfg.paths.analysis / "metrics_by_sessions", f"{cfg.rat_type}_velocity_overclip_{CONTEXT}.png"))
 
     if SHOW : 
         plt.show()
@@ -472,13 +472,13 @@ if plot_choice["plot_velocity_at_padOff"] :
     fig_violin = pc._metric_at_padOff(data, type=forme)
     fig_violin.set_titles(col_template="{col_name}", row_template="{row_name}")
     fig_violin.set_axis_labels("", "Velocity (cm.s$^{-1}$)")
-    fig_violin.savefig(make_output_path(cfg.paths.analysis / "metrics_at_padOff_laseron", f"velocity_{forme}_at_padoff_only_{CONTEXT}.png"))
+    fig_violin.savefig(make_output_path(cfg.paths.analysis / "metrics_at_padOff_laseron", f"{cfg.rat_type}_velocity_{forme}_at_padoff_only_{CONTEXT}.png"))
 
     forme = "boxplot"  # boxplot or violin
     fig_box = pc._metric_at_padOff(data, type=forme)
     fig_box.set_titles(col_template="{col_name}", row_template="{row_name}")
     fig_box.set_axis_labels("", "Velocity (cm.s$^{-1}$)")
-    fig_box.savefig(make_output_path(cfg.paths.analysis / "metrics_at_padOff_on", f"velocity_{forme}_at_padoff_only_{CONTEXT}.png"))
+    fig_box.savefig(make_output_path(cfg.paths.analysis / "metrics_at_padOff_on", f"{cfg.rat_type}_velocity_{forme}_at_padoff_only_{CONTEXT}.png"))
 
     
 
@@ -526,7 +526,7 @@ if plot_choice["plot_pre_post_velocity"] :
     # g.set_axis_labels("post laser", "pre laser")
     # g.set_titles(col_template="{col_name}")
 
-    # g.savefig(make_output_path(cfg.paths.analysis / f"pre_post_velocity_scatterplot", f"test_pre_post_velocity_scatterplot_{CONTEXT}.png"))
+    # g.savefig(make_output_path(cfg.paths.analysis / f"pre_post_velocity_scatterplot", f"{cfg.rat_type}_test_pre_post_velocity_scatterplot_{CONTEXT}.png"))
 
     # if SHOW : 
     #     plt.show()
@@ -583,7 +583,7 @@ def _preprocess_tendency(metric: str, metric_vector: str = None) :
 
             data = pd.concat([data, df], ignore_index=True)
 
-    data.to_csv(make_output_path(cfg.paths.analysis / f"tendency", f"{metric}_data.csv"))
+    data.to_csv(make_output_path(cfg.paths.analysis / f"tendency", f"{cfg.rat_type}_{metric}_data.csv"))
 
     return data
 
@@ -602,7 +602,7 @@ if plot_choice["plot_velocity_tendency"] :
         g.set_axis_labels("Time (sec)", "Velocity (cm.s$^{-1}$)")
         g.set_titles(col_template="{col_name}", row_template="{row_name}")
 
-        g.savefig(make_output_path(cfg.paths.analysis / f"tendency", f"velocity_tendency_{error_name}_{CONTEXT}.png"))
+        g.savefig(make_output_path(cfg.paths.analysis / f"tendency", f"{cfg.rat_type}velocity_tendency_{error_name}_{CONTEXT}.png"))
 
         if SHOW : 
             plt.show()
@@ -622,7 +622,7 @@ if plot_choice["plot_acceleration_tendency"]:
         g.set_axis_labels("Time (sec)", "Acceleration (cm.s$^{-2}$)")
         g.set_titles(col_template="{col_name}", row_template="{row_name}")
 
-        g.savefig(make_output_path(cfg.paths.analysis / f"tendency", f"acceleration_tendency_{error_name}_{CONTEXT}.png"))
+        g.savefig(make_output_path(cfg.paths.analysis / f"tendency", f"{cfg.rat_type}_acceleration_tendency_{error_name}_{CONTEXT}.png"))
 
         if SHOW : 
             plt.show()
@@ -643,7 +643,7 @@ if plot_choice["plot_relative_velocity"]:
         g.set_axis_labels("Time (sec)", "Velocity (cm.s$^{-1}$)")
         g.set_titles(col_template="{col_name}", row_template="{row_name}")
 
-        g.savefig(make_output_path(cfg.paths.analysis / f"tendency", f"relative_velocity_{error_name}_{CONTEXT}.png"))
+        g.savefig(make_output_path(cfg.paths.analysis / f"tendency", f"{cfg.rat_type}_relative_velocity_{error_name}_{CONTEXT}.png"))
 
         if SHOW : 
             plt.show()
@@ -668,7 +668,7 @@ if plot_choice["plot_lever_distance"] :
 
         # g.set(ylim=(0, 6))
 
-        g.savefig(make_output_path(cfg.paths.analysis / f"lever_distance", f"lever_distance_{error_name}_{CONTEXT}.png"))
+        g.savefig(make_output_path(cfg.paths.analysis / f"lever_distance", f"{cfg.rat_type}_lever_distance_{error_name}_{CONTEXT}.png"))
 
     if SHOW : 
         plt.show()
@@ -722,8 +722,8 @@ if plot_choice["plot_rewarded_bar"]:
     g.set_titles(row_template="{row_name}", col_template="{col_name}")
     g.figure.subplots_adjust(top=0.88)
     g.figure.suptitle(f"Rewarded trial proportion on of rat {cfg.rat_name}\nNumber of trials: {len(data.groupby('id'))}", ha='center')
-    g.savefig(make_output_path(cfg.paths.analysis / f"reward", f"rewarded_proportion_{CONTEXT}.png"))
-    g.savefig(make_output_path(cfg.paths.analysis / f"reward", f"rewarded_proportion_{CONTEXT}.svg"))
+    g.savefig(make_output_path(cfg.paths.analysis / f"reward", f"{cfg.rat_type}_rewarded_proportion_{CONTEXT}.png"))
+    g.savefig(make_output_path(cfg.paths.analysis / f"reward", f"{cfg.rat_type}_rewarded_proportion_{CONTEXT}.svg"))
 
 
 

@@ -111,7 +111,7 @@ def mann_whitney(data: pd.DataFrame, comparisons: list) :
 
 
     pairwise_results = pd.DataFrame(results)
-    pairwise_results["p_adj"] = multipletests(pairwise_results["p_value"], method="fdr_bh")[1]
+    pairwise_results["p_adj"] = multipletests(pairwise_results["p_value"], method="bonferroni")[1]
     
     return pairwise_results
 
@@ -155,9 +155,9 @@ def compute_statistics(data: pd.DataFrame, comparisons: list[tuple[str, str]]) :
     pairwise_results = mann_whitney(data, comparisons)
     
     print("\nsignificant: ")
-    print(pairwise_results[pairwise_results["p_value"] < 0.05])
+    print(pairwise_results[pairwise_results["p_adj"] < 0.05])
     print("\nNOT significant: ")
-    print(pairwise_results[pairwise_results["p_value"] > 0.05])
+    print(pairwise_results[pairwise_results["p_adj"] > 0.05])
 
     stat_res["mann_whitney"] = pairwise_results
 

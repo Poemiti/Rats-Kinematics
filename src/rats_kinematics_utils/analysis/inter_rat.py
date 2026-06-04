@@ -177,18 +177,18 @@ def inter_rat_metadata_report(cfg, rat_types: list[str], joblib_filenames: list[
         #                       groups=["condition", "rat_name"], 
         #                       rat_type=r_type)
         
-        # _plot_metadata_report(report, output_dir / f"{r_type}_rat_proportion", 
-        #                       groups=["rat_name", "condition", "laser"], 
-        #                       rat_type=r_type)
+        _plot_metadata_report(report, output_dir / f"{r_type}_rat_proportion", 
+                              groups=["rat_name", "condition", "laser"], 
+                              rat_type=r_type)
 
         # _plot_metadata_report(report, output_dir / f"{r_type}_rat_date", 
         #                       groups=["date", "rat_name"], 
         #                       rat_type=r_type)
 
-        _plot_metadata_report(report, output_dir / f"{r_type}_failure_reason", 
-                              subfig_group="condition",
-                            groups=["success", "failure_reason"],
-                            rat_type=r_type,)
+        # _plot_metadata_report(report, output_dir / f"{r_type}_failure_reason", 
+        #                       subfig_group="condition",
+        #                     groups=["success", "failure_reason"],
+        #                     rat_type=r_type,)
 
         noCue_filename = output_dir / f"{r_type}_NoCue_video.csv"
         noCue_video.to_csv(noCue_filename)
@@ -250,7 +250,7 @@ def plot_likelihood_distri_interrat(cfg, joblib_filenames: list[Path]) :
 
     plt.xticks(rotation=45)
     plt.tight_layout()
-    fig.savefig(make_output_path(cfg.paths.inter_rat, f"bodypart_likelihood_distribution.png"))
+    fig.savefig(make_output_path(cfg.paths.inter_rat, f"{cfg.rat_type}_bodypart_likelihood_distribution.png"))
     plt.show()
     plt.close()
 
@@ -296,8 +296,8 @@ def plot_statistics(cfg, filenames: list[Path], metric: str, comparisons: list[t
         fig = plot_violin_per_rat(cfg, data, strip=False, order=order)
         fig.subplots_adjust(top=0.88)
         fig.suptitle(f"{metric} distribution across all trials of rat :\n{cfg.inter_rat.rats}")
-        fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"violin_{metric}{merged}{per_rats}.png"))
-        fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"violin_{metric}{merged}{per_rats}.svg"))
+        fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"{cfg.rat_type}_violin_{metric}{merged}{per_rats}.png"))
+        fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"{cfg.rat_type}_violin_{metric}{merged}{per_rats}.svg"))
 
     else : 
         per_rats = ""
@@ -312,16 +312,22 @@ def plot_statistics(cfg, filenames: list[Path], metric: str, comparisons: list[t
             if len(significant_pair) > 0 : 
                 fig = _plot_violin_statistic(cfg, data, significant_pair, strip=True, 
                                             order=order)
-                fig.suptitle(f"{metric} distribution across all trials of rat :\n{cfg.inter_rat.rats}")
+                fig.suptitle(f"{metric} distribution across all trials of rat :\n{cfg.inter_rat.rats} - {cfg.rat_type}")
                 fig.subplots_adjust(top=0.80)
-                fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"violin_{metric}{merged}{per_rats}.png"))
-                fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"violin_{metric}{merged}{per_rats}.svg"))
+                fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"{cfg.rat_type}_violin_{metric}{merged}{per_rats}.png"))
+                fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"{cfg.rat_type}_violin_{metric}{merged}{per_rats}.svg"))
 
                 plt.show()
                 plt.close()
 
         else : 
-            print("stop!")
+            print("\nNo Mann Whitney came significant !")
+
+            fig = _plot_violin_statistic(cfg, data, statistics=None, strip=True)
+            fig.suptitle(f"{metric} distribution across all trials of rat :\n{cfg.inter_rat.rats} - {cfg.rat_type}")
+            fig.subplots_adjust(top=0.80)
+            fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution",  f"{cfg.rat_type}_nostat_violin_{metric}{merged}{per_rats}.png"))
+
 
 
 def _displot_stat(perm_data) : 
@@ -431,8 +437,8 @@ def plot_permutation(cfg, filenames: list[Path], metric: str, intensity: str, n_
     ax.set_ylabel("Density")
 
     fig = ax.figure
-    fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_permutation", f"PerCondition_notransform_{metric}_{intensity}Intensities_{n_perm}.png"))
-    fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_permutation", f"PerCondition_notransform_{metric}_{intensity}Intensities_{n_perm}.svg"))
+    fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_permutation", f"{cfg.rat_type}_PerCondition_notransform_{metric}_{intensity}Intensities_{n_perm}.png"))
+    fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_permutation", f"{cfg.rat_type}_PerCondition_notransform_{metric}_{intensity}Intensities_{n_perm}.svg"))
 
     # plt.show()
     # plt.close()
@@ -489,7 +495,7 @@ def _preprocess_tendency(cfg, filenames: list[Path], metric: str, metric_vector:
 
             data = pd.concat([data, df], ignore_index=True)
 
-    data.to_csv(make_output_path(cfg.paths.inter_rat / f"tendency", f"{metric}_data.csv"))
+    data.to_csv(make_output_path(cfg.paths.inter_rat / f"tendency", f"{cfg.rat_type}_{metric}_data.csv"))
 
     return data
 

@@ -26,14 +26,14 @@ yaml_filenames = list((cfg.paths.raw_clips).rglob("*.yaml"))
 # print("\nPlotting likelihood distribution of all bodyparts\n")
 # pp.plot_likelihood_distribution(cfg, yaml_filenames)
 
-# print("\nPlotting metadata report\n")
-# pp.metadata_report(cfg, yaml_filenames)
+print("\nPlotting metadata report\n")
+pp.metadata_report(cfg, yaml_filenames)
 
 # print("\nPlotting likelihood across frame of each trials\n")
 # pp.plot_likelihood_across_frames(cfg, filenames)
 
-print("\nPlotting the distribution of the failure reason\n")
-pp.plot_trial_failure_reason(cfg, ["CHR"] ,filenames, inter_rat=False)
+# print("\nPlotting the distribution of the failure reason\n")
+# pp.plot_trial_failure_reason(cfg, [cfg.rat_type] ,filenames, inter_rat=False)
 
 sys.exit()
 

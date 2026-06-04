@@ -261,8 +261,8 @@ def _plot_metadata_report(
             counts,
             path=groups,
             values="count",
-            color="condition",
-            color_discrete_sequence=px.colors.qualitative.D3     
+            # color="condition",
+            # color_discrete_sequence=px.colors.qualitative.D3     
         )
 
         fig.add_trace(
@@ -288,7 +288,7 @@ def metadata_report(cfg, yaml_filenames) :
 
     output_dir = cfg.paths.rat_root
 
-    rat_types = ["CHR", "CTRL"]
+    rat_types = ["CTRL"]
     noCue_video = pd.DataFrame()
 
     for r_type in rat_types : 
@@ -727,7 +727,7 @@ def plot_preprocess_lost_points(cfg, filenames) :
 
         # plt.xticks(rotation=45)
         # plt.tight_layout()
-        fig.savefig(make_output_path(cfg.paths.analysis,  f"{folder}_distri.png"))
+        fig.savefig(make_output_path(cfg.paths.analysis / "preprocess_lost_point",  f"{folder}_distri.png"))
         plt.close()
 
 
@@ -850,17 +850,17 @@ def plot_trial_failure_reason(cfg, rat_types: list[str], joblib_filenames: list[
         #                       groups=["condition", "rat_name","failure_reason"], 
         #                       rat_type=r_type)
         
-        _plot_metadata_report(report, report_fig_path, 
-                                subfig_group="success",
-                            groups=["condition", "rat_name", ], 
-                            rat_name=cfg.rat_name if not inter_rat else None,
-                            rat_type=r_type, show_total=True)
-
         # _plot_metadata_report(report, report_fig_path, 
-        #                         subfig_group="condition",
-        #                     groups=["success", "failure_reason", ], 
+        #                         subfig_group="success",
+        #                     groups=["condition", "rat_name", ], 
         #                     rat_name=cfg.rat_name if not inter_rat else None,
         #                     rat_type=r_type, show_total=True)
+
+        _plot_metadata_report(report, report_fig_path, 
+                                subfig_group="condition",
+                            groups=["success", "failure_reason", ], 
+                            rat_name=cfg.rat_name if not inter_rat else None,
+                            rat_type=r_type, show_total=True)
 
 
  ################### version detail

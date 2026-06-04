@@ -380,9 +380,12 @@ def check_exclusion_rules(trial) -> bool:
     with open("exclusion_rules.yaml", "r") as f: 
         exclu_rules = yaml.safe_load(f)
 
-    dates_to_exclude = exclu_rules[rat_name]
+    dates_to_exclude = exclu_rules.get(rat_name)
 
-    if date_to_check in dates_to_exclude: 
+    if dates_to_exclude is None: 
+        return True
+
+    if dates_to_exclude in dates_to_exclude: 
         print(rat_name, date_to_check)
         return False
 
@@ -399,10 +402,15 @@ def filter_contra_trials(cfg, single_rat: bool = False):
 
             meta = parse_filename(file.stem)
 
+            rat_type = meta["rat_type"]
             view = "Left" if meta["view"]=="H001" else "Right"
             hemi = meta["stim_location"]
             l_intensity = meta["laser_intensity"]
             condition = meta["condition"]
+
+            if  rat_type not in cfg.rat_type: 
+                print("  ", file.stem, "-NOT RIGHT RAT TYPE")
+                continue
 
             if condition == "NOstim": 
                 print("  ", file.stem, "-NO STIM")

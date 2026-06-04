@@ -172,9 +172,6 @@ print()
 print("="*50)
 print(f".joblib files Outputs :")
 for filename, meta in ALL_METADATA.items() : 
-    if "LaserOn" in filename: 
-        continue
-    print(filename)
     joblib.dump(meta, output_dir / f"{filename}.joblib")
     print(f"  {filename} : {len(meta)}")
     n_trial += len(meta)
@@ -187,8 +184,8 @@ print(f"Processing time: {process_time:.1f} min")
 print("Done !")
 
 # show metadata report
-# print("\nVisualisation of the proportion of each experimental condition\n")
-# metadata_report(cfg, list((cfg.paths.raw_clips).rglob("*.yaml")))
+print("\nVisualisation of the proportion of each experimental condition\n")
+metadata_report(cfg, list((cfg.paths.raw_clips).rglob("*.yaml")))
 
 # print("\nPlotting likelihood distribution of all bodyparts\n")
 # plot_likelihood_distribution(cfg, list((cfg.paths.raw_clips).rglob("*.yaml")))

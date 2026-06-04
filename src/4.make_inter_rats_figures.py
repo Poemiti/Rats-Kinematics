@@ -36,11 +36,11 @@ check_analysis_choice(filenames, plot_choice)
 
 if plot_choice["plot_metadata"] : 
 
-    # print(f"\nMaking inter rat metadata report\n")
-    # ir.inter_rat_metadata_report(cfg, ["CHR"], file_to_process_list)
+    print(f"\nMaking inter rat metadata report\n")
+    ir.inter_rat_metadata_report(cfg, [cfg.rat_type], file_to_process_list)
 
     print(f"\nPlotting overall trials failure reason\n")
-    pp.plot_trial_failure_reason(cfg, ["CHR"], file_to_process_list, inter_rat=True)
+    pp.plot_trial_failure_reason(cfg, [cfg.rat_type], file_to_process_list, inter_rat=True)
 
     sys.exit()
 
@@ -166,35 +166,43 @@ if plot_choice["plot_statistics"] :
     ir.plot_statistics(cfg, file_to_process_list, "average_velocity", comparisons, 
                     merge_laserOff=True, per_rats=False)
 
+    print(f"\n ------ computing statistics on tortuosity ------\n")
+    ir.plot_statistics(cfg, file_to_process_list, "tortuosity", comparisons, merge_laserOff=True)
+
+
+
+
+    # comparisons = [
+    #             # Conti vs Beta
+    #             ("Conti_LaserOff.low",  "Beta_LaserOff.low"),
+    #             ("Conti_LaserOff.high", "Beta_LaserOff.high"),
+    #             ("Conti_LaserOn.low",   "Beta_LaserOn.low"),
+    #             ("Conti_LaserOn.high",  "Beta_LaserOn.high"),
+
+    #             # Off vs On
+    #             ("Conti_LaserOff.low",  "Conti_LaserOn.low"),
+    #             ("Conti_LaserOff.high", "Conti_LaserOn.high"),
+    #             ("Beta_LaserOff.low",   "Beta_LaserOn.low"),
+    #             ("Beta_LaserOff.high",  "Beta_LaserOn.high"),
+
+    #             # low vs high
+    #             ("Beta_LaserOff.low",   "Beta_LaserOff.high"),
+    #             ("Beta_LaserOn.low",    "Beta_LaserOn.high"),
+    #             ("Conti_LaserOff.low",  "Conti_LaserOff.high"),
+    #             ("Conti_LaserOn.low",   "Conti_LaserOn.high"),
+
+    #             # Beta high ON vs Conti low ON 
+    #             # (because conti low is suppose to be as damagefull as the beta high)
+    #             ("Beta_LaserON.high", "Conti_LaserON.low")
+    #         ]
+
+    # print(f"\n ------ computing statistics on average velocity ------\n")
+    # ir.plot_statistics(cfg, file_to_process_list, "average_velocity", comparisons, per_rats=False)
+
     # print(f"\n ------ computing statistics on tortuosity ------\n")
-    # ir.plot_statistics(cfg, file_to_process_list, "tortuosity", comparisons, merge_laserOff=True)
+    # ir.plot_statistics(cfg, file_to_process_list, "tortuosity", comparisons)
 
 
-
-
-# comparisons = [
-#             # Conti vs Beta
-#             ("Conti_LaserOff.low",  "Beta_LaserOff.low"),
-#             ("Conti_LaserOff.high", "Beta_LaserOff.high"),
-#             ("Conti_LaserOn.low",   "Beta_LaserOn.low"),
-#             ("Conti_LaserOn.high",  "Beta_LaserOn.high"),
-
-#             # Off vs On
-#             ("Conti_LaserOff.low",  "Conti_LaserOn.low"),
-#             ("Conti_LaserOff.high", "Conti_LaserOn.high"),
-#             ("Beta_LaserOff.low",   "Beta_LaserOn.low"),
-#             ("Beta_LaserOff.high",  "Beta_LaserOn.high"),
-
-#             # low vs high
-#             ("Beta_LaserOff.low",   "Beta_LaserOff.high"),
-#             ("Beta_LaserOn.low",    "Beta_LaserOn.high"),
-#             ("Conti_LaserOff.low",  "Conti_LaserOff.high"),
-#             ("Conti_LaserOn.low",   "Conti_LaserOn.high"),
-
-#             # Beta high ON vs Conti low ON 
-#             # (because conti low is suppose to be as damagefull as the beta high)
-#             ("Beta_LaserON.high", "Conti_LaserON.low")
-#         ]
 
 
 
@@ -227,8 +235,8 @@ if plot_choice["plot_reward_proportion"] :
     g.figure.subplots_adjust(top=0.76)
 
     g.figure.suptitle(f"Rewarded trial proportion (using LED - during laser stim)\nNumber of trials: {len(data.groupby('id'))}", ha='center')
-    g.savefig(make_output_path(cfg.paths.inter_rat / f"reward", f"rewarded_proportion_during_laser_{CONTEXT}.png"))
-    g.savefig(make_output_path(cfg.paths.inter_rat / f"reward", f"rewarded_proportion_during_laser_{CONTEXT}.svg"))
+    g.savefig(make_output_path(cfg.paths.inter_rat / f"reward", f"{cfg.rat_type}_rewarded_proportion_during_laser_{CONTEXT}.png"))
+    g.savefig(make_output_path(cfg.paths.inter_rat / f"reward", f"{cfg.rat_type}_rewarded_proportion_during_laser_{CONTEXT}.svg"))
 
     plt.close()
  
@@ -304,8 +312,8 @@ if plot_choice["plot_transition_matrix"] :
         ax.set_ylabel("Current behavior")
         ax.set_title(f"{condition}_{l_state}_{l_intensity}\n{r_name} - n trial: {len(subset.groupby('id'))}")
 
-        ax.figure.savefig(make_output_path(cfg.paths.inter_rat / "transition_matrix" / r_name, f"{condition}_{l_state}_{l_intensity}_{r_name}_{CONTEXT}.png"))
-        ax.figure.savefig(make_output_path(cfg.paths.inter_rat /  "transition_matrix" / r_name, f"{condition}_{l_state}_{l_intensity}_{r_name}_{CONTEXT}.svg"))
+        ax.figure.savefig(make_output_path(cfg.paths.inter_rat / f"{cfg.rat_type}_transition_matrix" / r_name, f"{condition}_{l_state}_{l_intensity}_{r_name}_{CONTEXT}.png"))
+        ax.figure.savefig(make_output_path(cfg.paths.inter_rat /  f"{cfg.rat_type}_transition_matrix" / r_name, f"{condition}_{l_state}_{l_intensity}_{r_name}_{CONTEXT}.svg"))
         
         plt.close(ax.figure)
 
@@ -315,8 +323,8 @@ if plot_choice["plot_transition_matrix"] :
         ax2.set_title(f"{condition}_{l_state}_{l_intensity}\n{r_name} - n trial: {len(subset.groupby('id'))}")
         ax2.axis("off")
 
-        ax2.figure.savefig(make_output_path(cfg.paths.inter_rat / "transition_matrix" / "markov_chain" / r_name, f"{condition}_{l_state}_{l_intensity}_{r_name}_{CONTEXT}.png"))
-        ax2.figure.savefig(make_output_path(cfg.paths.inter_rat / "transition_matrix" / "markov_chain" / r_name, f"{condition}_{l_state}_{l_intensity}_{r_name}_{CONTEXT}.svg"))
+        ax2.figure.savefig(make_output_path(cfg.paths.inter_rat / f"{cfg.rat_type}_transition_matrix" / "markov_chain" / r_name, f"{condition}_{l_state}_{l_intensity}_{r_name}_{CONTEXT}.png"))
+        ax2.figure.savefig(make_output_path(cfg.paths.inter_rat / f"{cfg.rat_type}_transition_matrix" / "markov_chain" / r_name, f"{condition}_{l_state}_{l_intensity}_{r_name}_{CONTEXT}.svg"))
 
         plt.close(ax2.figure)
 
@@ -339,8 +347,8 @@ if plot_choice["plot_proportion_behavior_combinaison"] :
 
         
         ax.figure.subplots_adjust(top=0.80)
-        ax.figure.savefig(make_output_path(cfg.paths.inter_rat / f"behavior" / "behavior_combinaison", f"{condition}_{l_intensity}_{CONTEXT}.png"))
-        ax.figure.savefig(make_output_path(cfg.paths.inter_rat / f"behavior" / "behavior_combinaison", f"{condition}_{l_intensity}_{CONTEXT}.svg"))
+        ax.figure.savefig(make_output_path(cfg.paths.inter_rat / f"{cfg.rat_type}_behavior" / "behavior_combinaison", f"{condition}_{l_intensity}_{CONTEXT}.png"))
+        ax.figure.savefig(make_output_path(cfg.paths.inter_rat / f"{cfg.rat_type}_behavior" / "behavior_combinaison", f"{condition}_{l_intensity}_{CONTEXT}.svg"))
 
         plt.close()
 
@@ -361,8 +369,8 @@ if plot_choice["plot_time_in_behavior_space"] :
         g.set_titles(row_template="{row_name}", col_template="{col_name}")
         g.figure.subplots_adjust(top=0.76)
         g.figure.suptitle(f"Time spend in each zones (during laser stim)\nLaser intensity: {laser_intensity} - Number of trials: {len(subset.groupby('id'))}", ha='center')
-        g.savefig(make_output_path(cfg.paths.inter_rat / f"behavior", f"time_spend_per_behavior_{laser_intensity}.png"))
-        g.savefig(make_output_path(cfg.paths.inter_rat / f"behavior", f"time_spend_per_behavior_{laser_intensity}.svg"))
+        g.savefig(make_output_path(cfg.paths.inter_rat / f"{cfg.rat_type}_behavior", f"time_spend_per_behavior_{laser_intensity}.png"))
+        g.savefig(make_output_path(cfg.paths.inter_rat / f"{cfg.rat_type}_behavior", f"time_spend_per_behavior_{laser_intensity}.svg"))
 
         plt.close()
 
@@ -377,7 +385,7 @@ def _make_displot(cfg, data, metric) :
     # g.figure.subplots_adjust(top=0.88)
     g.set_axis_labels(metric, "Density (KDE)")
     g.set_titles(col_template="{col_name}", row_template="{row_name}")
-    g.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"effect_size_{metric}_{CONTEXT}.png"))
+    g.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution", f"{cfg.rat_type}_effect_size_{metric}_{CONTEXT}.png"))
 
     if SHOW : 
         plt.show()
