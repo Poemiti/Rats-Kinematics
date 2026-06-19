@@ -1,10 +1,10 @@
 
 # parameter for analysis of one individual
-rat_type: "CHR"      # or CTRL 
-rat_name: "#516"
+rat_type: "CTRL"      # or CTRL 
+rat_name: "#521"
 bodypart: finger_3 
-view: left           # camera view
-task: L1            # L1: left lever, L2: right lever
+view: right           # camera view
+task: L2            # L1: left lever, L2: right lever
 
 # hyper parameters
 threshold: 0.7
@@ -21,13 +21,22 @@ inter_rat:
     - "#525"
     - "#521"
     - "#517"
-    # - "#516"
+    - "#516"
     - "#531"
 
+# # CHR
+  # contra_hemi: 
+  #   "#517": "RightHemi" # for CHR # "LeftHemi" # for CTRL  , 
+  #   "#521": "LeftHemi" # for CHR
+  #   "#525": "RightHemi" # for CHR "LeftHemi" # for CTRL # , 
+  #   "#531": "RightHemi" # for CHR
+  #   "#516": "RightHemi" # for CTRL
+
+# CTRL
   contra_hemi: 
-    "#517": "RightHemi" # for CHR # "LeftHemi" # for CTRL, 
+    "#517": "LeftHemi" # for CTRL "RightHemi" # for CHR # , 
     "#521": "LeftHemi" # for CHR
-    "#525": "RightHemi" # for CHR # "LeftHemi" # for CTRL, 
+    "#525": "LeftHemi" # for CTRL "RightHemi" # for CHR # , 
     "#531": "RightHemi" # for CHR
     "#516": "RightHemi" # for CTRL
 

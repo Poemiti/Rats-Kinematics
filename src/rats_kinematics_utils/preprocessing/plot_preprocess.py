@@ -14,7 +14,7 @@ import seaborn as sns
 
 
 custom_params = {"axes.spines.right": False, "axes.spines.top": False}
-sns.set_theme("paper", style="ticks", rc=custom_params, palette="pastel")
+sns.set_theme("talk", style="ticks", rc=custom_params, palette="pastel")
 
 LASER_COLOR = "lightpink"
 LINE_COLOR = "gray"
@@ -116,7 +116,7 @@ def make_interpolation_figures(interpolated_coords,
     fig = plt.figure(figsize=(10,6))
     gs = fig.add_gridspec(2, 2)
 
-    offset = 10 # pixel
+    offset = 20 # pixel
 
     ax_xt = fig.add_subplot(gs[0,0])      # x(t)
     ax_yt = fig.add_subplot(gs[1,0])      # y(t)
@@ -131,8 +131,10 @@ def make_interpolation_figures(interpolated_coords,
     pad_off_frame = int((time_pad_off - 0.1)* 125)
     pad_off_frame = pad_off_frame if pad_off_frame >=0 else 0
     off_frame = int((time_pad_off + 0.4) * 125)
-
+    
     _plot_traj(raw_coords[pad_off_frame : off_frame], 0*offset, "raw", "#d1cbdc", ax_traj)
+    _plot_traj(outlier_filtered_coords[pad_off_frame : off_frame], 0*offset, "outlier", "#bdc9e1" ,ax_traj, "")
+    _plot_traj(likelihood_filtered_coords[pad_off_frame : off_frame], 0*offset, "likelihood", "#74a9cf" ,ax_traj, "")
     _plot_traj(interpolated_coords[pad_off_frame : off_frame], 0*offset, "interpolate", "#0570b0" ,ax_traj, "|")
 
     # ax_speed.plot(raw_coords["t"], speed, label="speed", marker="|")
@@ -511,7 +513,7 @@ def plot_trial_success_distri(cfg, filenames) :
 
 
 
-def plot_manual_clip_success_distri(cfg, filenames) : 
+def plot_manual_clip_success_distri(cfg, filenames, output_dir: Path) : 
 
     all_state = {"keep_all" : 0,
                 "keep_laser": 0,
@@ -565,10 +567,69 @@ def plot_manual_clip_success_distri(cfg, filenames) :
     ax.set_ylabel("Number of Trials")
 
     plt.tight_layout()
-    fig.savefig(make_output_path(cfg.paths.analysis, f"{cfg.rat_name}_manual_clip_success.png"))
+    fig.savefig(make_output_path(output_dir, f"{cfg.rat_name}_manual_clip_success.png"))
     plt.show()
     plt.close()
 
+
+
+def plot_manual_traj_success_distri(cfg, filenames, output_dir: Path) : 
+
+    all_state = {"rejected" : 0,
+                "raw": 0,
+                "interpolate": 0, 
+                "None": 0}
+
+    for session in filenames :
+        
+        for trial in joblib.load(session) :
+            body = trial.get(cfg.bodypart)
+
+            if body is None : 
+                print("BODY NONE")
+                continue
+
+            success = body.get("trial_success")
+            state = body.get("xy_state")
+
+            if not trial["pad_off"] : 
+                continue
+
+            if state is None : 
+                print(trial["name"])
+                all_state["None"] += 1
+                continue
+
+            all_state[state] += 1
+
+    df = pd.DataFrame({
+        "State": list(all_state.keys()),
+        "Count": list(all_state.values())
+    })
+
+    order = ["rejected", "raw", "interpolate", "None"]
+
+    fig = plt.figure(figsize=(8, 5))
+
+    ax = sns.barplot(
+        data=df,
+        x="State",
+        y="Count",
+        palette="pastel",
+        order=order,
+    )
+
+    for container in ax.containers:
+        ax.bar_label(container, fmt='%d')
+
+    ax.set_title(f"Clip behavioral success distribution of Rat {cfg.rat_name}")
+    ax.set_xlabel("State")
+    ax.set_ylabel("Number of Trials")
+
+    plt.tight_layout()
+    fig.savefig(make_output_path(output_dir, f"{cfg.rat_name}_manual_traj_success.png"))
+    plt.show()
+    plt.close()
 
 
 
@@ -787,7 +848,6 @@ def plot_trial_failure_reason(cfg, rat_types: list[str], joblib_filenames: list[
     for r_type in rat_types : 
 
         report = pd.DataFrame()
-        report_fig_path = make_output_path(output_dir , f"{cfg.rat_type}_")
 
         for f in joblib_filenames:
                 
@@ -850,13 +910,13 @@ def plot_trial_failure_reason(cfg, rat_types: list[str], joblib_filenames: list[
         #                       groups=["condition", "rat_name","failure_reason"], 
         #                       rat_type=r_type)
         
-        # _plot_metadata_report(report, report_fig_path, 
+        # _plot_metadata_report(report, output_dir / f"{r_type}_rat_proportion_sucess"), 
         #                         subfig_group="success",
         #                     groups=["condition", "rat_name", ], 
         #                     rat_name=cfg.rat_name if not inter_rat else None,
         #                     rat_type=r_type, show_total=True)
 
-        _plot_metadata_report(report, report_fig_path, 
+        _plot_metadata_report(report, output_dir / f"{r_type}_failure_rate", 
                                 subfig_group="condition",
                             groups=["success", "failure_reason", ], 
                             rat_name=cfg.rat_name if not inter_rat else None,

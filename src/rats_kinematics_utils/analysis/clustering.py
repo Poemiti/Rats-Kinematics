@@ -51,14 +51,18 @@ def plot_trajectories(cfg, trajectories, labels) :
             "traj_id" :i, 
         }))
 
+    data = pd.concat(rows, ignore_index=True)
+
     sns.lineplot(
-        data=pd.concat(rows, ignore_index=True),
+        data=data,
         x="x",
         y="y",
         hue="condition",
+        units="traj_id",
         estimator=None,  
         sort=False,
-        alpha=0.7,
+        alpha=0.3,
+        lw=1,
         ax=ax
     )
 
@@ -69,15 +73,17 @@ def plot_trajectories(cfg, trajectories, labels) :
     ax.spines["left"].set_visible(False)
     ax.spines["right"].set_visible(True)
 
-
     ax.tick_params(direction="out")
 
     ax.set_xlabel("x (cm)")
     ax.set_ylabel("y (cm)")
     ax.set_title(f"Stacked Trajectories, (n={len(trajectories)})")
 
-    ax.set_xlim(0, cfg.frame_width_px * cfg.cm_per_pixel)
-    ax.set_ylim(0, cfg.frame_width_px * cfg.cm_per_pixel)
+    # ax.set_xlim(0, cfg.frame_width_px * cfg.cm_per_pixel)
+    # ax.set_ylim(0, cfg.frame_width_px * cfg.cm_per_pixel)
+
+    ax.set_xlim(3, cfg.frame_width_px * cfg.cm_per_pixel)
+    ax.set_ylim(2, 7)
 
     ax.invert_xaxis()
     return ax
@@ -306,7 +312,7 @@ def plot_true_clustered_traj(cfg, trajectories, true_labels, pred_labels) :
 
 
 
-def extract_trajectories(cfg, filenames: list[Path], coords: str) -> list[pd.DataFrame] : 
+def extract_trajectories(cfg, filenames: list[Path]) -> list[pd.DataFrame] : 
     """
     Get all the trajectories
     Each trajectories must be the same lenght in order to compute matrix after!
@@ -317,25 +323,24 @@ def extract_trajectories(cfg, filenames: list[Path], coords: str) -> list[pd.Dat
         metrics_path = Path(metrics_path) 
         for trial in load_trial_data(metrics_path) :
 
-            if not trial[cfg.bodypart]["trial_success"] : 
+            if not trial[cfg.bodypart]["trial_success"] or \
+                trial[cfg.bodypart].get("behavior_state", "keep_all") != "keep_all": 
                 continue
-            
-            time_pad_off = trial["pad_off"]
-            pad_off_frame = int((time_pad_off)* 125)
-            pad_off_frame = pad_off_frame if pad_off_frame >=0 else 0
-            off_frame = int((time_pad_off + 0.325) * 125)
 
-            xy = trial[cfg.bodypart][coords]
+            xy = trial[cfg.bodypart]["xy_pad_off"]
+
+            if trial["camera_view"] == "right": 
+                xy["x"] = cfg.frame_width_px - xy["x"]  
+
             xy = xy[["x", "y"]].to_numpy()
-            xy_cropped = xy[pad_off_frame : off_frame]
 
-            if not np.isfinite(xy_cropped).all():
+            if not np.isfinite(xy).all():
                 print(trial[cfg.bodypart]["xy_state"])
                 continue
 
             label = trial['condition'] + "_" + trial["laser_state"] + "_" + trial["laser_intensity"]
 
-            all_traj.append(xy_cropped)
+            all_traj.append(xy)
             true_labels.append(label)
 
     return all_traj, true_labels

@@ -73,6 +73,7 @@ def _preprocess(cfg, filenames: list[Path], METRIC: str, split_condition: bool =
                 continue
             
             condition = trial["condition"]
+            laser_stim = condition
             laser_state = trial["laser_state"]
             name = trial["filename_clips"].stem
             rat = name[4:8]
@@ -101,7 +102,8 @@ def _preprocess(cfg, filenames: list[Path], METRIC: str, split_condition: bool =
                 "value": [value],
                 "rat": [rat],
                 "condition": [condition],
-                "laser_state": [laser_state if split_condition else None],  
+                "laser_stim": [laser_stim],
+                "laser_state": [laser_state],  
                 "laser_intensity": [laser_intensity],
                 "reward" : [reward]
             })
@@ -177,9 +179,9 @@ def inter_rat_metadata_report(cfg, rat_types: list[str], joblib_filenames: list[
         #                       groups=["condition", "rat_name"], 
         #                       rat_type=r_type)
         
-        _plot_metadata_report(report, output_dir / f"{r_type}_rat_proportion", 
-                              groups=["rat_name", "condition", "laser"], 
-                              rat_type=r_type)
+        # _plot_metadata_report(report, output_dir / f"{r_type}_rat_proportion", 
+        #                       groups=["rat_name", "condition", "laser"], 
+        #                       rat_type=r_type)
 
         # _plot_metadata_report(report, output_dir / f"{r_type}_rat_date", 
         #                       groups=["date", "rat_name"], 
@@ -189,6 +191,11 @@ def inter_rat_metadata_report(cfg, rat_types: list[str], joblib_filenames: list[
         #                       subfig_group="condition",
         #                     groups=["success", "failure_reason"],
         #                     rat_type=r_type,)
+
+        _plot_metadata_report(report, output_dir / f"{r_type}_rat_proportion", 
+                              subfig_group="success",
+                            groups=["condition", "rat_name"],
+                            rat_type=r_type,)
 
         noCue_filename = output_dir / f"{r_type}_NoCue_video.csv"
         noCue_video.to_csv(noCue_filename)
@@ -283,13 +290,18 @@ def plot_statistics(cfg, filenames: list[Path], metric: str, comparisons: list[t
     
     data = _preprocess(cfg, filenames, metric, split_condition=False, # has to stay false
                        merge_laserOff=merge_laserOff) 
+    
+    data = data[data["laser_intensity"] == "low"]  # only for specific visualisation
+    print(data)
 
     if merge_laserOff : 
         merged = "_laserOff_merged" 
         order = ["LaserOff", "Beta", "Conti"]
+        # order = ["LaserOff", "LaserOn"]
     else : 
         merged = "" 
         order = ["Conti_LaserOff", "Beta_LaserOff", "Conti_LaserOn", "Beta_LaserOn"]
+        # order = ["LaserOff", "LaserOn"]
 
     if per_rats: 
         per_rats = "_per_rats"
@@ -303,11 +315,12 @@ def plot_statistics(cfg, filenames: list[Path], metric: str, comparisons: list[t
         per_rats = ""
 
         stats_res = compute_statistics(data, comparisons)
-        save_stat_results(stats_res, cfg.paths.inter_rat / "metric" / f"{metric}.joblib")
+        print(stats_res.keys())
+        # save_stat_results(stats_res, cfg.paths.inter_rat / "metric" / f"{metric}.joblib")
 
         if "mann_whitney" in stats_res.keys() :
             pairwise_results = stats_res["mann_whitney"] 
-            significant_pair = pairwise_results[pairwise_results["p_value"] < 0.05]
+            significant_pair = pairwise_results[pairwise_results["p_adj"] < 0.05]
 
             if len(significant_pair) > 0 : 
                 fig = _plot_violin_statistic(cfg, data, significant_pair, strip=True, 
@@ -320,14 +333,17 @@ def plot_statistics(cfg, filenames: list[Path], metric: str, comparisons: list[t
                 plt.show()
                 plt.close()
 
-        else : 
-            print("\nNo Mann Whitney came significant !")
+                return
 
-            fig = _plot_violin_statistic(cfg, data, statistics=None, strip=True)
-            fig.suptitle(f"{metric} distribution across all trials of rat :\n{cfg.inter_rat.rats} - {cfg.rat_type}")
-            fig.subplots_adjust(top=0.80)
-            fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution",  f"{cfg.rat_type}_nostat_violin_{metric}{merged}{per_rats}.png"))
+        print("\nNo Mann Whitney came significant !")
 
+        fig = _plot_violin_statistic(cfg, data, statistics=None, strip=True, order=order)
+        fig.suptitle(f"{metric} distribution across all trials of rat :\n{cfg.inter_rat.rats} - {cfg.rat_type}")
+        fig.subplots_adjust(top=0.80)
+        fig.savefig(make_output_path(cfg.paths.inter_rat / "analysis_distribution",  f"{cfg.rat_type}_nostat_violin_{metric}{merged}{per_rats}.png"))
+
+        plt.show()
+        plt.close()
 
 
 def _displot_stat(perm_data) : 
@@ -446,7 +462,7 @@ def plot_permutation(cfg, filenames: list[Path], metric: str, intensity: str, n_
 
 
 
-def _preprocess_tendency(cfg, filenames: list[Path], metric: str, metric_vector: str = None) : 
+def _preprocess_tendency(cfg, filenames: list[Path], metric: str, metric_vector: str = None, crop_laserstim: bool = True) : 
     from tqdm import tqdm
     from rats_kinematics_utils.preprocessing.preprocess import crop_xy
 
@@ -471,10 +487,14 @@ def _preprocess_tendency(cfg, filenames: list[Path], metric: str, metric_vector:
             rat = trial["rat_name"]
 
             # crop around the pad off
-            val = crop_xy(value, 
-                           start=pad_off - 0.1, 
-                           end=pad_off + 0.4)
-            # val = value
+            if crop_laserstim: 
+                val = crop_xy(value, 
+                            start=pad_off - 0.1, 
+                            end=pad_off + 0.4)
+            else : 
+                val = crop_xy(value, 
+                            start=pad_off - 0.1, 
+                            end=pad_off + 2)
             relative_time = val["t"] - pad_off
 
 
@@ -532,6 +552,9 @@ def _plot_tendency_per_rat(cfg, data, error_function: str) :
         for col_j, condition in enumerate(g.col_names):
 
             ax = g.axes[row_i, col_j]
+
+            ax.set_ylim(0, 3)
+            ax.set_xlim(-0.2, 1.5)
 
             # Vertical line at pad off
             ax.axvline(
@@ -718,6 +741,10 @@ def plot_lever_distance():
     pass
 
 
+def plot_lever_distance_per_rat(): 
+    pass
+
+
 def plot_velocity_per_rat(): 
     pass
 
@@ -764,3 +791,19 @@ def plot_mean_proba_per_behavior():
 def plot_velocity_effect_size(): 
     pass
 
+
+def plot_acceleration_tendency():
+    pass
+
+
+def plot_acceleration_per_rat():
+    pass
+
+
+
+def plot_pre_post_velocity():
+    pass
+
+
+def plot_cluster(): 
+    pass

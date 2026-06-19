@@ -243,7 +243,7 @@ def preprocess_trial_behavior(cfg, filenames: list[Path], remove_may: bool= True
                 "pad_off": [pad_off],
                 "first_reach": [first_reach["t"][0]],
                 "first_open": [first_open["t"][0] if not first_open.empty else 0],
-                "first_grasp": [first_grasp["t"][0] if not first_press.empty else 0],
+                "first_grasp": [first_grasp["t"][0] if not first_grasp.empty else 0],
                 "first_press": [first_press["t"][0] if not first_press.empty else 0],
             })
             time_stamps = pd.concat([time_stamps, df_time], ignore_index=True)
@@ -658,7 +658,8 @@ def plot_time_in_behavior_space(cfg, data):
             y="proportion",
             hue="laser_state",
             palette=LASER_STATE_PALETTE,
-            order=[1, 2, 3, 4],
+            # order=[1, 2, 3, 4],
+            order=["reach", "open", "grasp", "press"],
             hue_order=["LaserOff", "LaserOn"],
         )
 

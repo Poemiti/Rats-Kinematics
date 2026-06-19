@@ -400,7 +400,11 @@ def plot_violin_distribution_peak() :
 
 def parse_group(g):
     cond, intensity = g.split(".")
-    return (cond, intensity)
+    # laser_stim, laser_state = cond.split("_")
+
+    return cond
+    # return (cond, intensity)
+    # return laser_state, laser_stim
 
 def _add_stat_annotations(ax, data, statistics, order):
 
@@ -414,6 +418,7 @@ def _add_stat_annotations(ax, data, statistics, order):
         parse_group(row["group2"]))
         for _, row in stats_subset.iterrows()
     ]
+    print(pairs)
 
     if len(pairs) == 0:
         return
@@ -423,10 +428,12 @@ def _add_stat_annotations(ax, data, statistics, order):
             pairs,
             data=data,
             x="condition",
+            # x="laser_state",
             y="value",
-            hue="laser_intensity",
+            # hue="laser_intensity",
+            # hue="laser_stim",
             order=order,
-            hue_order=HUE_ORDER if len(l_intensities) > 1 else None
+            # hue_order=HUE_ORDER if len(l_intensities) > 1 else None
         )
 
     # We already computed p-values → no test
@@ -444,6 +451,100 @@ def _add_stat_annotations(ax, data, statistics, order):
     annotator.annotate()
 
 
+######################### visulaisation per laser stim for RAPHAEL
+
+# def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = None, strip: bool = True,
+#                            order: list[str] = ["Conti_LaserOff", "Beta_LaserOff", "Conti_LaserOn", "Beta_LaserOn"]) : 
+
+#     print(len(data))
+#     data_trimmed = _trim_extremes_iqr(data, k=1.5)
+#     print(f"\nNumber of removed outliers : {len(data) - len(data_trimmed)}")
+
+#     if data_trimmed["condition"].str.contains("NOstim").any() and statistics is not None:
+#         data_trimmed = data_trimmed.loc[~data_trimmed["condition"].str.contains("NOstim")]
+#         data = data.loc[~data["condition"].str.contains("NOstim")]
+
+#     fig, ax = plt.subplots(figsize=[12,7]) #figsize=[10,5]
+
+#     # VIOLIN
+#     sns.violinplot(
+#         data=data_trimmed,
+#         x="laser_state",
+#         y="value",
+#         hue="laser_stim",
+#         split=True,
+#         inner="quart",
+#         order=order,
+#         gap= .1,
+#         palette={"Beta" : "lightblue",
+#                  "Conti": "salmon"},
+#         # legend=True,
+#     )
+
+#     # STRIP
+#     if strip : 
+#         sns.stripplot(
+#             data=data_trimmed,
+#             x="condition",
+#             y="value",
+#             hue="laser_intensity",
+#             palette=LASER_INTENSITY_PALETTE_DARK,
+#             hue_order=HUE_ORDER,
+#             marker="X",
+#             size=3,
+#             alpha=0.7,
+#             # legend=True,
+#             dodge=True,  # to split like the violin
+#         )
+
+#     # --------------------------- display counting --------------------------
+
+#     count = (data
+#             .groupby(["condition", "laser_intensity"])
+#             .size()
+#             .reset_index(name="N")
+#             )
+    
+#     # Get category positions
+#     x_positions = {cond: i for i, cond in enumerate(order)}
+
+#     # Small horizontal offset for split violins
+#     offset = 0.15
+#     ymin = data_trimmed["value"].min()
+
+#     for _, row in count.iterrows():
+#         cond = row["condition"]
+#         intensity = row["laser_intensity"]
+#         N = row["N"]
+
+#         x = x_positions[cond]
+
+#         # Shift left/right depending on hue level
+#         if intensity == HUE_ORDER[0]:
+#             x_shifted = x - offset
+#         else:
+#             x_shifted = x + offset
+
+#         ax.text(
+#             x_shifted,
+#             ymin,
+#             f"{N}",
+#             ha="center",
+#             va="bottom",
+#             color="steelblue" if intensity=="low" else "tomato",
+#             fontsize=9,
+#             fontweight="bold"
+#         )
+
+#     if statistics is not None : 
+#         _add_stat_annotations(ax, data_trimmed, statistics, order)
+
+#     ax.legend(loc="upper right")
+
+#     return fig
+
+
+######################### usual visualisation
 
 def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = None, strip: bool = True,
                            order: list[str] = ["Conti_LaserOff", "Beta_LaserOff", "Conti_LaserOn", "Beta_LaserOn"]) : 
@@ -456,39 +557,45 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
         data_trimmed = data_trimmed.loc[~data_trimmed["condition"].str.contains("NOstim")]
         data = data.loc[~data["condition"].str.contains("NOstim")]
 
-    fig, ax = plt.subplots(figsize=[12,7]) #figsize=[10,5]
+    fig, ax = plt.subplots() #figsize=[10,5]
 
     # VIOLIN
     sns.violinplot(
         data=data_trimmed,
         x="condition",
         y="value",
-        hue="laser_intensity",
-        split=True,
+        hue="condition",
+        # hue="laser_intensity",
+        # split=True,
         inner="quart",
         order=order,
-        hue_order=HUE_ORDER,
+        # hue_order=HUE_ORDER,
+        palette="pastel",
         gap= .1,
-        palette=LASER_INTENSITY_PALETTE,
-        legend=True,
+        # palette=LASER_INTENSITY_PALETTE,
+        legend=False,
     )
 
+    print("strip=", strip)
     # STRIP
     if strip : 
         sns.stripplot(
             data=data_trimmed,
             x="condition",
             y="value",
+            hue="condition",
             # hue="reward",
             # palette=REWARD_PALETTE,
-            hue="laser_intensity",
-            palette=LASER_INTENSITY_PALETTE_DARK,
-            hue_order=HUE_ORDER,
+            # hue="laser_intensity",
+            # palette=LASER_INTENSITY_PALETTE_DARK,
+            # hue_order=HUE_ORDER,
+            # color="black",
             marker="X",
             size=3,
             alpha=0.7,
+            # palette="pastel",
             # legend=True,
-            dodge=True,  # to split like the violin
+            # dodge=True,  # to split like the violin
         )
 
     # --------------------------- display counting --------------------------
@@ -520,12 +627,12 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
             x_shifted = x + offset
 
         ax.text(
-            x_shifted,
+            x+offset,
             ymin,
             f"{N}",
             ha="center",
             va="bottom",
-            color="steelblue" if intensity=="low" else "tomato",
+            color="black", # steelblue" if intensity=="low" else "tomato",
             fontsize=9,
             fontweight="bold"
         )
@@ -533,11 +640,9 @@ def _plot_violin_statistic(cfg, data: pd.DataFrame, statistics: pd.DataFrame = N
     if statistics is not None : 
         _add_stat_annotations(ax, data_trimmed, statistics, order)
 
-    ax.legend(loc="upper right")
+    # ax.legend(loc="upper right")
 
     return fig
-
-
 
 
 def plot_violin_stat_velocity() : 
@@ -750,8 +855,14 @@ def plot_velocity_at_padOff():
 
 
 
-def plot_pre_post_velocity(cfg, data) -> plt.axes : 
+def plot_pre_post_velocity(cfg, data, inter_rat: bool = False) -> None : 
     from rats_kinematics_utils.core.file_utils import make_output_path
+
+    if inter_rat:
+        output_dir = cfg.paths.inter_rat 
+    else : 
+        output_dir = cfg.paths.analysis 
+
 
     for condition in data["condition"].unique():
         for laser_intensity in data['laser_intensity'].unique() : 
@@ -774,7 +885,8 @@ def plot_pre_post_velocity(cfg, data) -> plt.axes :
                 hue="laser_state",
                 palette=LASER_STATE_PALETTE,
                 ax=g.ax_joint,
-                alpha=0.7
+                alpha=0.7,
+                legend=False
             )
 
             # regression per group
@@ -813,19 +925,18 @@ def plot_pre_post_velocity(cfg, data) -> plt.axes :
                 legend=False,
             )
 
-            sns.move_legend(
-                g.ax_joint,
-                "upper right",
-                title="Laser state"
-            )
+            # sns.move_legend(
+            #     g.ax_joint,
+            #     "upper right",
+            #     title="Laser state"
+            # )
 
             g.set_axis_labels("Post velocity", "Pre velocity")
             g.figure.suptitle(f"Pre vs Post velocity\nCondition: {condition} - {laser_intensity}", ha="left", x=0.1)
 
-            g.figure.savefig(make_output_path(cfg.paths.analysis / f"pre_post_velocity_scatterplot", f"test_pre_post_velocity_{condition}_{laser_intensity}.png"))
-            g.figure.savefig(make_output_path(cfg.paths.analysis / f"pre_post_velocity_scatterplot", f"test_pre_post_velocity_{condition}_{laser_intensity}.svg"))
+            g.figure.savefig(make_output_path(output_dir / f"pre_post_velocity_scatterplot", f"{cfg.rat_type}_test_pre_post_velocity_{condition}_{laser_intensity}.png"))
+            g.figure.savefig(make_output_path(output_dir / f"pre_post_velocity_scatterplot", f"{cfg.rat_type}_test_pre_post_velocity_{condition}_{laser_intensity}.svg"))
 
-    return 
 
 
 
@@ -884,6 +995,9 @@ def _plot_tendency(data, error_function: str = None, show_zero: bool = False) :
         for col_j, condition in enumerate(g.col_names):
 
             ax = g.axes[row_i, col_j]
+
+            ax.set_ylim(0, 3)
+            ax.set_xlim(-0.2, 1.5)
 
             # Vertical line at pad off
             ax.axvline(

@@ -20,7 +20,6 @@ print_analysis_info(cfg, "Compute metrics")
 
 filenames = list((cfg.paths.metrics).glob("*.joblib"))
 
-
 # ----------------------- does validation has already been done ? -----------------------------
 
 file_to_compute = []
@@ -119,26 +118,6 @@ for file in tqdm(file_to_compute):
         else : 
             xy_laserOn = None
 
-        # compute metrics
-        Traj_full = Trajectory(xy, cm_per_pixel=cfg.cm_per_pixel, lever_position=cfg.lever_position, frame_width=cfg.frame_width_px)
-        Traj_pad_off = Trajectory(xy_pad_off, cm_per_pixel=cfg.cm_per_pixel, frame_width=cfg.frame_width_px)
-        
-        
-        trial[cfg.bodypart]["average_velocity"] = Traj_pad_off.mean_speed()
-        trial[cfg.bodypart]["peak_velocity"] = Traj_pad_off.peak_speed()
-        trial[cfg.bodypart]["tortuosity"] = Traj_pad_off.tortuosity()
-        trial[cfg.bodypart]["relative_mean_velocity"] = Traj_pad_off.relative_mean_speed(view=trial["camera_view"])
-        trial[cfg.bodypart]["pre_post_velocity"] = Traj_pad_off.pre_post_velocity(time_pad_off=time_pad_off)
-
-        trial[cfg.bodypart]["instant_velocity"] = Traj_full.instant_velocity()
-        trial[cfg.bodypart]["acceleration"] = Traj_full.acceleration()
-        trial[cfg.bodypart]["lever_distance"] = Traj_full.lever_bodypart_distance()
-        trial[cfg.bodypart]["relative_velocity"] = Traj_full.relative_speed(view=trial["camera_view"])
-
-        trial[cfg.bodypart]["xy_pad_off"] = xy_pad_off
-        trial[cfg.bodypart]["xy_laser_on"] = xy_laserOn
-        trial[cfg.bodypart]["xy_reward"] = xy_reward
-
 
         # compute the behavioral metrics
         with open("ethology_rules.yaml", "r") as f: 
@@ -154,6 +133,37 @@ for file in tqdm(file_to_compute):
             }
         
         anchors_position = match_rule(etho_meta, etho_rules)
+
+        # print(trial["name"])
+
+        # compute trajectory
+        Traj_full = Trajectory(xy, cm_per_pixel=cfg.cm_per_pixel, 
+                               lever_position=anchors_position["lever"], 
+                               frame_width=cfg.frame_width_px)
+        Traj_pad_off = Trajectory(xy_pad_off, cm_per_pixel=cfg.cm_per_pixel, 
+                                  lever_position=anchors_position["lever"],
+                                  frame_width=cfg.frame_width_px)
+        
+        
+        trial[cfg.bodypart]["average_velocity"] = Traj_pad_off.mean_speed()
+        trial[cfg.bodypart]["peak_velocity"] = Traj_pad_off.peak_speed()
+        trial[cfg.bodypart]["relative_mean_velocity"] = Traj_pad_off.relative_mean_speed(view=trial["camera_view"])
+        trial[cfg.bodypart]["pre_post_velocity"] = Traj_pad_off.pre_post_velocity(time_pad_off=time_pad_off)
+
+        trial[cfg.bodypart]["instant_velocity"] = Traj_full.instant_velocity()
+        trial[cfg.bodypart]["acceleration"] = Traj_full.acceleration()
+        trial[cfg.bodypart]["relative_velocity"] = Traj_full.relative_speed(view=trial["camera_view"])
+        trial[cfg.bodypart]["lever_distance"] = Traj_full.lever_bodypart_distance()
+        trial[cfg.bodypart]["tortuosity"] = Traj_full.tortuosity(time_pad_off=time_pad_off)
+        trial[cfg.bodypart]["tortuosity_laser_period"] = Traj_full.tortuosity(time_pad_off=time_pad_off, fixed_period=cfg.laser_on_duration + 0.025)
+
+
+        trial[cfg.bodypart]["xy_pad_off"] = xy_pad_off
+        trial[cfg.bodypart]["xy_laser_on"] = xy_laserOn
+        trial[cfg.bodypart]["xy_reward"] = xy_reward
+
+
+
 
         Boxes = BehaviorBox(xy_lever=anchors_position["lever"],
                             xy_pad=anchors_position["pad"],
@@ -173,8 +183,10 @@ process_time = (end - start) # sec
 print(f"\nNumber of trial processed: {nb}")
 print(f"Computation time: {process_time:.2f} s")
 
+res = input("Do you want to annotate videos with the Behavior Boxes ? (y/n) : ")
 
-print("\nAnnotating video to verify Behavior Boxes\n")
-verify_behavior_box(cfg, file_to_compute)
+if res == "y" : 
+    print("\nAnnotating video to verify Behavior Boxes\n")
+    verify_behavior_box(cfg, file_to_compute)
 
 print("Done !")

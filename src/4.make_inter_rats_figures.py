@@ -36,8 +36,8 @@ check_analysis_choice(filenames, plot_choice)
 
 if plot_choice["plot_metadata"] : 
 
-    print(f"\nMaking inter rat metadata report\n")
-    ir.inter_rat_metadata_report(cfg, [cfg.rat_type], file_to_process_list)
+    # print(f"\nMaking inter rat metadata report\n")
+    # ir.inter_rat_metadata_report(cfg, [cfg.rat_type], file_to_process_list)
 
     print(f"\nPlotting overall trials failure reason\n")
     pp.plot_trial_failure_reason(cfg, [cfg.rat_type], file_to_process_list, inter_rat=True)
@@ -67,10 +67,8 @@ if plot_choice["plot_velocity_per_rat"] :
         g.set_axis_labels("Time (sec)", "Velocity (cm.s$^{-1}$)")
         g.set_titles(col_template="{col_name}", row_template="{row_name}")
 
-        g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency", f"velocity_tendency_per_rats_{error_name}_{CONTEXT}.png"))
-        g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency", f"velocity_tendency_per_rats_{error_name}_{CONTEXT}.svg"))
-
-
+        g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency" / "velocity", f"{cfg.rat_type}_velocity_tendency_per_rats_{error_name}_{CONTEXT}.png"))
+        g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency" / "velocity", f"{cfg.rat_type}_velocity_tendency_per_rats_{error_name}_{CONTEXT}.svg"))
 
 
 if plot_choice["plot_velocity_mean_tendency"] : 
@@ -87,17 +85,58 @@ if plot_choice["plot_velocity_mean_tendency"] :
         g.set_axis_labels("Time (sec)", "Velocity (cm.s$^{-1}$)")
         g.set_titles(col_template="{col_name}", row_template="{row_name}")
 
-        g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency", f"mean_velocity_tendency_{error_name}_{CONTEXT}.png"))
-        g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency", f"mean_velocity_tendency_{error_name}_{CONTEXT}.svg"))
+        g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency" / "velocity", f"{cfg.rat_type}_mean_velocity_tendency_{error_name}_{CONTEXT}.png"))
+        g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency" / "velocity", f"{cfg.rat_type}_mean_velocity_tendency_{error_name}_{CONTEXT}.svg"))
+
+
+#######"" Acceleration
+
+if plot_choice["plot_acceleration_per_rat"] : 
+                
+    data = ir._preprocess_tendency(cfg, file_to_process_list, "acceleration")
+
+    for error_function in ["sem"] :
+        error_name = error_function if error_function is not None else ""
+            
+        g = ir._plot_tendency_per_rat(cfg, data, error_function)
+
+        g.figure.suptitle(f"Acceleration tendency of rat {cfg.inter_rat.rats} - (error: {error_name})\nNumber of trials: {len(data.groupby('id'))}", ha='center')
+        g.figure.subplots_adjust(top=0.80)
+        g.set_axis_labels("Time (sec)", "Acceleration (cm.s$^{-2}$)")
+        g.set_titles(col_template="{col_name}", row_template="{row_name}")
+
+        g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency" / "acceleration", f"{cfg.rat_type}_acc_tendency_per_rats_{error_name}_{CONTEXT}.png"))
+        g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency" / "acceleration", f"{cfg.rat_type}_acc_tendency_per_rats_{error_name}_{CONTEXT}.svg"))
+
+
+
+if plot_choice["plot_acceleration_tendency"] : 
+                
+    data = ir._preprocess_tendency(cfg, file_to_process_list, "acceleration")
+
+    for error_function in ["sem"] :
+        error_name = error_function if error_function is not None else ""
+            
+        g = pc._plot_tendency(data, error_function)
+
+        g.figure.suptitle(f"Acceleration tendency of rat {cfg.inter_rat.rats} - (error: {error_name})\nNumber of trials: {len(data.groupby('id'))}", ha='center')
+        g.figure.subplots_adjust(top=0.80)
+        g.set_axis_labels("Time (sec)", "Acceleration (cm.s$^{-2}$)")
+        g.set_titles(col_template="{col_name}", row_template="{row_name}")
+
+        g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency" / "acceleration", f"{cfg.rat_type}_acc_tendency_{error_name}_{CONTEXT}.png"))
+        g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency" / "acceleration", f"{cfg.rat_type}_acc_tendency_{error_name}_{CONTEXT}.svg"))
+
+
 
 
 # lever distance
 
-if plot_choice["plot_lever_distance"] : 
+if plot_choice["plot_lever_distance_per_rat"] : 
                 
-    data = ir._preprocess_tendency(cfg, file_to_process_list, "lever_distance", "distance")
+    data = ir._preprocess_tendency(cfg, file_to_process_list, "lever_distance", "distance", crop_laserstim=False)
 
-    for error_function in [None, "pi","sem"] :
+    for error_function in ["sem"] :
         error_name = error_function if error_function is not None else ""
     
         g = ir._plot_tendency_per_rat(cfg, data, error_function)
@@ -107,8 +146,26 @@ if plot_choice["plot_lever_distance"] :
         g.set_axis_labels("Time (sec)", "Distance (cm)")
         g.set_titles(col_template="{col_name}", row_template="{row_name}")
 
-        g.savefig(make_output_path(cfg.paths.inter_rat / f"lever_distance", f"lever_distance_{error_name}_{CONTEXT}.png"))
-        g.savefig(make_output_path(cfg.paths.inter_rat / f"lever_distance", f"lever_distance_{error_name}_{CONTEXT}.svg"))
+        g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency" / "lever_distance_whole_time", f"{cfg.rat_type}_lever_distance_per_rat{error_name}_{CONTEXT}.png"))
+        g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency" / "lever_distance_whole_time", f"{cfg.rat_type}_lever_distance_per_rat{error_name}_{CONTEXT}.svg"))
+
+
+if plot_choice["plot_lever_distance"] : 
+                
+    data = ir._preprocess_tendency(cfg, file_to_process_list, "lever_distance", "distance", crop_laserstim=False)
+
+    for error_function in ["sem"] :
+        error_name = error_function if error_function is not None else ""
+    
+        g = pc._plot_tendency(data, error_function)
+
+        g.figure.suptitle(f"Distance between lever and {cfg.bodypart} of rat {cfg.inter_rat.rats} {error_name}\nNumber of trials: {len(data.groupby('id'))}", ha='center')
+        g.figure.subplots_adjust(top=0.80)
+        g.set_axis_labels("Time (sec)", "Distance (cm)")
+        g.set_titles(col_template="{col_name}", row_template="{row_name}")
+
+        g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency" / "lever_distance_whole_time", f"{cfg.rat_type}_lever_distance_{error_name}_{CONTEXT}.png"))
+        g.savefig(make_output_path(cfg.paths.inter_rat / f"tendency" / "lever_distance_whole_time", f"{cfg.rat_type}_lever_distance_{error_name}_{CONTEXT}.svg"))
 
 
 ################## setup + print d'info
@@ -141,36 +198,68 @@ if plot_choice["plot_lever_distance"] :
 
 if plot_choice["plot_statistics"] : 
 
-    # merged laserOff
+
+    # #----------------------- merge off + different visualisation -----------------------------
+
+    # comparisons = [
+    #             # Conti vs Beta
+    #             ("Conti_LaserOff.low",  "Beta_LaserOff.low"),
+    #             ("Conti_LaserOn.low",   "Beta_LaserOn.low"),
+
+    #             # Off vs On
+    #             ("Conti_LaserOff.low",  "Conti_LaserOn.low"),
+    #             ("Beta_LaserOff.low",   "Beta_LaserOn.low"),
+    #         ]
+    
+    # merge off
     comparisons = [
-                # conti vs beta
-                ("Conti.low",  "Beta.low"),
-                ("Conti.high", "Beta.high"),
-
-                # low vs high
-                ("LaserOff.high", "Conti.high"),
-                ("LaserOff.high",  "Beta.high"),
-                ("LaserOff.low",    "Beta.low"),
+                # Conti vs Beta
+                ("LaserOff.low",  "Beta.low"),
                 ("LaserOff.low",   "Conti.low"),
-
-                # condition high vs condition low
-                ("Conti.low", "Conti.high"),
-                ("Beta.low",  "Beta.high"),
-
-                # Beta high ON vs Conti low ON 
-                # (because conti low is suppose to be as damagefull as the beta high)
-                ("Beta.high", "Conti.low")
+                ("Beta.low", "Conti.low")
             ]
 
-    print(f"\n ------ computing statistics on average velocity ------\n")
     ir.plot_statistics(cfg, file_to_process_list, "average_velocity", comparisons, 
                     merge_laserOff=True, per_rats=False)
+    
+    # ir.plot_statistics(cfg, file_to_process_list, "tortuosity", comparisons, 
+    #                 merge_laserOff=True, per_rats=False)
 
-    print(f"\n ------ computing statistics on tortuosity ------\n")
-    ir.plot_statistics(cfg, file_to_process_list, "tortuosity", comparisons, merge_laserOff=True)
+    #---------------------- merged laserOff -----------------------------
+
+    # comparisons = [
+    #             # conti vs beta
+    #             ("Conti.low",  "Beta.low"),
+    #             ("Conti.high", "Beta.high"),
+
+    #             # low vs high
+    #             ("LaserOff.high", "Conti.high"),
+    #             ("LaserOff.high",  "Beta.high"),
+    #             ("LaserOff.low",    "Beta.low"),
+    #             ("LaserOff.low",   "Conti.low"),
+
+    #             # condition high vs condition low
+    #             ("Conti.low", "Conti.high"),
+    #             ("Beta.low",  "Beta.high"),
+
+    #             # Beta high ON vs Conti low ON 
+    #             # (because conti low is suppose to be as damagefull as the beta high)
+    #             ("Beta.high", "Conti.low"),
+    #             ("Beta.low", "Conti.high")
+    #         ]
+
+    # # print(f"\n  computing statistics on average velocity n")
+    # # ir.plot_statistics(cfg, file_to_process_list, "average_velocity", comparisons, 
+    # #                 merge_laserOff=True, per_rats=False)
+
+    # print(f"\n  computing statistics on tortuosity n")
+    # ir.plot_statistics(cfg, file_to_process_list, "tortuosity", comparisons, merge_laserOff=True)
+
+    # print(f"\n  computing statistics on tortuosity DURING LASER STIM ONLY n")
+    # # ir.plot_statistics(cfg, file_to_process_list, "tortuosity_laser_period", comparisons, merge_laserOff=True)
 
 
-
+    # -------------------------- not merged -----------------------------------
 
     # comparisons = [
     #             # Conti vs Beta
@@ -213,7 +302,7 @@ if plot_choice["plot_permutation"] :
 
     n_perm = 100000
 
-    for metric in ["average_velocity"] :
+    for metric in ["tortuosity_laser_period"]: #"average_velocity"] :
 
         print("="*60)
         print(f"\nSize effect of LOW laser intensity, metric={metric} :")
@@ -398,5 +487,121 @@ if plot_choice["plot_velocity_effect_size"] :
     displot_data = ir._preprocess(cfg, filenames=file_to_process_list, METRIC= "average_velocity", merge_laserOff=True)
     print(displot_data)
     _make_displot(cfg, displot_data, "average velocity")
+
+
+
+
+
+
+if plot_choice["plot_pre_post_velocity"] : 
+    
+    data = pd.DataFrame()
+
+    for i, metrics_path in enumerate(file_to_process_list) :
+        metrics = load_trial_data(Path(metrics_path))
+
+        for trial in metrics : 
+
+            if not trial[cfg.bodypart]["trial_success"] : 
+                continue
+
+            condition = trial["condition"]
+            laser_state = trial["laser_state"]
+
+            pre_velo, post_velo = trial[cfg.bodypart]["pre_post_velocity"]
+
+            if trial["laser_intensity"] == "0,5mW" or trial["laser_intensity"] == "1mW" : laser_intensity = "low" 
+            elif trial["laser_intensity"] == "NOstim" : laser_intensity = "NOstim" 
+            else : laser_intensity = "high"
+
+
+            df = pd.DataFrame({
+                "pre_velo": [pre_velo],
+                "post_velo": [post_velo],
+                "condition": [condition],
+                "laser_state": [laser_state],
+                "laser_intensity": [laser_intensity]
+            })
+
+            data = pd.concat([data, df], ignore_index=True)
+
+    data.to_csv(make_output_path(cfg.paths.inter_rat / f"pre_post_velocity_scatterplot", f"data.csv"))
+
+    pc.plot_pre_post_velocity(cfg, data, inter_rat=True)
+
+
+
+
+if plot_choice["plot_cluster"] :
+    import rats_kinematics_utils.analysis.clustering as c
+    import joblib, time
+    from sklearn.cluster import HDBSCAN
+
+
+    # get all traj
+    all_traj, true_labels = c.extract_trajectories(cfg, file_to_process_list)
+    print(len(all_traj[0]), len(true_labels))
+
+
+    # plot traj to be sure they are all in the same direction
+    ax = c.plot_trajectories(cfg, all_traj, true_labels)
+    fig = ax.figure
+    fig.savefig(make_output_path(cfg.paths.inter_rat / "clustering" , f"{cfg.rat_type}_stacked_traj.png"))
+
+    # make the matrix or load it
+    matrix_path = cfg.paths.inter_rat / "clustering" / f"{cfg.rat_type}_matrix.joblib"
+    if matrix_path.exists(): 
+        print("\nDistance matrix has already been computed")
+        res = input("Do you want to overwrite ? (y/n) : ")
+    else : res = "y"
+
+    if res == "y" or res == "Y" : 
+        print("making matrix...")
+
+        start = time.perf_counter()
+        dist_matrix = c.make_distance_matrix(all_traj)
+        stop = time.perf_counter()
+
+        print(f"Processing time: {(stop - start) // 60} min")
+        joblib.dump(dist_matrix, make_output_path(cfg.paths.inter_rat / "clustering", f"{cfg.rat_type}_matrix.joblib"))
+
+    if res == "n" or res == "n" : 
+        print("Loading distance matrix...")
+        dist_matrix = joblib.load(matrix_path)
+
+    # display distance matrix
+    fig = c.display_distance_matrix(dist_matrix, f"Distance Matrix of rat : {cfg.rat_name}", show=SHOW)
+    fig.savefig(make_output_path(cfg.paths.inter_rat / "clustering" , f"{cfg.rat_type}_matrix.png"))
+
+    # launch HDBSCAN
+    print("lauching HDBSCAN...")
+
+    hdbscan = HDBSCAN(
+        metric='precomputed',  # for distance matrix
+        min_cluster_size=8,
+        min_samples=1, 
+        cluster_selection_method='leaf',
+        allow_single_cluster=True,
+    )
+
+    pred_labels = hdbscan.fit_predict(dist_matrix)
+
+    n_clusters = len(set(pred_labels)) - (1 if -1 in pred_labels else 0)
+    print("Clusters (excluding noise):", n_clusters)
+
+    if n_clusters < 20 :
+        fig = c.plot_clustered_trajectories(cfg, all_traj, 
+                                        true_labels, 
+                                        pred_labels, 
+                                        show_noise=True,
+                                        col_wrap=4 if n_clusters >= 4 else 3)
+        fig.savefig(make_output_path(cfg.paths.inter_rat / "clustering" , f"{cfg.rat_type}_dtw_clustsize6_by_predlabel.png"))
+        if SHOW : 
+            plt.show()
+        plt.close()
+
+
+        fig = c.plot_true_clustered_traj(cfg, all_traj, true_labels, pred_labels)
+        fig.savefig(make_output_path(cfg.paths.inter_rat / "clustering" , f"{cfg.rat_type}_dtw_clustsize6_by_truelabel.png"))
 
 print("Done !")

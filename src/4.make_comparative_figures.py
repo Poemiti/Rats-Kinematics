@@ -216,12 +216,14 @@ def _preprocess_violin(METRIC: str, split_condition: bool = False) -> pd.DataFra
 
             name = trial["filename_clips"].stem
             rat = name[4:8]
+            laser_stim = trial["condition"]
             
             if split_condition : 
                 condition = trial["condition"]
                 laser_state = trial["laser_state"]
             else : 
                 condition = trial["condition"] + "_" + trial["laser_state"]
+                laser_state = trial["laser_state"]
             reward = "yes" if trial["reward"] else "no"
 
             
@@ -232,8 +234,9 @@ def _preprocess_violin(METRIC: str, split_condition: bool = False) -> pd.DataFra
             df = pd.DataFrame({
                 "value": [trial[cfg.bodypart][METRIC]],
                 "rat": [rat],
+                "laser_stim": [laser_stim],
                 "condition": [condition],
-                "laser_state": [laser_state if split_condition else None],  
+                "laser_state": [laser_state],  
                 "laser_intensity": [laser_intensity],
                 "reward" : [reward]
             })
@@ -321,9 +324,54 @@ def _make_violin_stat(data, metric) :
 
 
 
+
+# # -------------------------------------- alternative one for low only and laser off merged ----------------------------
+
+# def _make_violin_stat(data, metric) : 
+#     data = data[data["laser_intensity"] == "low"]
+#     print(data)
+
+#     comparisons = [
+#                 # Conti vs Beta
+#                 ("Conti_LaserOff.low",  "Beta_LaserOff.low"),
+#                 ("Conti_LaserOn.low",   "Beta_LaserOn.low"),
+
+#                 # Off vs On
+#                 ("Conti_LaserOff.low",  "Conti_LaserOn.low"),
+#                 ("Beta_LaserOff.low",   "Beta_LaserOn.low"),
+#             ]
+    
+#     stats_res = compute_statistics(data, comparisons)
+
+
+#     if "mann_whitney" in stats_res.keys() :
+#         pairwise_results = stats_res["mann_whitney"] 
+#         significant_pair = pairwise_results[pairwise_results["p_value"] < 0.05]
+
+#         fig = pc._plot_violin_statistic(cfg, data, significant_pair, 
+#                                         order=["LaserOff", "LaserOn"],
+#                                         strip=False)
+#         fig.suptitle(f"{metric} distribution for rat {cfg.rat_name}")
+#         fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution",  f"{cfg.rat_type}_stat_violin_{metric}_{cfg.rat_name}_{CONTEXT}_LOW.png"))
+#     else : 
+
+#         print("\nNo Mann Whitney came significant !")
+
+#         fig = pc._plot_violin_statistic(cfg, data, statistics=None, 
+#                                         order=["LaserOff", "LaserOn"],
+#                                         strip=False)
+#         fig.suptitle(f"{metric} distribution for rat {cfg.rat_name}")
+#         fig.savefig(make_output_path(cfg.paths.analysis / "violin_distribution",  f"{cfg.rat_type}_stat_violin_{metric}_{cfg.rat_name}_{CONTEXT}_LOW.png"))
+
+#     if SHOW : 
+#             plt.show()
+#     plt.close()
+
+
 if plot_choice["plot_violin_stat_velocity"] : 
     metric = "average_velocity"
     data = _preprocess_violin(METRIC= metric, split_condition=False)
+    # print(data)
     _make_violin_stat(data, metric)
 
 
@@ -331,6 +379,7 @@ if plot_choice["plot_violin_stat_velocity"] :
 if plot_choice["plot_violin_stat_tortuosity"] : 
     metric = "tortuosity"
     data = _preprocess_violin(METRIC= metric, split_condition=False)
+    print(data)
     _make_violin_stat(data, metric)
 
 

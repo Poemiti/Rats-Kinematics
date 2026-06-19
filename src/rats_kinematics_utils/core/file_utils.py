@@ -420,13 +420,13 @@ def filter_contra_trials(cfg, single_rat: bool = False):
                 print("  ", file.stem, "-NOT RIGHT LASER INTENSITY")
                 continue
 
-            if cfg.inter_rat.contra_hemi[rat] != hemi: 
-                print("  ", file.stem, "-NOT CONTRA")
-                continue
+            # if cfg.inter_rat.contra_hemi[rat] != hemi: 
+            #     print("  ", file.stem, "-NOT CONTRA")
+            #     continue
 
-            if view in hemi :       # view must be contra lateral to the camera view
-                print("  ", file.stem, "-NOT RIGHT VIEW")
-                continue
+            # if view in hemi :       # view must be contra lateral to the camera view
+            #     print("  ", file.stem, "-NOT RIGHT VIEW")
+            #     continue
             
             print("  ", file.stem)
             filtered_files.append(file)

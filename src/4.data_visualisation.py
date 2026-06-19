@@ -15,8 +15,11 @@ import rats_kinematics_utils.preprocessing.plot_preprocess as pp
 cfg = load_config()
 print_analysis_info(cfg, "Preprocessing")
 
-filenames = filter_contra_trials(cfg, single_rat=True)
+filenames = filter_contra_trials(cfg, single_rat=False)
 yaml_filenames = list((cfg.paths.raw_clips).rglob("*.yaml"))
+
+inter_rat_filenames = [item for lst in filenames.values() for item in lst]
+
 
 # print("\nPlotting behavior rate\n")
 # pp.clip_behavior_rate(cfg, filenames)
@@ -26,8 +29,8 @@ yaml_filenames = list((cfg.paths.raw_clips).rglob("*.yaml"))
 # print("\nPlotting likelihood distribution of all bodyparts\n")
 # pp.plot_likelihood_distribution(cfg, yaml_filenames)
 
-print("\nPlotting metadata report\n")
-pp.metadata_report(cfg, yaml_filenames)
+# print("\nPlotting metadata report\n")
+# pp.metadata_report(cfg, yaml_filenames)
 
 # print("\nPlotting likelihood across frame of each trials\n")
 # pp.plot_likelihood_across_frames(cfg, filenames)
@@ -35,17 +38,20 @@ pp.metadata_report(cfg, yaml_filenames)
 # print("\nPlotting the distribution of the failure reason\n")
 # pp.plot_trial_failure_reason(cfg, [cfg.rat_type] ,filenames, inter_rat=False)
 
-sys.exit()
+# sys.exit()
 
 # print("\nPlotting the distribution of the failure reason DETAIL VERSION\n")
 # pp.plot_trial_failure_reason_detail(cfg, filenames)
 
-# print("\nPlotting the distribution of clip success\n")
-# pp.plot_manual_clip_success_distri(cfg, filenames)
+print("\nPlotting the distribution of clip success\n")
+pp.plot_manual_clip_success_distri(cfg, inter_rat_filenames, output_dir=cfg.paths.inter_rat)
+
+print("\nPlotting the distribution of traj preprocessing success\n")
+pp.plot_manual_traj_success_distri(cfg, inter_rat_filenames, output_dir=cfg.paths.inter_rat)
 
 
-print("\nAnnotating video to verify Behavior Boxes\n")
-pp.verify_behavior_box(cfg, filenames)
+# print("\nAnnotating video to verify Behavior Boxes\n")
+# pp.verify_behavior_box(cfg, filenames)
 
 sys.exit()
 

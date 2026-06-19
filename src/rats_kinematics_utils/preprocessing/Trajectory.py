@@ -11,7 +11,7 @@ class Trajectory:
                 fps: int = 125,
                 frame_width: float = 512,
                 cm_per_pixel: float | None = None,
-                lever_position: float | None = None, 
+                lever_position: float | None = (55, 230), 
             ):
         """
         Parameters
@@ -27,7 +27,7 @@ class Trajectory:
         self.fps = fps
         self.dt = 1 / fps
         self.cm_per_pixel = cm_per_pixel
-        self.lever_position = lever_position if lever_position is not None else (55, 230)
+        self.lever_position = lever_position
         self.frame_width = frame_width  # in pixel
 
     # ------------------- internal helpers -------------------
@@ -75,16 +75,85 @@ class Trajectory:
 
         disp = self._scale(end - start)
         return np.linalg.norm(disp)
+    
 
-    def tortuosity(self, coords: pd.DataFrame | None = None) -> float:
-        """Path length / straight-line distance."""
+    def _get_lever_reaching_time(self, coords: pd.DataFrame, lever_pos: tuple[int, int]) -> float: 
+        """Return the time at which the coordinates where as close 
+        a possible to the lever position"""
+
+        lever_x, lever_y = lever_pos
+
+        # measure distance between coords and lever
+        distances = np.sqrt(
+            (coords["x"] - lever_x) ** 2 +
+            (coords["y"] - lever_y) ** 2
+        )
+
+        # return the time at which the distance was the smallest 
+        return coords.loc[distances.idxmin(), "t"]
+    
+
+    def _show_traj(self, coords: pd.DataFrame):
+        import matplotlib.pyplot as plt
+
+        x = coords["x"]
+        y = coords["y"]
+
+        fig, ax = plt.subplots(figsize=(8, 6))
+
+        ax.plot(x, y, lw=1.5)
+        
+        ax.set_ylim(0, 512)
+        ax.set_xlim(0, 512)
+
+        ax.set_title("Trajectory")
+        ax.set_xlabel("X position (px)")
+        ax.set_ylabel("Y position (px)")
+        ax.invert_yaxis()
+
+        plt.show()
+        plt.close()
+
+    def tortuosity(self, coords: pd.DataFrame | None = None, 
+                   time_pad_off: float = 0,
+                   lever_pos: tuple[int, int] = None,
+                   fixed_period: float = None) -> float:
+        """Path length to get to the lever / straight-line distance from pad off to lever."""
         if coords is None:
             coords = self.coords
+        if lever_pos is None: 
+            lever_pos = self.lever_position
 
-        direct = self.net_displacement(coords)
+        if fixed_period is not None: 
+            # crop from pad off to the fixed period (laser off generally)
+            cropped_coords = coords.loc[(coords["t"] >= time_pad_off) &
+                                        (coords["t"] <= time_pad_off + fixed_period)].reset_index(drop=True)
+            
+            # calculated straigth distance between pad off and lever position
+            dist = self._scale(lever_pos - cropped_coords[["x", "y"]].iloc[0])
+            direct = np.linalg.norm(dist)
+
+            # self._show_traj(cropped_coords)  # for debugging
+            
+        else : 
+
+            # crop at pad off to skip beginning
+            pad_off_coords = coords.loc[coords["t"] >= time_pad_off].reset_index(drop=True)
+
+            # crop coordinates from the pad off to the lever reach
+            time_reach_lever =  self._get_lever_reaching_time(pad_off_coords, lever_pos)
+            cropped_coords = pad_off_coords.loc[coords["t"] <= time_reach_lever].reset_index(drop=True)
+            
+            direct = self.net_displacement(cropped_coords)
+
+            # self._show_traj(cropped_coords)  # for debugging
+        
         if direct == 0:
-            return np.nan
-        return self.path_length(coords) / direct
+            print("\nDIRECT IS 0")
+            print(cropped_coords[["x", "y"]].iloc[0], lever_pos)
+            return 0
+
+        return self.path_length(cropped_coords) / direct
 
     # ------------------- time -------------------
 

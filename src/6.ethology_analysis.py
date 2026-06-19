@@ -43,7 +43,7 @@ if plot_choice["plot_trajectory_behavior"] :
         g.set_axis_labels("x (cm)", "y (cm)")
         g.figure.subplots_adjust(top=0.88)
         g.figure.suptitle(f"Behavior analysis{cfg.rat_name}\nLaser intensity: {laser_intensity} - Number of trials: {len(subset.groupby('id'))}", ha='center')
-        g.savefig(make_output_path(cfg.paths.analysis / f"behavior" / "trajectories", f"trajectories_{laser_intensity}{crop_name}.png"))
+        g.savefig(make_output_path(cfg.paths.analysis / f"{cfg.rat_type}_behavior" / "trajectories", f"trajectories_{laser_intensity}{crop_name}.png"))
 
 
 if plot_choice["plot_time_in_behavior_space"] : 
@@ -57,7 +57,7 @@ if plot_choice["plot_time_in_behavior_space"] :
         g.set_titles(row_template="{row_name}", col_template="{col_name}")
         g.figure.subplots_adjust(top=0.88)
         g.figure.suptitle(f"Behavior proportion of rat {cfg.rat_name}\nLaser intensity: {laser_intensity} - Number of trials: {len(subset.groupby('id'))}", ha='center')
-        g.savefig(make_output_path(cfg.paths.analysis / f"behavior", f"time_spend_per_behavior_{laser_intensity}.png"))
+        g.savefig(make_output_path(cfg.paths.analysis / f"{cfg.rat_type}_behavior", f"time_spend_per_behavior_{laser_intensity}.png"))
 
 
 
@@ -107,7 +107,7 @@ if plot_choice["plot_behavior_proba_all"] :
 if plot_choice["plot_behavior_proba_per_behavior"] : 
 
     data_proba = bp.preprocess_proba(cfg, filenames)
-    bp.plot_behavior_proba_per_behavior(cfg, data_proba)
+    bp.plot_behavior_proba_per_behavior(cfg, data_proba, output_dir=cfg.paths.analysis)
 
 
 print("Done !")

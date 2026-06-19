@@ -71,7 +71,7 @@ def kruskal_test(group):
             "p_value": None
         })
     
-    stat, p = stats.kruskal(*samples)
+    stat, p = stats.kruskal(*samples, nan_policy="omit")
     
     return pd.Series({
         "n_groups": len(samples),
@@ -94,9 +94,13 @@ def mann_whitney(data: pd.DataFrame, comparisons: list) :
     for g1, g2 in comparisons:
         x = data.loc[data["group"] == g1, "value"]
         y = data.loc[data["group"] == g2, "value"]
+
+        print(g1, len(x), np.isnan(x).sum())
+        print(g2, len(y), np.isnan(y).sum())
+
         
         if len(x) > 0 and len(y) > 0:
-            stat, p = stats.mannwhitneyu(x, y, alternative="two-sided")
+            stat, p = stats.mannwhitneyu(x, y, alternative="two-sided", nan_policy="omit")
         else:
             stat, p = None, None
         
@@ -153,6 +157,7 @@ def compute_statistics(data: pd.DataFrame, comparisons: list[tuple[str, str]]) :
 
     print("\n========== 3. Mann Whitney pairwise comparaison:")
     pairwise_results = mann_whitney(data, comparisons)
+    print(pairwise_results)
     
     print("\nsignificant: ")
     print(pairwise_results[pairwise_results["p_adj"] < 0.05])
@@ -201,6 +206,10 @@ def LMM(data, formula):
 
 ############ permutation ##################
 
+def cohens_d_paired(x1, x2):
+    diff = np.asarray(x1) - np.asarray(x2)
+    return np.mean(diff) / np.std(diff, ddof=1)
+
 
 def transform_data(data) : 
     # transformed  =  stats.zscore(data)
@@ -210,13 +219,38 @@ def transform_data(data) :
 
 
 
+# def permutation(group1, group2, n_perm=10000):
+#     values1 = group1["value"].to_numpy()
+#     values2 = group2["value"].to_numpy()
+    
+#     # transform value to normalise
+#     # values1 = transform_data(values1)
+#     # values2 = transform_data(values2)
+
+#     n1 = len(values1)
+#     n2 = len(values2)
+#     print(n1, n2)
+#     combined = np.concatenate([values1, values2])
+    
+#     # observed difference
+#     observed_diff = np.abs(values1.mean() - values2.mean())
+    
+#     perm_diff = np.zeros(n_perm)
+#     for i in range(n_perm):
+#         shuffled = np.random.permutation(combined)
+#         perm_diff[i] = np.abs(shuffled[:n1].mean() - shuffled[n1:n1+n2].mean())
+    
+#     # two-tailed p-value
+#     p_value = np.mean(perm_diff >= observed_diff)
+    
+#     return observed_diff, perm_diff, p_value
+
+
+# permutation taking the direction into acount (=no absolute difference)
+
 def permutation(group1, group2, n_perm=10000):
     values1 = group1["value"].to_numpy()
     values2 = group2["value"].to_numpy()
-    
-    # transform value to normalise
-    # values1 = transform_data(values1)
-    # values2 = transform_data(values2)
 
     n1 = len(values1)
     n2 = len(values2)
@@ -224,19 +258,17 @@ def permutation(group1, group2, n_perm=10000):
     combined = np.concatenate([values1, values2])
     
     # observed difference
-    observed_diff = np.abs(values1.mean() - values2.mean())
+    observed_diff = values1.mean() - values2.mean()
     
     perm_diff = np.zeros(n_perm)
     for i in range(n_perm):
         shuffled = np.random.permutation(combined)
-        perm_diff[i] = np.abs(shuffled[:n1].mean() - shuffled[n1:n1+n2].mean())
+        perm_diff[i] = shuffled[:n1].mean() - shuffled[n1:n1+n2].mean()
     
     # two-tailed p-value
-    p_value = np.mean(perm_diff >= observed_diff)
+    p_value = np.mean(perm_diff <= observed_diff)
     
     return observed_diff, perm_diff, p_value
-
-
 
 
 def compute_permutation_effect_size(data: pd.DataFrame, n_perm: int) -> dict : 
@@ -276,6 +308,10 @@ def compute_permutation_effect_size(data: pd.DataFrame, n_perm: int) -> dict :
     b_observed_diff, b_perm_diff, b_pval = permutation(beta_on, off, n_perm)
     c_observed_diff, c_perm_diff, c_pval = permutation(conti_on, off, n_perm)
     bc_observed_diff, bc_perm_diff, bc_pval = permutation(conti_on, beta_on, n_perm)
+
+    print("Beta vs OFF", b_pval)
+    print("Conti vs OFF", c_pval)
+    print("Beta vs Conti", bc_pval)
 
     results = [
         {
